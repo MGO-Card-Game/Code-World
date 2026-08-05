@@ -17,10 +17,29 @@ import {
 const TOKEN_KEY = "dicebound.playerToken";
 const NAME_KEY = "dicebound.playerName";
 
+function createPlayerToken() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  // randomUUID 只在安全上下文（HTTPS/localhost）和较新的浏览器中可用。
+  // getRandomValues 的兼容范围更广，可用于 cpolar 的临时 HTTP 入口。
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0"));
+    return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
+  }
+
+  // 极旧浏览器的最后兜底；token 只作为断线重连时的玩家标识。
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function loadPlayerToken() {
   const existing = localStorage.getItem(TOKEN_KEY);
   if (existing) return existing;
-  const token = crypto.randomUUID();
+  const token = createPlayerToken();
   localStorage.setItem(TOKEN_KEY, token);
   return token;
 }

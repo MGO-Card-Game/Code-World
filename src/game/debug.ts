@@ -6,6 +6,12 @@ import type {
   PlayerId,
   ScrollKind,
 } from "./types";
+import {
+  EQUIPMENT,
+  EQUIPMENT_SLOT_LIMITS,
+  equipmentCategory,
+} from "./content/equipment";
+import { SCROLLS } from "./content/scrolls";
 
 /**
  * 调试用的状态工具。
@@ -18,8 +24,8 @@ import type {
  */
 
 /** 目前已实现的全部卷轴种类。GameRule 8.8 还规划了另外四种 */
-export const ALL_SCROLL_KINDS: ScrollKind[] = ["might", "guard"];
-export const ALL_EQUIPMENT_KINDS: EquipmentKind[] = ["sword", "shield", "charm"];
+export const ALL_SCROLL_KINDS = Object.keys(SCROLLS) as ScrollKind[];
+export const ALL_EQUIPMENT_KINDS = Object.keys(EQUIPMENT) as EquipmentKind[];
 
 function clone(state: GameState): GameState {
   return structuredClone(state);
@@ -72,22 +78,30 @@ export function debugClearScrolls(state: GameState, playerId: PlayerId): GameSta
 }
 
 /**
- * 每种装备各发一件。生命护符会改上限，这里按引擎的规则同步处理，
- * 否则调试出来的属性和正常流程对不上。
+ * 按槽位依次装入装备。生命上限修正按配置同步处理，
+ * 避免调试状态违反正式规则或与正常属性计算不一致。
  */
 export function debugGrantEquipment(state: GameState, playerId: PlayerId): GameState {
   const next = clone(state);
   const player = next.players[playerId];
   for (const kind of ALL_EQUIPMENT_KINDS) {
+    const category = equipmentCategory(kind);
+    const occupied = player.equipment.filter(
+      (item) => equipmentCategory(item.kind) === category,
+    ).length;
+    if (occupied >= EQUIPMENT_SLOT_LIMITS[category]) continue;
     const item: OwnedEquipment = {
       instanceId: `dbg-equip-${next.nextInstanceId}`,
       kind,
     };
     next.nextInstanceId += 1;
     player.equipment.push(item);
-    if (kind === "charm") {
-      player.maxHp += 4;
-      player.hp = Math.min(player.maxHp, player.hp + 4);
+    const maxHpBonus = EQUIPMENT[kind].modifiers
+      .filter((modifier) => modifier.type === "maxHp")
+      .reduce((sum, modifier) => sum + modifier.value, 0);
+    if (maxHpBonus > 0) {
+      player.maxHp += maxHpBonus;
+      player.hp = Math.min(player.maxHp, player.hp + maxHpBonus);
     }
   }
   next.lastEvents = [];
@@ -110,7 +124,10 @@ export function debugMoveTo(
   tileIndex: number,
 ): GameState {
   const next = clone(state);
-  next.players[playerId].position = Math.max(0, Math.min(17, tileIndex));
+  next.players[playerId].position = Math.max(
+    0,
+    Math.min(next.map.tiles.length - 1, tileIndex),
+  );
   next.lastEvents = [];
   return next;
 }

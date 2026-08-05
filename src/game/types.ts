@@ -1,17 +1,21 @@
+import type { EquipmentKind } from "./content/equipment";
+import type { ScrollKind } from "./content/scrolls";
+
+export type { EquipmentKind, ScrollKind };
+
 export type PlayerId = "player1" | "player2";
-export type ScrollKind = "might" | "guard";
 
 /**
  * 卷轴的使用时机（GameRule 8.9）。
  *
  * 决定一张牌归攻击方还是防守方打的是 timing，不是 kind——
- * 8.8 规划的六种卷轴里，力量/精准/狂暴都是 beforeAttackRoll，
- * 护盾/坚守/闪避都是 beforeDefenseRoll，但它们的 effectType 各不相同。
+ * 8.8 中力量/精准/狂暴属于 beforeAttackRoll，护盾/坚守/闪避属于
+ * beforeDefenseRoll；D20 与巨龙打击同时支持两个时机。
  * 第一阶段只开放这两个时机。
  */
 export type ScrollTiming = "beforeAttackRoll" | "beforeDefenseRoll";
-export type EquipmentKind = "sword" | "shield" | "charm";
 export type TileType = "start" | "battle" | "treasure" | "spring" | "event" | "boss";
+export type MapRegionId = "foothill" | "mountainside" | "summit";
 
 export interface OwnedScroll {
   instanceId: string;
@@ -47,10 +51,26 @@ export interface EnemyDefinition {
 
 export interface MapTile {
   id: number;
+  region: MapRegionId;
   type: TileType;
   label: string;
   enemyId?: string;
   safeZone?: boolean;
+}
+
+export interface MapRegion {
+  id: MapRegionId;
+  name: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+/** 一局实际使用的地图。地图随状态广播，客户端不会各自重新随机。 */
+export interface GameMap {
+  seed: number;
+  columns: number;
+  regions: MapRegion[];
+  tiles: MapTile[];
 }
 
 export type CombatSide = "a" | "b";
@@ -95,17 +115,27 @@ export interface PvpPenaltyState {
   tileIndex: number;
 }
 
+export interface EquipmentChoiceState {
+  playerId: PlayerId;
+  offered: OwnedEquipment;
+  source: "reward" | "transfer";
+  resume:
+    | { kind: "turnComplete" }
+    | { kind: "resolveTile"; tileIndex: number };
+}
+
 export type GamePhase =
   | { kind: "awaitingRoll" }
   | { kind: "turnComplete" }
   | { kind: "battle"; battle: BattleState }
   | { kind: "pvpPenalty"; penalty: PvpPenaltyState }
+  | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
   | { kind: "gameOver"; winnerId: PlayerId };
 
 export type HpChangeReason =
   | "spring"
   | "event"
-  | "charm"
+  | "equipment"
   | "defeatRecovery"
   | "pvpTransfer";
 
@@ -134,7 +164,7 @@ export type GameEventBody =
   | { type: "narration"; text: string; secret?: { owner: PlayerId; publicText: string } }
   | { type: "gameStarted"; starterId: PlayerId; rollP1: number; rollP2: number }
   | { type: "turnStarted"; playerId: PlayerId; turn: number }
-  | { type: "movementRolled"; playerId: PlayerId; value: number }
+  | { type: "movementRolled"; playerId: PlayerId; value: number; sides: number }
   | { type: "playerMoved"; playerId: PlayerId; from: number; to: number }
   | { type: "playerRetreated"; playerId: PlayerId; from: number; to: number }
   /** 玩家真实生命值变化。战斗中的临时生命值请看 battleDamage */
@@ -197,6 +227,8 @@ export type GameEventBody =
       type: "attackRolled";
       side: CombatSide;
       die: number;
+      dice: number[];
+      sides: number;
       base: number;
       scrollBonus: number;
       total: number;
@@ -205,6 +237,8 @@ export type GameEventBody =
       type: "defenseRolled";
       side: CombatSide;
       die: number;
+      dice: number[];
+      sides: number;
       base: number;
       scrollBonus: number;
       total: number;
@@ -239,6 +273,7 @@ export type GameEvent = WithEventId<GameEventBody>;
 
 export interface GameState {
   players: Record<PlayerId, Player>;
+  map: GameMap;
   activePlayerId: PlayerId;
   startingPlayerId: PlayerId;
   turn: number;
@@ -267,7 +302,9 @@ export type GameAction =
       choice: "resource" | "hp";
       resourceType?: "scroll" | "equipment";
       instanceId?: string;
-    };
+    }
+  /** 装备槽已满时，省略 replaceInstanceId 表示放弃新装备。 */
+  | { type: "chooseEquipment"; replaceInstanceId?: string };
 
 /**
  * 裁剪后的卷轴：对手只看得到牌背。

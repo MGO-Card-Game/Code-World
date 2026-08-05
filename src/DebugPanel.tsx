@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { MAP } from "./game/engine";
 import {
   debugClearScrolls,
   debugGrantEquipment,
@@ -68,6 +67,12 @@ export function DebugPanel({ state, onChange }: {
           <button onClick={() => onChange(debugGrantScroll(state, target, "guard"))}>
             +护盾
           </button>
+          <button onClick={() => onChange(debugGrantScroll(state, target, "fate"))}>
+            +D20
+          </button>
+          <button onClick={() => onChange(debugGrantScroll(state, target, "dragonStrike"))}>
+            +巨龙
+          </button>
           <button onClick={() => onChange(debugClearScrolls(state, target))}>清空</button>
         </div>
       </div>
@@ -97,7 +102,7 @@ export function DebugPanel({ state, onChange }: {
           value={player.position}
           onChange={(event) => onChange(debugMoveTo(state, target, Number(event.target.value)))}
         >
-          {MAP.map((tile) => (
+          {state.map.tiles.map((tile) => (
             <option value={tile.id} key={tile.id}>
               {String(tile.id).padStart(2, "0")} {tile.label}
             </option>

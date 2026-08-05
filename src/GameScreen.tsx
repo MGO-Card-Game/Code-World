@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { handCardLayout, handSpacing } from "./anim/handLayout";
 import { useEventQueue } from "./anim/useEventQueue";
@@ -10,13 +10,20 @@ import {
   visualMaxHp,
   visualPosition,
 } from "./anim/visualState";
-import { EQUIPMENT, SCROLLS, TILE_ICON } from "./game/content";
-import { getBattleParticipants, getSidePlayer, MAP, PLAYER_IDS } from "./game/engine";
+import {
+  EQUIPMENT,
+  EQUIPMENT_CATEGORY_NAMES,
+  equipmentCategory,
+} from "./game/content/equipment";
+import { SCROLLS, scrollDefinition } from "./game/content/scrolls";
+import { TILE_ICON } from "./game/content/tiles";
+import { getBattleParticipants, getSidePlayer, PLAYER_IDS } from "./game/engine";
 import { isHiddenScroll } from "./game/multiplayer";
-import { getAttack, getDefense } from "./game/selectors";
+import { getAttack, getDefense, getDieSidesBonus } from "./game/selectors";
 import type {
   BattleState,
   CombatSide,
+  EquipmentChoiceState,
   GameAction,
   GameStateView,
   OwnedScroll,
@@ -44,7 +51,7 @@ function visibleScrolls(scrolls: ScrollView[]): OwnedScroll[] {
 /** 视图版的可用卷轴筛选：看不见的牌不可能打得出 */
 function playableFromView(player: PlayerView, timing: ScrollTiming) {
   return visibleScrolls(player.scrolls).filter(
-    (scroll) => SCROLLS[scroll.kind].timing === timing,
+    (scroll) => scrollDefinition(scroll.kind).timings.includes(timing),
   );
 }
 
@@ -180,7 +187,10 @@ function ResourceModal({ player, playback, onClose }: {
                   whileHover={{ y: lift - 24, rotate: 0, scale: 1.09, zIndex: 60 }}
                   transition={SPRING}
                 >
-                  <span className="hand-card-sigil">{scroll.kind === "might" ? "攻" : "守"}</span>
+                  <span className={`card-rarity rarity-${SCROLLS[scroll.kind].rarity.toLowerCase()}`}>
+                    {SCROLLS[scroll.kind].rarity}
+                  </span>
+                  <span className="hand-card-sigil">{SCROLLS[scroll.kind].sigil}</span>
                   <span className="hand-card-name">{SCROLLS[scroll.kind].name}</span>
                   <span className="hand-card-effect">{SCROLLS[scroll.kind].description}</span>
                 </motion.article>
@@ -197,7 +207,7 @@ function ResourceModal({ player, playback, onClose }: {
           {player.equipment.length === 0 && <em>尚未获得</em>}
           {player.equipment.map((item) => (
             <span className="chip equipment" key={item.instanceId}>
-              {EQUIPMENT[item.kind].name}
+              {EQUIPMENT[item.kind].rarity} · {EQUIPMENT[item.kind].name}
               <i>{EQUIPMENT[item.kind].description}</i>
             </span>
           ))}
@@ -266,6 +276,9 @@ function BattleHand({ player, timing, label, selectedId, onSelect, disabled }: {
                   whileHover={disabled ? undefined : { y: selected ? -13 : -6 }}
                   transition={SPRING}
                 >
+                  <span className={`card-rarity rarity-${SCROLLS[scroll.kind].rarity.toLowerCase()}`}>
+                    {SCROLLS[scroll.kind].rarity}
+                  </span>
                   <span className="battle-card-name">{SCROLLS[scroll.kind].name}</span>
                   <span className="battle-card-effect">{SCROLLS[scroll.kind].description}</span>
                 </motion.button>
@@ -278,9 +291,10 @@ function BattleHand({ player, timing, label, selectedId, onSelect, disabled }: {
   );
 }
 
-function PlayerPanel({ player, active, playback, onInspect }: {
+function PlayerPanel({ player, active, destination, playback, onInspect }: {
   player: PlayerView;
   active: boolean;
+  destination: number;
   playback: Playback;
   onInspect: () => void;
 }) {
@@ -312,7 +326,7 @@ function PlayerPanel({ player, active, playback, onInspect }: {
       <div className="stat-grid">
         <div><span>攻击</span><strong>{getAttack(player)}</strong></div>
         <div><span>防御</span><strong>{getDefense(player)}</strong></div>
-        <div><span>进度</span><strong>{position}/17</strong></div>
+        <div><span>进度</span><strong>{position}/{destination}</strong></div>
       </div>
       {/* 规格 25.2：侧栏只给卷轴数量，完整手牌走资源弹窗 */}
       <div className="inventory-block">
@@ -345,51 +359,208 @@ function PlayerPanel({ player, active, playback, onInspect }: {
   );
 }
 
+const MIN_BOARD_ZOOM = 0.22;
+const MAX_BOARD_ZOOM = 1.6;
+
+interface BoardTransform {
+  x: number;
+  y: number;
+  scale: number;
+}
+
 function Board({ state, playback }: { state: GameStateView; playback: Playback }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [transform, setTransform] = useState<BoardTransform>({ x: 0, y: 0, scale: 0.85 });
   const positions = {
     player1: visualPosition(state.players.player1, playback.pending),
     player2: visualPosition(state.players.player2, playback.pending),
   };
 
+  const constrain = useCallback((candidate: BoardTransform): BoardTransform => {
+    const viewport = viewportRef.current;
+    const world = worldRef.current;
+    if (!viewport || !world) return candidate;
+    const scaledWidth = world.offsetWidth * candidate.scale;
+    const scaledHeight = world.offsetHeight * candidate.scale;
+    const x = scaledWidth <= viewport.clientWidth
+      ? (viewport.clientWidth - scaledWidth) / 2
+      : Math.min(0, Math.max(viewport.clientWidth - scaledWidth, candidate.x));
+    const y = scaledHeight <= viewport.clientHeight
+      ? (viewport.clientHeight - scaledHeight) / 2
+      : Math.min(0, Math.max(viewport.clientHeight - scaledHeight, candidate.y));
+    return { ...candidate, x, y };
+  }, []);
+
+  const focusTile = useCallback((tileId: number) => {
+    const viewport = viewportRef.current;
+    const world = worldRef.current;
+    const tile = world?.querySelector<HTMLElement>(`[data-tile-id="${tileId}"]`);
+    if (!viewport || !world || !tile) return;
+    setTransform((current) => constrain({
+      ...current,
+      x: viewport.clientWidth / 2 - (tile.offsetLeft + tile.offsetWidth / 2) * current.scale,
+      y: viewport.clientHeight / 2 - (tile.offsetTop + tile.offsetHeight / 2) * current.scale,
+    }));
+  }, [constrain]);
+
+  const zoomAt = useCallback((requestedScale: number, clientX?: number, clientY?: number) => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const rect = viewport.getBoundingClientRect();
+    const pointX = clientX === undefined ? viewport.clientWidth / 2 : clientX - rect.left;
+    const pointY = clientY === undefined ? viewport.clientHeight / 2 : clientY - rect.top;
+    setTransform((current) => {
+      const scale = Math.min(MAX_BOARD_ZOOM, Math.max(MIN_BOARD_ZOOM, requestedScale));
+      const worldX = (pointX - current.x) / current.scale;
+      const worldY = (pointY - current.y) / current.scale;
+      return constrain({
+        scale,
+        x: pointX - worldX * scale,
+        y: pointY - worldY * scale,
+      });
+    });
+  }, [constrain]);
+
+  useEffect(() => {
+    focusTile(positions[state.activePlayerId]);
+  }, [focusTile, positions[state.activePlayerId], state.map.seed]);
+
+  useEffect(() => {
+    const handleResize = () => setTransform((current) => constrain(current));
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [constrain]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const factor = event.deltaY < 0 ? 1.12 : 0.89;
+      zoomAt(transform.scale * factor, event.clientX, event.clientY);
+    };
+    viewport.addEventListener("wheel", handleWheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", handleWheel);
+  }, [transform.scale, zoomAt]);
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: transform.x,
+      originY: transform.y,
+    };
+    setDragging(true);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setTransform((current) => constrain({
+      ...current,
+      x: drag.originX + event.clientX - drag.startX,
+      y: drag.originY + event.clientY - drag.startY,
+    }));
+  };
+
+  const finishDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const regionIndex = Math.min(
+    state.map.regions.length - 1,
+    Math.floor(positions[state.activePlayerId] / state.map.columns),
+  );
+  const currentRegion = state.map.regions[regionIndex];
+
   return (
     <section className="board-shell">
       <div className="mountain-glow" />
-      <div className="board" aria-label="登山棋盘">
-        {MAP.map((tile) => {
-          const rowFromBottom = Math.floor(tile.id / 6);
-          const rawColumn = tile.id % 6;
-          const column = rowFromBottom % 2 === 0 ? rawColumn + 1 : 6 - rawColumn;
-          const row = 3 - rowFromBottom;
-          const playersHere = PLAYER_IDS.filter((id) => positions[id] === tile.id);
-          return (
-            <article
-              className={`tile ${tileClassNames[tile.type]} ${positions[state.activePlayerId] === tile.id ? "current" : ""}`}
-              style={{ gridColumn: column, gridRow: row }}
-              key={tile.id}
-            >
-              <span className="tile-number">{String(tile.id).padStart(2, "0")}</span>
-              <span className="tile-icon">{TILE_ICON[tile.type]}</span>
-              <strong>{tile.label}</strong>
-              <div className="pieces">
-                {playersHere.map((id) => (
-                  // layoutId 让棋子在换格子时做共享元素过渡，而不是瞬移
-                  <motion.span
-                    layoutId={`piece-${id}`}
-                    className={`piece ${id === state.activePlayerId ? "active" : ""}`}
-                    style={{ "--piece-color": state.players[id].color } as React.CSSProperties}
-                    title={state.players[id].name}
-                    key={id}
-                    transition={{ type: "spring", stiffness: 260, damping: 26 }}
-                  >
-                    {id === "player1" ? "焰" : "潮"}
-                  </motion.span>
-                ))}
-              </div>
-            </article>
-          );
-        })}
+      <div className="board-toolbar" aria-label="棋盘视图控制">
+        <span>{currentRegion.name}</span>
+        <button type="button" onClick={() => zoomAt(transform.scale - 0.15)} aria-label="缩小棋盘">−</button>
+        <button type="button" onClick={() => zoomAt(transform.scale + 0.15)} aria-label="放大棋盘">＋</button>
+        <button type="button" onClick={() => zoomAt(MIN_BOARD_ZOOM)} title="显示完整棋盘">总览</button>
+        <button type="button" onClick={() => focusTile(positions[state.activePlayerId])}>定位</button>
+      </div>
+      <div
+        ref={viewportRef}
+        className={`board-viewport ${dragging ? "dragging" : ""}`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishDrag}
+        onPointerCancel={finishDrag}
+      >
+        <div
+          ref={worldRef}
+          className="board-world"
+          aria-label="三地区登山棋盘"
+          style={{
+            gridTemplateColumns: `repeat(${state.map.columns}, var(--tile-width))`,
+            gridTemplateRows: `repeat(${state.map.regions.length}, var(--tile-height))`,
+            transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
+          }}
+        >
+          {state.map.tiles.map((tile) => {
+            const tileRegionIndex = Math.floor(tile.id / state.map.columns);
+            const indexInRegion = tile.id % state.map.columns;
+            const column = tileRegionIndex % 2 === 0
+              ? indexInRegion + 1
+              : state.map.columns - indexInRegion;
+            const row = state.map.regions.length - tileRegionIndex;
+            const isRegionEnd = indexInRegion === state.map.columns - 1;
+            const routeClass = tileRegionIndex % 2 === 0 ? "route-forward" : "route-reverse";
+            const turnClass = isRegionEnd && tile.id < state.map.tiles.length - 1 ? "route-turn" : "";
+            const playersHere = PLAYER_IDS.filter((id) => positions[id] === tile.id);
+            return (
+              <article
+                className={`tile region-${tile.region} ${routeClass} ${turnClass} ${tileClassNames[tile.type]} ${positions[state.activePlayerId] === tile.id ? "current" : ""}`}
+                style={{ gridColumn: column, gridRow: row }}
+                data-tile-id={tile.id}
+                key={tile.id}
+              >
+                <span className="tile-number">{String(tile.id).padStart(3, "0")}</span>
+                <span className="tile-icon">{TILE_ICON[tile.type]}</span>
+                <strong>{tile.label}</strong>
+                <div className="pieces">
+                  {playersHere.map((id) => (
+                    // layoutId 让棋子在换格子时做共享元素过渡，而不是瞬移
+                    <motion.span
+                      layoutId={`piece-${id}`}
+                      className={`piece ${id === state.activePlayerId ? "active" : ""}`}
+                      style={{ "--piece-color": state.players[id].color } as React.CSSProperties}
+                      title={state.players[id].name}
+                      key={id}
+                      transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                    >
+                      {id === "player1" ? "焰" : "潮"}
+                    </motion.span>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </div>
       <div className="board-legend">
+        <span>拖动平移 · 滚轮缩放 · {Math.round(transform.scale * 100)}%</span>
         <span><i className="legend-battle" />战斗</span>
         <span><i className="legend-treasure" />宝箱</span>
         <span><i className="legend-spring" />泉水</span>
@@ -399,23 +570,30 @@ function Board({ state, playback }: { state: GameStateView; playback: Playback }
   );
 }
 
-function CombatSlot({ label, die, total }: { label: string; die?: number; total?: number }) {
+function CombatSlot({ label, dice, sides = 6, total }: {
+  label: string;
+  dice?: number[];
+  sides?: number;
+  total?: number;
+}) {
   return (
     <div className="combat-slot">
-      <span className="combat-slot-label">{label}</span>
+      <span className="combat-slot-label">{label} D{sides}</span>
       <AnimatePresence mode="wait">
-        {die === undefined ? (
+        {dice === undefined ? (
           <motion.span className="combat-die idle" key="idle">—</motion.span>
         ) : (
-          <motion.span
-            className="combat-die"
-            key={`${label}-${die}-${total}`}
+          <motion.div
+            className="combat-rolls"
+            key={`${label}-${dice.join("-")}-${total}`}
             initial={{ scale: 0.2, rotate: -160, opacity: 0 }}
             animate={{ scale: 1, rotate: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 320, damping: 18 }}
           >
-            {die}
-          </motion.span>
+            {dice.map((die, index) => (
+              <span className="combat-die" key={`${index}-${die}`}>{die}</span>
+            ))}
+          </motion.div>
         )}
       </AnimatePresence>
       <span className="combat-slot-total">{total === undefined ? "" : `合计 ${total}`}</span>
@@ -432,8 +610,8 @@ function BattlePanel({ state, battle, dispatch, playback, viewerSeat }: {
 }) {
   const [pendingChoiceId, setPendingChoiceId] = useState("");
   const [rolls, setRolls] = useState<{
-    attackDie?: number; attackTotal?: number;
-    defenseDie?: number; defenseTotal?: number;
+    attackDice?: number[]; attackSides?: number; attackTotal?: number;
+    defenseDice?: number[]; defenseSides?: number; defenseTotal?: number;
   }>({});
   const { a, b } = getBattleParticipants(state, battle);
   const attackerSide = battle.attacker;
@@ -464,10 +642,20 @@ function BattlePanel({ state, battle, dispatch, playback, viewerSeat }: {
   const playing = playback.event;
   useEffect(() => {
     if (playing?.type === "attackRolled") {
-      setRolls((current) => ({ ...current, attackDie: playing.die, attackTotal: playing.total }));
+      setRolls((current) => ({
+        ...current,
+        attackDice: playing.dice,
+        attackSides: playing.sides,
+        attackTotal: playing.total,
+      }));
     }
     if (playing?.type === "defenseRolled") {
-      setRolls((current) => ({ ...current, defenseDie: playing.die, defenseTotal: playing.total }));
+      setRolls((current) => ({
+        ...current,
+        defenseDice: playing.dice,
+        defenseSides: playing.sides,
+        defenseTotal: playing.total,
+      }));
     }
   }, [playing]);
 
@@ -534,8 +722,8 @@ function BattlePanel({ state, battle, dispatch, playback, viewerSeat }: {
         </div>
 
         <div className="combat-dice">
-          <CombatSlot label="攻击" die={rolls.attackDie} total={rolls.attackTotal} />
-          <CombatSlot label="防御" die={rolls.defenseDie} total={rolls.defenseTotal} />
+          <CombatSlot label="攻击" dice={rolls.attackDice} sides={rolls.attackSides} total={rolls.attackTotal} />
+          <CombatSlot label="防御" dice={rolls.defenseDice} sides={rolls.defenseSides} total={rolls.defenseTotal} />
         </div>
 
         <p className="turn-callout"><strong>{nameOf(attackerSide)}</strong>发动攻击，{nameOf(defenderSide)}进行防御。</p>
@@ -629,6 +817,73 @@ function PenaltyPanel({ state, penalty, dispatch, playing }: {
   );
 }
 
+function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: EquipmentChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[choice.playerId];
+  const definition = EQUIPMENT[choice.offered.kind];
+  const category = equipmentCategory(choice.offered.kind);
+  const replaceable = player.equipment.filter(
+    (item) => equipmentCategory(item.kind) === category,
+  );
+  const canChoose = viewerSeat === choice.playerId;
+
+  return (
+    <ModalBackdrop>
+      <motion.section
+        className="equipment-choice-modal"
+        initial={{ opacity: 0, scale: 0.94, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={SPRING}
+      >
+        <div className="modal-kicker">装备槽已满</div>
+        <h2>{player.name}获得了{definition.name}</h2>
+        <div className="offered-equipment">
+          <span>{definition.rarity} · {EQUIPMENT_CATEGORY_NAMES[category]}</span>
+          <strong>{definition.name}</strong>
+          <p>{definition.description}</p>
+        </div>
+        {canChoose ? (
+          <>
+            <p>选择一件同类装备替换，或放弃这件新装备。</p>
+            <div className="equipment-choice-options">
+              {replaceable.map((item) => (
+                <button
+                  key={item.instanceId}
+                  disabled={playing}
+                  onClick={() => dispatch({
+                    type: "chooseEquipment",
+                    replaceInstanceId: item.instanceId,
+                  })}
+                >
+                  <span>替换</span>
+                  <strong>{EQUIPMENT[item.kind].name}</strong>
+                  <small>{EQUIPMENT[item.kind].description}</small>
+                </button>
+              ))}
+              <button
+                className="discard-equipment"
+                disabled={playing}
+                onClick={() => dispatch({ type: "chooseEquipment" })}
+              >
+                <span>不替换</span>
+                <strong>放弃新装备</strong>
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="waiting-notice">等待{player.name}选择装备……</p>
+        )}
+      </motion.section>
+    </ModalBackdrop>
+  );
+}
+
 function GameOverPanel({ winner, dispatch }: { winner: PlayerView; dispatch: Dispatch }) {
   return (
     <ModalBackdrop className="victory-backdrop">
@@ -664,6 +919,7 @@ function ActionDock({ state, dispatch, message, playback }: {
   // 投骰事件播到之前先不亮骰面，免得数字比动画早一步出现
   const rollPending = playback.pending.some((event) => event.type === "movementRolled");
   const die = rollPending ? undefined : state.lastMovementRoll;
+  const movementSides = Math.max(2, 6 + getDieSidesBonus(active, "movement"));
 
   return (
     <section className="action-dock">
@@ -686,7 +942,7 @@ function ActionDock({ state, dispatch, message, playback }: {
           <motion.div
             className="die-result"
             key={`${state.turn}-${die}`}
-            aria-label={`骰子结果 ${die}`}
+            aria-label={`D${movementSides} 骰子结果 ${die}`}
             initial={{ scale: 0.2, rotate: -180, opacity: 0 }}
             animate={{ scale: 1, rotate: 3, opacity: 1 }}
             exit={{ scale: 0.4, opacity: 0 }}
@@ -701,7 +957,7 @@ function ActionDock({ state, dispatch, message, playback }: {
       ) : (
         <>
           {state.phase.kind === "awaitingRoll" && (
-            <button className="primary-button" onClick={() => dispatch({ type: "rollMovement" })}>为{active.name}投骰</button>
+            <button className="primary-button" onClick={() => dispatch({ type: "rollMovement" })}>为{active.name}投 D{movementSides}</button>
           )}
           {state.phase.kind === "turnComplete" && (
             <button className="primary-button secondary" onClick={() => dispatch({ type: "endTurn" })}>结束回合</button>
@@ -754,6 +1010,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
         <PlayerPanel
           player={state.players.player1}
           active={state.activePlayerId === "player1"}
+          destination={state.map.tiles.length - 1}
           playback={playback}
           onInspect={() => setInspecting("player1")}
         />
@@ -761,6 +1018,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
         <PlayerPanel
           player={state.players.player2}
           active={state.activePlayerId === "player2"}
+          destination={state.map.tiles.length - 1}
           playback={playback}
           onInspect={() => setInspecting("player2")}
         />
@@ -786,6 +1044,16 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
         )}
         {state.phase.kind === "pvpPenalty" && (
           <PenaltyPanel key="penalty" state={state} penalty={state.phase.penalty} dispatch={dispatch} playing={playback.playing} />
+        )}
+        {state.phase.kind === "equipmentChoice" && (
+          <EquipmentChoicePanel
+            key="equipment-choice"
+            state={state}
+            choice={state.phase.choice}
+            dispatch={dispatch}
+            playing={playback.playing}
+            viewerSeat={viewerSeat}
+          />
         )}
         {state.phase.kind === "gameOver" && (
           <GameOverPanel key="over" winner={state.players[state.phase.winnerId]} dispatch={dispatch} />

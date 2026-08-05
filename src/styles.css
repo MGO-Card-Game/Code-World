@@ -77,6 +77,10 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 /* 支点压到卡面下方，旋转就会自然摊成扇形 */
 .hand-card { position: relative; flex: 0 0 auto; width: 96px; height: 128px; padding: 10px 9px; display: flex; flex-direction: column; gap: 5px; border: 1px solid #5b4e40; border-radius: 5px; background: linear-gradient(165deg, #2e2620, #1a1613); box-shadow: inset 0 1px #ffffff12, 0 8px 22px #0008; transform-origin: 50% 135%; cursor: default; }
 .hand-card::after { content: ""; position: absolute; inset: 4px; border: 1px solid #ffffff09; border-radius: 3px; pointer-events: none; }
+.card-rarity { position: absolute; z-index: 2; top: 7px; right: 7px; min-width: 20px; padding: 2px 4px; border: 1px solid currentColor; border-radius: 2px; text-align: center; font: 800 8px/1 "Noto Sans SC", sans-serif; letter-spacing: .04em; background: #11100ee8; }
+.card-rarity.rarity-n { color: #a9a49b; }
+.card-rarity.rarity-r { color: #69b9e8; box-shadow: 0 0 8px #4aaee833; }
+.card-rarity.rarity-sr { color: #d8a8ff; box-shadow: 0 0 9px #ad6fe755; }
 .hand-card-sigil { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font: 700 10px "Noto Serif SC", serif; border: 1px solid currentColor; opacity: .85; }
 .hand-card-name { font: 700 12px "Noto Serif SC", serif; line-height: 1.2; }
 .hand-card-effect { font-size: 9px; color: #9b8d7a; line-height: 1.4; margin-top: auto; }
@@ -84,6 +88,10 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .hand-card.scroll-might .hand-card-name, .hand-card.scroll-might .hand-card-sigil { color: #f0a47d; }
 .hand-card.scroll-guard { border-color: #35647a; background: linear-gradient(165deg, #1a2b34, #131a1d); }
 .hand-card.scroll-guard .hand-card-name, .hand-card.scroll-guard .hand-card-sigil { color: #8fcce5; }
+.hand-card.scroll-fate { border-color: #8066a6; background: linear-gradient(165deg, #302344, #17131f); }
+.hand-card.scroll-fate .hand-card-name, .hand-card.scroll-fate .hand-card-sigil { color: #d3afff; }
+.hand-card.scroll-dragonStrike { border-color: #a94f38; background: linear-gradient(165deg, #472119, #1f1210); }
+.hand-card.scroll-dragonStrike .hand-card-name, .hand-card.scroll-dragonStrike .hand-card-sigil { color: #ff9875; }
 
 /* 战斗骰面与伤害飘字 */
 .combat-dice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
@@ -92,6 +100,7 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 /* Georgia 用的是老式数字，3/4/5/7/9 会沉到基线以下、6/8 会顶上去，
    骰面上看着就像没居中。换成有等高数字的 Noto Serif SC，并锁定行高与字宽。 */
 .combat-die { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 6px; background: #e3c787; color: #2b2115; font: 900 19px/1 "Noto Serif SC", Georgia, serif; font-variant-numeric: lining-nums tabular-nums; box-shadow: inset 0 0 0 2px #0002, 0 4px 12px #0007; }
+.combat-rolls { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .combat-die.idle { background: #211e1a; color: #5d564c; box-shadow: inset 0 0 0 1px #ffffff0a; }
 .combat-slot-total { font-size: 9px; color: #b3a58c; min-height: 12px; }
 .combatants > div:not(.clash-mark) { position: relative; }
@@ -99,13 +108,22 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 
 .board-shell { position: relative; min-height: 485px; border: 1px solid #514536; background:
   linear-gradient(#171613e8, #10100ee8),
-  repeating-linear-gradient(135deg, transparent 0 18px, #fff 19px 20px); overflow: hidden; padding: 36px 34px 28px; }
+  repeating-linear-gradient(135deg, transparent 0 18px, #fff 19px 20px); overflow: hidden; padding: 58px 24px 22px; }
 .board-shell::before { content: "SUMMIT"; position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); color: #ffffff05; font: 900 90px Georgia, serif; letter-spacing: .18em; }
 .mountain-glow { position: absolute; width: 440px; height: 300px; background: radial-gradient(ellipse, #c08d4222, transparent 65%); left: 50%; top: -100px; transform: translateX(-50%); }
-.board { height: 370px; display: grid; grid-template-columns: repeat(6, minmax(70px, 1fr)); grid-template-rows: repeat(3, 1fr); gap: 14px 12px; position: relative; z-index: 1; }
+.board-toolbar { position: absolute; z-index: 4; top: 14px; right: 18px; display: flex; align-items: center; gap: 6px; }
+.board-toolbar > span { color: #c9b792; font: 700 10px "Noto Serif SC", serif; letter-spacing: .08em; margin-right: 5px; }
+.board-toolbar button { min-width: 30px; height: 28px; border: 1px solid #584a39; background: #211d18e8; color: #cdbb9e; padding: 0 9px; font-size: 11px; }
+.board-toolbar button:hover { border-color: #b68b4d; color: #f0d8aa; }
+.board-viewport { position: relative; z-index: 1; height: 370px; overflow: hidden; border: 1px solid #3f382f; background: #0e0d0be0; cursor: grab; touch-action: none; user-select: none; }
+.board-viewport.dragging { cursor: grabbing; }
+.board-world { --tile-width: 88px; --tile-height: 92px; position: absolute; left: 0; top: 0; width: max-content; display: grid; gap: 15px 10px; transform-origin: 0 0; will-change: transform; padding: 16px; box-sizing: content-box; }
 .tile { position: relative; border: 1px solid #51483e; background: #201d19; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-shadow: inset 0 1px #ffffff0b, 0 8px 20px #0004; transition: .2s ease; }
 .tile::after { content: ""; position: absolute; inset: 5px; border: 1px solid #ffffff08; pointer-events: none; }
-.tile:not(:nth-child(6n))::before { content: ""; position: absolute; width: 13px; height: 1px; right: -13px; top: 50%; background: #6a5840; }
+.tile.route-forward:not(.route-turn)::before { content: ""; position: absolute; width: 11px; height: 1px; right: -11px; top: 50%; background: #6a5840; }
+.tile.route-reverse:not(.route-turn)::before { content: ""; position: absolute; width: 11px; height: 1px; left: -11px; top: 50%; background: #6a5840; }
+.tile.route-turn::before { content: ""; position: absolute; width: 1px; height: 16px; left: 50%; top: -16px; background: #6a5840; }
+.tile:last-child::before { display: none; }
 .tile.current { border-color: #d7ac5d; transform: translateY(-3px); box-shadow: 0 0 20px #d6a34b27, inset 0 1px #ffffff13; }
 .tile strong { font: 600 clamp(9px, .85vw, 12px) "Noto Serif SC", serif; color: #cfc0aa; text-align: center; padding: 0 4px; white-space: nowrap; }
 .tile-number { position: absolute; left: 7px; top: 5px; font: 9px Georgia, serif; color: #665e53; }
@@ -116,6 +134,9 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .tile.event .tile-icon { color: #9b79bd; }
 .tile.boss { border-color: #965a3f; background: linear-gradient(145deg, #382018, #211714); }
 .tile.boss .tile-icon { color: #e18a5d; }
+.tile.region-foothill { box-shadow: inset 0 2px #6f7d4b22, 0 8px 20px #0004; }
+.tile.region-mountainside { box-shadow: inset 0 2px #54798a22, 0 8px 20px #0004; }
+.tile.region-summit { box-shadow: inset 0 2px #9a684c2b, 0 8px 20px #0004; }
 .pieces { position: absolute; right: 5px; bottom: 5px; display: flex; }
 .piece { --piece-color: #fff; margin-left: -3px; width: 25px; height: 25px; border-radius: 50%; background: #151413; color: var(--piece-color); border: 2px solid var(--piece-color); display: grid; place-items: center; font: 700 9px "Noto Serif SC", serif; box-shadow: 0 2px 8px #000; }
 .piece.active { box-shadow: 0 0 12px var(--piece-color), 0 2px 8px #000; z-index: 2; }
@@ -191,9 +212,9 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 
 /* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
-.battle-modal, .penalty-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
+.battle-modal, .penalty-modal, .equipment-choice-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
 .modal-kicker { color: #caa45f; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; }
-.battle-modal > h2, .penalty-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
+.battle-modal > h2, .penalty-modal h2, .equipment-choice-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
 .battle-modal > h2 span { color: #a45a43; font: 900 14px Georgia, serif; padding: 0 12px; }
 .initiative-line { color: #887a68; font-size: 10px; }
 .combatants { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: center; gap: 13px; margin: 21px 0 17px; }
@@ -212,12 +233,16 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .battle-hand-empty { font-size: 10px; color: #635b50; font-style: normal; margin: auto 0; }
 .battle-hand-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .battle-card { position: relative; width: 86px; min-height: 68px; padding: 8px 7px; display: flex; flex-direction: column; gap: 4px; text-align: left; border: 1px solid #5b4e40; border-radius: 4px; background: linear-gradient(165deg, #2e2620, #1a1613); box-shadow: inset 0 1px #ffffff10, 0 4px 12px #0007; }
-.battle-card-name { font: 700 11px "Noto Serif SC", serif; line-height: 1.2; }
+.battle-card-name { font: 700 11px "Noto Serif SC", serif; line-height: 1.2; padding-right: 24px; }
 .battle-card-effect { font-size: 8px; color: #9b8d7a; line-height: 1.35; }
 .battle-card.scroll-might { border-color: #8b4a36; background: linear-gradient(165deg, #35221b, #1c1512); }
 .battle-card.scroll-might .battle-card-name { color: #f0a47d; }
 .battle-card.scroll-guard { border-color: #35647a; background: linear-gradient(165deg, #1a2b34, #131a1d); }
 .battle-card.scroll-guard .battle-card-name { color: #8fcce5; }
+.battle-card.scroll-fate { border-color: #8066a6; background: linear-gradient(165deg, #302344, #17131f); }
+.battle-card.scroll-fate .battle-card-name { color: #d3afff; }
+.battle-card.scroll-dragonStrike { border-color: #a94f38; background: linear-gradient(165deg, #472119, #1f1210); }
+.battle-card.scroll-dragonStrike .battle-card-name { color: #ff9875; }
 .battle-card.selected { border-color: #e5bd6d; box-shadow: 0 0 0 1px #e5bd6d, 0 0 18px #d9a54c40, inset 0 1px #ffffff18; }
 .battle-card.selected::after { content: "已选"; position: absolute; top: -7px; right: -6px; background: #e3c787; color: #2b2115; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 2px; }
 .battle-button { margin: 2px 0 14px; }
@@ -229,6 +254,19 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .penalty-options button { background: #171411; border: 1px solid #5c4b38; color: #d5c0a1; padding: 14px 8px; }
 .penalty-options button:hover { border-color: #d2a85c; background: #2b2117; }
 .penalty-options span { display: block; color: #887966; font-size: 8px; }.penalty-options strong { display: block; margin-top: 4px; font-size: 11px; }
+.equipment-choice-modal { width: min(620px, 100%); }
+.equipment-choice-modal > p { color: #a99b87; font-size: 12px; }
+.offered-equipment { margin: 20px auto; padding: 17px; border: 1px solid #80683f; background: #191510; display: grid; gap: 5px; }
+.offered-equipment span { color: #9f8b6b; font-size: 9px; letter-spacing: .16em; }
+.offered-equipment strong { color: #edcc83; font: 700 17px "Noto Serif SC", serif; }
+.offered-equipment p { color: #b7a991; font-size: 11px; margin: 0; }
+.equipment-choice-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 18px; }
+.equipment-choice-options button { min-height: 82px; padding: 13px 10px; border: 1px solid #5c4b38; background: #171411; color: #d5c0a1; display: grid; gap: 4px; }
+.equipment-choice-options button:hover { border-color: #d2a85c; background: #2b2117; }
+.equipment-choice-options span { color: #887966; font-size: 8px; }
+.equipment-choice-options strong { font-size: 12px; }
+.equipment-choice-options small { color: #998b76; font-size: 9px; }
+.equipment-choice-options .discard-equipment { border-color: #593b35; color: #be8a7c; }
 .victory-backdrop { background: radial-gradient(circle, #6b4129cc, #080706ee 52%); }
 .victory-modal { width: min(500px, 100%); padding: 42px; }
 .crown { display: block; color: #e1b95e; font-size: 64px; filter: drop-shadow(0 0 20px #d6923c66); }
@@ -243,8 +281,10 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
   .app-shell { padding: 12px; }
   .topbar { min-height: 62px; }.round-status { display: none; }.brand h1 { font-size: 19px; }
   .game-layout { display: flex; flex-direction: column; }
-  .board-shell { padding: 22px 12px; min-height: 520px; overflow-x: auto; }
-  .board { min-width: 650px; height: 420px; }
+  .board-shell { padding: 58px 10px 18px; min-height: 500px; }
+  .board-viewport { height: 390px; }
+  .board-toolbar { right: 10px; }
+  .board-toolbar > span { display: none; }
   .player-panel { order: 2; }.board-shell { order: 1; }
   .action-dock { grid-template-columns: 1fr auto; }.action-dock .primary-button { grid-column: 1 / -1; }
   .hand-rail { justify-content: flex-start; overflow-x: auto; padding-bottom: 6px; }

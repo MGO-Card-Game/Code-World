@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGame, gameReducer, MAP } from "./engine";
+import { createInitialGame, gameReducer } from "./engine";
 import { makeBattle, resolveRound } from "./testSupport";
+import { EQUIPMENT_SLOT_LIMITS, equipmentCategory } from "./content/equipment";
 import type { GameState } from "./types";
 
 function advanceAutomatically(state: GameState) {
@@ -43,6 +44,8 @@ function advanceAutomatically(state: GameState) {
       }
       return gameReducer(state, { type: "choosePvpPenalty", choice: "hp" });
     }
+    case "equipmentChoice":
+      return gameReducer(state, { type: "chooseEquipment" });
     case "gameOver":
       return state;
   }
@@ -68,13 +71,69 @@ describe("game engine", () => {
       state = advanceAutomatically(state);
       for (const player of Object.values(state.players)) {
         expect(player.position).toBeGreaterThanOrEqual(0);
-        expect(player.position).toBeLessThan(MAP.length);
+        expect(player.position).toBeLessThan(state.map.tiles.length);
         expect(player.hp).toBeGreaterThanOrEqual(1);
         expect(player.hp).toBeLessThanOrEqual(player.maxHp);
+        for (const [category, limit] of Object.entries(EQUIPMENT_SLOT_LIMITS)) {
+          expect(player.equipment.filter(
+            (item) => equipmentCategory(item.kind) === category,
+          ).length).toBeLessThanOrEqual(limit);
+        }
       }
     }
 
     expect(state.phase.kind).toBe("gameOver");
+  });
+
+  it("装备槽满时只允许替换同类装备，也可以放弃新装备", () => {
+    let state = createInitialGame(77);
+    state.players.player1.equipment = [
+      { instanceId: "shield-old", kind: "shield" },
+    ];
+    state.phase = {
+      kind: "equipmentChoice",
+      choice: {
+        playerId: "player1",
+        offered: { instanceId: "leather-new", kind: "borderLeather" },
+        source: "reward",
+        resume: { kind: "turnComplete" },
+      },
+    };
+
+    state = gameReducer(state, {
+      type: "chooseEquipment",
+      replaceInstanceId: "shield-old",
+    });
+    expect(state.phase.kind).toBe("turnComplete");
+    expect(state.players.player1.equipment).toEqual([
+      { instanceId: "leather-new", kind: "borderLeather" },
+    ]);
+
+    state.phase = {
+      kind: "equipmentChoice",
+      choice: {
+        playerId: "player1",
+        offered: { instanceId: "leather-discard", kind: "borderLeather" },
+        source: "reward",
+        resume: { kind: "turnComplete" },
+      },
+    };
+    state = gameReducer(state, { type: "chooseEquipment" });
+    expect(state.players.player1.equipment.map((item) => item.instanceId))
+      .toEqual(["leather-new"]);
+  });
+
+  it("旅行者短靴把移动骰从 D6 提高到 D7", () => {
+    let state = createInitialGame(123);
+    state.players[state.activePlayerId].equipment = [
+      { instanceId: "boots-1", kind: "travelerBoots" },
+    ];
+
+    state = gameReducer(state, { type: "rollMovement" });
+    const movement = state.lastEvents.find((event) => event.type === "movementRolled");
+    if (movement?.type !== "movementRolled") throw new Error("应产生移动投骰事件");
+    expect(movement.sides).toBe(7);
+    expect(movement.value).toBeLessThanOrEqual(7);
   });
 
   it("restores real player health after a PvP battle", () => {

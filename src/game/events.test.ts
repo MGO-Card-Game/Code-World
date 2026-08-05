@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { SCROLLS } from "./content";
+import {
+  pickScrollKind,
+  SCROLL_RARITY_WEIGHTS,
+  SCROLLS,
+  type ScrollDefinition,
+} from "./content/scrolls";
+import { CUSTOM_SCROLL_EFFECTS } from "./effects/customScrollEffects";
 import { createInitialGame, gameReducer } from "./engine";
+import { findPreviousRestTile } from "./map";
 import { playableScrolls } from "./selectors";
 import { makeBattle, resolveRound } from "./testSupport";
 import type { GameEvent, GameState } from "./types";
@@ -59,6 +66,8 @@ function step(state: GameState): GameState {
       }
       return gameReducer(state, { type: "choosePvpPenalty", choice: "hp" });
     }
+    case "equipmentChoice":
+      return gameReducer(state, { type: "chooseEquipment" });
     case "gameOver":
       return state;
   }
@@ -92,17 +101,147 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
       { instanceId: "s1", kind: "might" },
       { instanceId: "s2", kind: "guard" },
       { instanceId: "s3", kind: "might" },
+      { instanceId: "s4", kind: "fate" },
+      { instanceId: "s5", kind: "dragonStrike" },
     ];
 
     expect(playableScrolls(player, "beforeAttackRoll").map((item) => item.instanceId))
-      .toEqual(["s1", "s3"]);
+      .toEqual(["s1", "s3", "s4", "s5"]);
     expect(playableScrolls(player, "beforeDefenseRoll").map((item) => item.instanceId))
-      .toEqual(["s2"]);
+      .toEqual(["s2", "s4", "s5"]);
   });
 
   it("每种已实现的卷轴都声明了使用时机", () => {
     for (const definition of Object.values(SCROLLS)) {
-      expect(["beforeAttackRoll", "beforeDefenseRoll"]).toContain(definition.timing);
+      expect(definition.timings.length).toBeGreaterThan(0);
+      for (const timing of definition.timings) {
+        expect(["beforeAttackRoll", "beforeDefenseRoll"]).toContain(timing);
+      }
+    }
+  });
+
+  it("按 N/R/SR 权重先抽稀有度，再从同稀有度卡池抽牌", () => {
+    expect(SCROLL_RARITY_WEIGHTS).toEqual({ N: 70, R: 25, SR: 5 });
+    expect(SCROLLS.might.rarity).toBe("N");
+    expect(SCROLLS.guard.rarity).toBe("N");
+    expect(SCROLLS.dragonStrike.rarity).toBe("R");
+    expect(SCROLLS.fate.rarity).toBe("SR");
+
+    const commonRolls = [0, 0];
+    expect(pickScrollKind(() => commonRolls.shift() ?? 0)).toBe("might");
+    const rareRolls = [0.8, 0];
+    expect(pickScrollKind(() => rareRolls.shift() ?? 0)).toBe("dragonStrike");
+    const superRareRolls = [0.99, 0];
+    expect(pickScrollKind(() => superRareRolls.shift() ?? 0)).toBe("fate");
+  });
+
+  it("巨龙打击在掷骰前造成 7 减当前总防御的直接伤害", () => {
+    let state = stagedPvpBattle(20260805);
+    state.players.player1.scrolls = [{ instanceId: "dragon-attack", kind: "dragonStrike" }];
+    state.players.player2.baseDefense = 2;
+    state.players.player2.equipment = [
+      { instanceId: "shield-1", kind: "shield" },
+    ];
+
+    state = resolveRound(state, { attack: "dragon-attack" });
+
+    const directDamage = pick(state.lastEvents, "battleDamage")[0];
+    expect(directDamage.targetSide).toBe("b");
+    // 基础防御 2 + 一件木盾 1，最终受到 7 - 3 = 4 点。
+    expect(directDamage.amount).toBe(4);
+    expect(directDamage.hpBefore).toBe(18);
+    expect(directDamage.hpAfter).toBe(14);
+    expect(pick(state.lastEvents, "scrollConsumed")[0].kind).toBe("dragonStrike");
+  });
+
+  it("防守方使用巨龙打击击败攻击方后，本轮不再投骰", () => {
+    let state = stagedPvpBattle(20260805);
+    state.players.player1.baseDefense = 0;
+    state.players.player2.scrolls = [{ instanceId: "dragon-defense", kind: "dragonStrike" }];
+    if (state.phase.kind !== "battle") throw new Error("unreachable");
+    state.phase.battle.hpA = 5;
+
+    state = resolveRound(state, { defense: "dragon-defense" });
+
+    expect(pick(state.lastEvents, "attackRolled")).toHaveLength(0);
+    expect(pick(state.lastEvents, "defenseRolled")).toHaveLength(0);
+    expect(only(state.lastEvents, "battleEnded").winnerSide).toBe("b");
+    const directDamage = only(state.lastEvents, "battleDamage");
+    expect(directDamage.targetSide).toBe("a");
+    expect(directDamage.amount).toBe(7);
+    expect(directDamage.hpAfter).toBe(0);
+  });
+
+  it("D20 先替换基础骰面，再叠加装备的骰面修正", () => {
+    let state = createInitialGame(20260805);
+    state.players.player1.scrolls = [{ instanceId: "fate-attack", kind: "fate" }];
+    state.players.player2.scrolls = [{ instanceId: "fate-defense", kind: "fate" }];
+    state.players.player2.equipment = [
+      { instanceId: "leather-1", kind: "borderLeather" },
+    ];
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pvp", aPlayerId: "player1", bPlayerId: "player2" }),
+    };
+
+    state = resolveRound(state, { attack: "fate-attack", defense: "fate-defense" });
+
+    const attack = only(state.lastEvents, "attackRolled");
+    const defense = only(state.lastEvents, "defenseRolled");
+    expect(attack.sides).toBe(20);
+    expect(defense.sides).toBe(21);
+    expect(attack.die).toBeGreaterThanOrEqual(1);
+    expect(attack.die).toBeLessThanOrEqual(20);
+    expect(defense.die).toBeGreaterThanOrEqual(1);
+    expect(defense.die).toBeLessThanOrEqual(21);
+    expect(attack.scrollBonus).toBe(0);
+    expect(defense.scrollBonus).toBe(0);
+    expect(pick(state.lastEvents, "scrollConsumed").map((event) => event.kind))
+      .toEqual(["fate", "fate"]);
+  });
+
+  it("满载骰池额外投两个骰子，事件保留单骰结果并按总和结算", () => {
+    let state = stagedPvpBattle(8080);
+    state.players.player1.scrolls = [
+      { instanceId: "loaded-1", kind: "loadedDicePool" },
+    ];
+
+    state = resolveRound(state, { attack: "loaded-1" });
+
+    const attack = only(state.lastEvents, "attackRolled");
+    expect(attack.dice).toHaveLength(3);
+    expect(attack.die).toBe(attack.dice.reduce((sum, die) => sum + die, 0));
+    expect(attack.total).toBe(attack.base + attack.die + attack.scrollBonus);
+  });
+
+  it("铁壁令把每个防御骰的最低结果提高到 3", () => {
+    let state = stagedPvpBattle(7);
+    state.players.player2.scrolls = [
+      { instanceId: "wall-1", kind: "ironWallOrder" },
+    ];
+
+    state = resolveRound(state, { defense: "wall-1" });
+
+    const defense = only(state.lastEvents, "defenseRolled");
+    expect(defense.dice.every((die) => die >= 3)).toBe(true);
+  });
+
+  it("无法声明式表达的卷轴可以通过具名解析器接入", () => {
+    const might = SCROLLS.might as ScrollDefinition;
+    const originalEffects = might.effects;
+    CUSTOM_SCROLL_EFFECTS.testBonus = ({ modifiers }) => {
+      modifiers.flatBonus += 5;
+    };
+    might.effects = [{ type: "custom", resolver: "testBonus" }];
+
+    try {
+      let state = stagedPvpBattle(9191);
+      state.players.player1.scrolls = [{ instanceId: "custom-1", kind: "might" }];
+      state = resolveRound(state, { attack: "custom-1" });
+      expect(only(state.lastEvents, "attackRolled").scrollBonus).toBe(5);
+    } finally {
+      might.effects = originalEffects;
+      delete CUSTOM_SCROLL_EFFECTS.testBonus;
     }
   });
 
@@ -270,6 +409,7 @@ describe("事件流", () => {
   it("战败发出结束、回血与后退三条事件", () => {
     let state = createInitialGame(4242);
     state.players.player1.position = 13;
+    const expectedRetreat = findPreviousRestTile(state.map, 13);
     state.phase = {
       kind: "battle",
       battle: makeBattle({
@@ -297,19 +437,13 @@ describe("事件流", () => {
 
     const retreat = only(state.lastEvents, "playerRetreated");
     expect(retreat.from).toBe(13);
-    expect(retreat.to).toBe(9);
-    expect(state.players.player1.position).toBe(9);
+    expect(retreat.to).toBe(expectedRetreat);
+    expect(state.players.player1.position).toBe(expectedRetreat);
   });
 
   it("生命护符发出上限变化事件，且与实际属性一致", () => {
-    let state = createInitialGame(4242);
-    // 铁剑木盾各塞满 2 件，装备奖励就只剩生命护符可选，不必靠随机凑出这一分支
-    state.players.player1.equipment = [
-      { instanceId: "sword-1", kind: "sword" },
-      { instanceId: "sword-2", kind: "sword" },
-      { instanceId: "shield-1", kind: "shield" },
-      { instanceId: "shield-2", kind: "shield" },
-    ];
+    // 固定种子的这次魔像奖励是生命护符，避免构造违反新槽位规则的装备状态。
+    let state = createInitialGame(2);
     state.phase = {
       kind: "battle",
       battle: makeBattle({
@@ -369,7 +503,7 @@ describe("事件流", () => {
 
     for (const event of pick(events, "playerMoved")) {
       expect(event.to).toBeGreaterThan(event.from);
-      expect(event.to).toBeLessThan(18);
+      expect(event.to).toBeLessThan(state.map.tiles.length);
     }
 
     for (const event of pick(events, "playerRetreated")) {

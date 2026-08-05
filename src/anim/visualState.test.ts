@@ -144,24 +144,24 @@ describe("显示数值回拉", () => {
   });
 
   it("跟着真实队列走完一次泉水回血，显示值单调逼近真实值", () => {
-    // 造一个必定触发泉水回血的局面：站在 14 号云上清泉前一格
+    // 先预读下一次骰值，再把玩家放到一处泉水前，构造必定回血的局面。
     let state = createInitialGame(20260805);
     const active = state.activePlayerId;
-    state.players[active].position = 13;
+    const preview = gameReducer(state, { type: "rollMovement" });
+    const movement = preview.lastEvents.find((event) => event.type === "movementRolled");
+    if (movement?.type !== "movementRolled") throw new Error("应该产生移动骰事件");
+    const spring = state.map.tiles.find(
+      (tile) => tile.type === "spring" && tile.id > movement.value + 6,
+    );
+    if (!spring) throw new Error("随机地图应该包含可用泉水");
+    state.players[active].position = spring.id - movement.value;
     state.players[active].hp = 5;
     state.players[active].maxHp = 18;
 
     let before = state;
     let queue = createEventQueue();
-    // 一直投到踩中泉水为止
-    for (let step = 0; step < 40; step += 1) {
-      if (state.phase.kind !== "awaitingRoll") break;
-      before = state;
-      state = gameReducer(state, { type: "rollMovement" });
-      if (state.lastEvents.some((event) => event.type === "playerHpChanged")) break;
-      if (state.phase.kind !== "turnComplete") break;
-      state = gameReducer(state, { type: "endTurn" });
-    }
+    before = state;
+    state = gameReducer(state, { type: "rollMovement" });
 
     const healEvent = state.lastEvents.find((event) => event.type === "playerHpChanged");
     expect(healEvent).toBeDefined();

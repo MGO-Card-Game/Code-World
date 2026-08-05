@@ -55,6 +55,22 @@ describe("动作授权 canAct", () => {
     expect(canAct(state, penalty, "player1")).toBe(false);
   });
 
+  it("装备替换只能由获得装备的玩家决定", () => {
+    const state = createInitialGame(20260805);
+    state.phase = {
+      kind: "equipmentChoice",
+      choice: {
+        playerId: "player2",
+        offered: { instanceId: "new-armor", kind: "borderLeather" },
+        source: "reward",
+        resume: { kind: "turnComplete" },
+      },
+    };
+
+    expect(canAct(state, { type: "chooseEquipment" }, "player2")).toBe(true);
+    expect(canAct(state, { type: "chooseEquipment" }, "player1")).toBe(false);
+  });
+
   it("只能提交自己那一侧的卷轴选择", () => {
     const state = withBattle();
 
@@ -253,12 +269,56 @@ describe("暗牌裁剪 viewFor", () => {
     let state = createInitialGame(981723);
     let checkedSecrets = 0;
 
-    for (let step = 0; step < 600 && state.phase.kind !== "gameOver"; step += 1) {
+    for (let step = 0; step < 5000 && state.phase.kind !== "gameOver"; step += 1) {
       switch (state.phase.kind) {
         case "awaitingRoll": state = gameReducer(state, { type: "rollMovement" }); break;
         case "turnComplete": state = gameReducer(state, { type: "endTurn" }); break;
-        case "battle": state = resolveRound(state); break;
-        case "pvpPenalty": state = gameReducer(state, { type: "choosePvpPenalty", choice: "hp" }); break;
+        case "battle": {
+          const battle = state.phase.battle;
+          const attackerId = battle.attacker === "a"
+            ? battle.aPlayerId
+            : battle.bPlayerId;
+          const defenderId = battle.attacker === "a"
+            ? battle.bPlayerId
+            : battle.aPlayerId;
+          const attack = attackerId
+            ? state.players[attackerId].scrolls.find((item) =>
+                ["dragonStrike", "loadedDicePool", "might"].includes(item.kind)
+              )?.instanceId
+            : undefined;
+          const defense = defenderId
+            ? state.players[defenderId].scrolls.find((item) => item.kind === "guard")?.instanceId
+            : undefined;
+          state = resolveRound(state, { attack, defense });
+          break;
+        }
+        case "pvpPenalty": {
+          const { winnerId, loserId } = state.phase.penalty;
+          const winner = state.players[winnerId];
+          const loser = state.players[loserId];
+          const canPayHp = Math.min(3, winner.maxHp - winner.hp, loser.hp - 1) > 0;
+          const scroll = loser.scrolls[0];
+          const equipment = loser.equipment[0];
+          state = canPayHp
+            ? gameReducer(state, { type: "choosePvpPenalty", choice: "hp" })
+            : scroll
+              ? gameReducer(state, {
+                  type: "choosePvpPenalty",
+                  choice: "resource",
+                  resourceType: "scroll",
+                  instanceId: scroll.instanceId,
+                })
+              : gameReducer(state, {
+                  type: "choosePvpPenalty",
+                  choice: "resource",
+                  resourceType: "equipment",
+                  instanceId: equipment?.instanceId,
+                });
+          break;
+        }
+        case "equipmentChoice":
+          state = gameReducer(state, { type: "chooseEquipment" });
+          break;
         default: break;
       }
 

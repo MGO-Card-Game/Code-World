@@ -1,4 +1,4 @@
-import { SCROLLS } from "./content";
+import { SCROLLS } from "./content/scrolls";
 import type {
   CombatSide,
   GameAction,
@@ -45,6 +45,9 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
 
     case "choosePvpPenalty":
       return state.phase.kind === "pvpPenalty" && state.phase.penalty.loserId === actor;
+
+    case "chooseEquipment":
+      return state.phase.kind === "equipmentChoice" && state.phase.choice.playerId === actor;
 
     case "submitScrollChoice": {
       if (state.phase.kind !== "battle") return false;
@@ -157,6 +160,8 @@ export function currentActor(state: GameState): PlayerId {
   switch (state.phase.kind) {
     case "pvpPenalty":
       return state.phase.penalty.loserId;
+    case "equipmentChoice":
+      return state.phase.choice.playerId;
     case "battle": {
       const battle = state.phase.battle;
       const attacker = battle.attacker;

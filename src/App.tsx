@@ -1,4 +1,15 @@
 import { useEffect, useReducer, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { handCardLayout, handSpacing } from "./anim/handLayout";
+import { useEventQueue } from "./anim/useEventQueue";
+import {
+  activeDamage,
+  isRevealed,
+  visualBattleHp,
+  visualHp,
+  visualMaxHp,
+  visualPosition,
+} from "./anim/visualState";
 import { EQUIPMENT, SCROLLS, TILE_ICON } from "./game/content";
 import {
   createInitialGame,
@@ -8,8 +19,19 @@ import {
   MAP,
   PLAYER_IDS,
 } from "./game/engine";
-import { getAttack, getDefense } from "./game/selectors";
-import type { BattleState, GameState, Player, PlayerId } from "./game/types";
+import { getAttack, getDefense, playableScrolls } from "./game/selectors";
+import type {
+  BattleState,
+  CombatSide,
+  GameState,
+  Player,
+  PlayerId,
+  PvpPenaltyState,
+  ScrollTiming,
+} from "./game/types";
+
+type Playback = ReturnType<typeof useEventQueue>;
+type Dispatch = React.Dispatch<Parameters<typeof gameReducer>[1]>;
 
 const tileClassNames = {
   start: "start",
@@ -20,18 +42,222 @@ const tileClassNames = {
   boss: "boss",
 };
 
+const SPRING = { type: "spring", stiffness: 380, damping: 30 } as const;
+
+/**
+ * 弹层背景。必须是 motion 组件，AnimatePresence 才能在卸载时播退场动画——
+ * 包一层普通 div 的话退场会被直接跳过。
+ */
+function ModalBackdrop({ children, className = "", onClick }: {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <motion.div
+      className={`modal-backdrop ${className}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      onClick={onClick}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function HealthBar({ value, max }: { value: number; max: number }) {
   const percent = Math.max(0, Math.min(100, (value / max) * 100));
   return (
     <div className="health-track" aria-label={`生命 ${value}/${max}`}>
-      <span style={{ width: `${percent}%` }} />
+      <motion.span
+        initial={false}
+        animate={{ width: `${percent}%` }}
+        transition={{ type: "spring", stiffness: 170, damping: 26 }}
+      />
     </div>
   );
 }
 
-function PlayerPanel({ player, active }: { player: Player; active: boolean }) {
+/** 手牌里能看见的牌。获得动画播完前先不显形，见 visualState.isRevealed */
+function revealedScrolls(player: Player, playback: Playback) {
+  return player.scrolls.filter((scroll) => isRevealed(scroll.instanceId, playback.pending));
+}
+
+/** 侧栏里只显示牌背和张数，真正的手牌在底部手牌坞 */
+function HandBacks({ player, playback }: { player: Player; playback: Playback }) {
+  const cards = revealedScrolls(player, playback);
   return (
-    <aside className={`player-panel ${active ? "active" : ""}`} style={{ "--player-color": player.color } as React.CSSProperties}>
+    <div className="hand-backs">
+      <AnimatePresence initial={false} mode="popLayout">
+        {cards.map((scroll, index) => (
+          <motion.span
+            key={scroll.instanceId}
+            layout
+            className="hand-back"
+            style={{ marginLeft: index === 0 ? 0 : -13, zIndex: index }}
+            initial={{ opacity: 0, y: -14, scale: 0.7 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.6 }}
+            transition={SPRING}
+          />
+        ))}
+      </AnimatePresence>
+      {cards.length === 0 && <em>尚未获得</em>}
+    </div>
+  );
+}
+
+/** 资源弹窗里手牌区的可用宽度，与 .resource-modal 的内容宽度保持一致 */
+const RESOURCE_RAIL_WIDTH = 520;
+
+/**
+ * 资源弹窗：地图阶段查看持有的卷轴和装备。
+ *
+ * 规格 25.2 要求侧栏只显示卷轴「数量」，完整手牌不摊在常驻界面上，
+ * 所以放进按需打开的弹窗。卷轴用扇形排布，几何计算见 anim/handLayout.ts。
+ */
+function ResourceModal({ player, playback, onClose }: {
+  player: Player;
+  playback: Playback;
+  onClose: () => void;
+}) {
+  const cards = revealedScrolls(player, playback);
+  const spacing = handSpacing(cards.length, RESOURCE_RAIL_WIDTH);
+
+  return (
+    <ModalBackdrop className="resource-backdrop" onClick={onClose}>
+      <motion.section
+        className="resource-modal"
+        style={{ "--player-color": player.color } as React.CSSProperties}
+        initial={{ opacity: 0, scale: 0.94, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={SPRING}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-kicker">持有资源</div>
+        <h2>{player.name}</h2>
+
+        <h3 className="resource-heading">卷轴手牌 <span>{cards.length} 张</span></h3>
+        <div className={`hand-rail ${cards.length === 0 ? "empty" : ""}`}>
+          <AnimatePresence initial={false} mode="popLayout">
+            {cards.map((scroll, index) => {
+              // 绕卡面下方的支点旋转形成扇形
+              const { rotate, lift, zIndex } = handCardLayout(index, cards.length);
+              return (
+                <motion.article
+                  key={scroll.instanceId}
+                  layout
+                  className={`hand-card scroll-${scroll.kind}`}
+                  style={{ marginLeft: index === 0 ? 0 : spacing, zIndex }}
+                  initial={{ opacity: 0, y: 60, scale: 0.7, rotate: 0 }}
+                  animate={{ opacity: 1, y: lift, scale: 1, rotate }}
+                  exit={{ opacity: 0, y: -60, scale: 0.6, transition: { duration: 0.24 } }}
+                  whileHover={{ y: lift - 24, rotate: 0, scale: 1.09, zIndex: 60 }}
+                  transition={SPRING}
+                >
+                  <span className="hand-card-sigil">{scroll.kind === "might" ? "攻" : "守"}</span>
+                  <span className="hand-card-name">{SCROLLS[scroll.kind].name}</span>
+                  <span className="hand-card-effect">{SCROLLS[scroll.kind].description}</span>
+                </motion.article>
+              );
+            })}
+          </AnimatePresence>
+          {cards.length === 0 && <p className="hand-empty">尚未获得卷轴</p>}
+        </div>
+
+        <h3 className="resource-heading">装备 <span>{player.equipment.length} 件</span></h3>
+        <div className="chips resource-chips">
+          {player.equipment.length === 0 && <em>尚未获得</em>}
+          {player.equipment.map((item) => (
+            <span className="chip equipment" key={item.instanceId}>
+              {EQUIPMENT[item.kind].name}
+              <i>{EQUIPMENT[item.kind].description}</i>
+            </span>
+          ))}
+        </div>
+
+        <button className="primary-button secondary" onClick={onClose}>关闭</button>
+      </motion.section>
+    </ModalBackdrop>
+  );
+}
+
+/**
+ * 战斗中的可用卷轴（规格 25.5「可使用卷轴」）。
+ *
+ * 按 timing 过滤而不是按 kind，加新卷轴时这里不用改（GameRule 8.9）。
+ * 单选状态天然满足 8.5「每个角色一次攻击回合最多使用一张卷轴」。
+ */
+function BattleHand({ player, timing, label, selectedId, onSelect, disabled }: {
+  player: Player;
+  timing: ScrollTiming;
+  label: string;
+  selectedId: string;
+  onSelect: (instanceId: string) => void;
+  disabled: boolean;
+}) {
+  const cards = playableScrolls(player, timing);
+
+  return (
+    <div className="battle-hand">
+      <span className="battle-hand-label">{label}</span>
+      {cards.length === 0 ? (
+        <em className="battle-hand-empty">无可用卷轴</em>
+      ) : (
+        <div className="battle-hand-cards">
+          <AnimatePresence initial={false} mode="popLayout">
+            {cards.map((scroll) => {
+              const selected = scroll.instanceId === selectedId;
+              return (
+                <motion.button
+                  key={scroll.instanceId}
+                  layout
+                  type="button"
+                  disabled={disabled}
+                  aria-pressed={selected}
+                  className={`battle-card scroll-${scroll.kind} ${selected ? "selected" : ""}`}
+                  onClick={() => onSelect(selected ? "" : scroll.instanceId)}
+                  initial={{ opacity: 0, y: 18, scale: 0.8 }}
+                  animate={{ opacity: 1, y: selected ? -9 : 0, scale: selected ? 1.05 : 1 }}
+                  exit={{ opacity: 0, y: -26, scale: 0.6, transition: { duration: 0.24 } }}
+                  whileHover={disabled ? undefined : { y: selected ? -13 : -6 }}
+                  transition={SPRING}
+                >
+                  <span className="battle-card-name">{SCROLLS[scroll.kind].name}</span>
+                  <span className="battle-card-effect">{SCROLLS[scroll.kind].description}</span>
+                </motion.button>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlayerPanel({ player, active, playback, onInspect }: {
+  player: Player;
+  active: boolean;
+  playback: Playback;
+  onInspect: () => void;
+}) {
+  const hp = visualHp(player, playback.pending);
+  const maxHp = visualMaxHp(player, playback.pending);
+  const position = visualPosition(player, playback.pending);
+  const equipment = player.equipment.filter((item) =>
+    isRevealed(item.instanceId, playback.pending),
+  );
+
+  return (
+    <motion.aside
+      className={`player-panel ${active ? "active" : ""}`}
+      style={{ "--player-color": player.color } as React.CSSProperties}
+      animate={{ scale: active ? 1 : 0.99 }}
+      transition={SPRING}
+    >
       <div className="player-heading">
         <span className="player-sigil">{player.id === "player1" ? "焰" : "潮"}</span>
         <div>
@@ -40,39 +266,51 @@ function PlayerPanel({ player, active }: { player: Player; active: boolean }) {
         </div>
       </div>
       <div className="hp-row">
-        <span>生命</span><strong>{player.hp}/{player.maxHp}</strong>
+        <span>生命</span><strong>{hp}/{maxHp}</strong>
       </div>
-      <HealthBar value={player.hp} max={player.maxHp} />
+      <HealthBar value={hp} max={maxHp} />
       <div className="stat-grid">
         <div><span>攻击</span><strong>{getAttack(player)}</strong></div>
         <div><span>防御</span><strong>{getDefense(player)}</strong></div>
-        <div><span>进度</span><strong>{player.position}/17</strong></div>
+        <div><span>进度</span><strong>{position}/17</strong></div>
       </div>
+      {/* 规格 25.2：侧栏只给卷轴数量，完整手牌走资源弹窗 */}
       <div className="inventory-block">
         <h3>卷轴 <span>{player.scrolls.length}</span></h3>
-        <div className="chips">
-          {player.scrolls.length === 0 && <em>尚未获得</em>}
-          {player.scrolls.map((scroll) => (
-            <span className={`chip scroll-${scroll.kind}`} key={scroll.instanceId}>
-              {SCROLLS[scroll.kind].name}
-            </span>
-          ))}
-        </div>
+        <HandBacks player={player} playback={playback} />
       </div>
       <div className="inventory-block">
         <h3>装备 <span>{player.equipment.length}</span></h3>
         <div className="chips">
-          {player.equipment.length === 0 && <em>尚未获得</em>}
-          {player.equipment.map((item) => (
-            <span className="chip equipment" key={item.instanceId}>{EQUIPMENT[item.kind].name}</span>
-          ))}
+          {equipment.length === 0 && <em>尚未获得</em>}
+          <AnimatePresence initial={false} mode="popLayout">
+            {equipment.map((item) => (
+              <motion.span
+                className="chip equipment"
+                key={item.instanceId}
+                layout
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.6 }}
+                transition={SPRING}
+              >
+                {EQUIPMENT[item.kind].name}
+              </motion.span>
+            ))}
+          </AnimatePresence>
         </div>
       </div>
-    </aside>
+      <button className="ghost-button inspect-button" onClick={onInspect}>查看资源</button>
+    </motion.aside>
   );
 }
 
-function Board({ state }: { state: GameState }) {
+function Board({ state, playback }: { state: GameState; playback: Playback }) {
+  const positions = {
+    player1: visualPosition(state.players.player1, playback.pending),
+    player2: visualPosition(state.players.player2, playback.pending),
+  };
+
   return (
     <section className="board-shell">
       <div className="mountain-glow" />
@@ -82,10 +320,10 @@ function Board({ state }: { state: GameState }) {
           const rawColumn = tile.id % 6;
           const column = rowFromBottom % 2 === 0 ? rawColumn + 1 : 6 - rawColumn;
           const row = 3 - rowFromBottom;
-          const playersHere = PLAYER_IDS.filter((id) => state.players[id].position === tile.id);
+          const playersHere = PLAYER_IDS.filter((id) => positions[id] === tile.id);
           return (
             <article
-              className={`tile ${tileClassNames[tile.type]} ${state.players[state.activePlayerId].position === tile.id ? "current" : ""}`}
+              className={`tile ${tileClassNames[tile.type]} ${positions[state.activePlayerId] === tile.id ? "current" : ""}`}
               style={{ gridColumn: column, gridRow: row }}
               key={tile.id}
             >
@@ -94,14 +332,17 @@ function Board({ state }: { state: GameState }) {
               <strong>{tile.label}</strong>
               <div className="pieces">
                 {playersHere.map((id) => (
-                  <span
+                  // layoutId 让棋子在换格子时做共享元素过渡，而不是瞬移
+                  <motion.span
+                    layoutId={`piece-${id}`}
                     className={`piece ${id === state.activePlayerId ? "active" : ""}`}
                     style={{ "--piece-color": state.players[id].color } as React.CSSProperties}
                     title={state.players[id].name}
                     key={id}
+                    transition={{ type: "spring", stiffness: 260, damping: 26 }}
                   >
                     {id === "player1" ? "焰" : "潮"}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
             </article>
@@ -118,30 +359,80 @@ function Board({ state }: { state: GameState }) {
   );
 }
 
-function BattlePanel({ state, battle, dispatch }: {
+function CombatSlot({ label, die, total }: { label: string; die?: number; total?: number }) {
+  return (
+    <div className="combat-slot">
+      <span className="combat-slot-label">{label}</span>
+      <AnimatePresence mode="wait">
+        {die === undefined ? (
+          <motion.span className="combat-die idle" key="idle">—</motion.span>
+        ) : (
+          <motion.span
+            className="combat-die"
+            key={`${label}-${die}-${total}`}
+            initial={{ scale: 0.2, rotate: -160, opacity: 0 }}
+            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 320, damping: 18 }}
+          >
+            {die}
+          </motion.span>
+        )}
+      </AnimatePresence>
+      <span className="combat-slot-total">{total === undefined ? "" : `合计 ${total}`}</span>
+    </div>
+  );
+}
+
+function BattlePanel({ state, battle, dispatch, playback }: {
   state: GameState;
   battle: BattleState;
-  dispatch: React.Dispatch<Parameters<typeof gameReducer>[1]>;
+  dispatch: Dispatch;
+  playback: Playback;
 }) {
   const [attackScrollId, setAttackScrollId] = useState("");
   const [defenseScrollId, setDefenseScrollId] = useState("");
+  const [rolls, setRolls] = useState<{
+    attackDie?: number; attackTotal?: number;
+    defenseDie?: number; defenseTotal?: number;
+  }>({});
   const { a, b } = getBattleParticipants(state, battle);
   const attackerSide = battle.attacker;
-  const defenderSide = attackerSide === "a" ? "b" : "a";
+  const defenderSide: CombatSide = attackerSide === "a" ? "b" : "a";
   const attackerPlayer = getSidePlayer(state, battle, attackerSide);
   const defenderPlayer = getSidePlayer(state, battle, defenderSide);
 
   useEffect(() => {
     setAttackScrollId("");
     setDefenseScrollId("");
+    setRolls({});
   }, [battle.round]);
 
-  const nameOf = (side: "a" | "b") => side === "a" ? a.name : b.name;
+  // 攻防骰事件播到时才亮出骰面，让数字跟动画同步出现
+  const playing = playback.event;
+  useEffect(() => {
+    if (playing?.type === "attackRolled") {
+      setRolls((current) => ({ ...current, attackDie: playing.die, attackTotal: playing.total }));
+    }
+    if (playing?.type === "defenseRolled") {
+      setRolls((current) => ({ ...current, defenseDie: playing.die, defenseTotal: playing.total }));
+    }
+  }, [playing]);
+
+  const nameOf = (side: CombatSide) => (side === "a" ? a.name : b.name);
   const hpMaxB = "maxHp" in b ? b.maxHp : 1;
+  const hpA = visualBattleHp(battle, "a", playback.pending);
+  const hpB = visualBattleHp(battle, "b", playback.pending);
+  const damage = activeDamage(playback.event);
 
   return (
-    <div className="modal-backdrop">
-      <section className="battle-modal">
+    <ModalBackdrop>
+      <motion.section
+        className="battle-modal"
+        initial={{ opacity: 0, scale: 0.94, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={SPRING}
+      >
         <div className="modal-kicker">{battle.kind === "pvp" ? "旅者相遇战" : battle.kind === "boss" ? "最终决战" : "山路遭遇"}</div>
         <h2>{a.name} <span>VS</span> {b.name}</h2>
         <div className="initiative-line">先攻投骰 {battle.initiativeA} : {battle.initiativeB} · 第 {battle.round} 轮</div>
@@ -149,44 +440,77 @@ function BattlePanel({ state, battle, dispatch }: {
           <div className={attackerSide === "a" ? "attacking" : ""}>
             <span className="combat-role">{attackerSide === "a" ? "正在攻击" : "防守"}</span>
             <h3>{a.name}</h3>
-            <strong>{battle.hpA}/{a.maxHp}</strong>
-            <HealthBar value={battle.hpA} max={a.maxHp} />
+            <strong>{hpA}/{a.maxHp}</strong>
+            <HealthBar value={hpA} max={a.maxHp} />
+            <AnimatePresence>
+              {damage?.targetSide === "a" && damage.amount > 0 && (
+                <motion.span
+                  className="damage-float"
+                  key={damage.id}
+                  initial={{ opacity: 0, y: 6, scale: 0.5 }}
+                  animate={{ opacity: 1, y: -40, scale: 1.3 }}
+                  exit={{ opacity: 0, y: -62 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  −{damage.amount}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
           <div className="clash-mark">⚔</div>
           <div className={attackerSide === "b" ? "attacking" : ""}>
             <span className="combat-role">{attackerSide === "b" ? "正在攻击" : "防守"}</span>
             <h3>{b.name}</h3>
-            <strong>{battle.hpB}/{hpMaxB}</strong>
-            <HealthBar value={battle.hpB} max={hpMaxB} />
+            <strong>{hpB}/{hpMaxB}</strong>
+            <HealthBar value={hpB} max={hpMaxB} />
+            <AnimatePresence>
+              {damage?.targetSide === "b" && damage.amount > 0 && (
+                <motion.span
+                  className="damage-float"
+                  key={damage.id}
+                  initial={{ opacity: 0, y: 6, scale: 0.5 }}
+                  animate={{ opacity: 1, y: -40, scale: 1.3 }}
+                  exit={{ opacity: 0, y: -62 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  −{damage.amount}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
+        <div className="combat-dice">
+          <CombatSlot label="攻击" die={rolls.attackDie} total={rolls.attackTotal} />
+          <CombatSlot label="防御" die={rolls.defenseDie} total={rolls.defenseTotal} />
+        </div>
+
         <p className="turn-callout"><strong>{nameOf(attackerSide)}</strong>发动攻击，{nameOf(defenderSide)}进行防御。</p>
-        <div className="scroll-choices">
+        {/* 规格 8.3：双方必须在看到骰子结果之前决定是否使用卷轴 */}
+        <p className="scroll-notice">投骰前决定是否使用卷轴，每方最多一张。</p>
+        <div className="battle-hands">
           {attackerPlayer && (
-            <label>
-              攻击方卷轴
-              <select value={attackScrollId} onChange={(event) => setAttackScrollId(event.target.value)}>
-                <option value="">不使用</option>
-                {attackerPlayer.scrolls.filter((scroll) => scroll.kind === "might").map((scroll) => (
-                  <option value={scroll.instanceId} key={scroll.instanceId}>力量卷轴（攻击 +3）</option>
-                ))}
-              </select>
-            </label>
+            <BattleHand
+              player={attackerPlayer}
+              timing="beforeAttackRoll"
+              label={`${attackerPlayer.name} · 攻击方`}
+              selectedId={attackScrollId}
+              onSelect={setAttackScrollId}
+              disabled={playback.playing}
+            />
           )}
           {defenderPlayer && (
-            <label>
-              防守方卷轴
-              <select value={defenseScrollId} onChange={(event) => setDefenseScrollId(event.target.value)}>
-                <option value="">不使用</option>
-                {defenderPlayer.scrolls.filter((scroll) => scroll.kind === "guard").map((scroll) => (
-                  <option value={scroll.instanceId} key={scroll.instanceId}>护盾卷轴（防御 +3）</option>
-                ))}
-              </select>
-            </label>
+            <BattleHand
+              player={defenderPlayer}
+              timing="beforeDefenseRoll"
+              label={`${defenderPlayer.name} · 防守方`}
+              selectedId={defenseScrollId}
+              onSelect={setDefenseScrollId}
+              disabled={playback.playing}
+            />
           )}
         </div>
-        <button className="primary-button battle-button" onClick={() => dispatch({
+        <button className="primary-button battle-button" disabled={playback.playing} onClick={() => dispatch({
           type: "resolveBattleRound",
           attackScrollId: attackScrollId || undefined,
           defenseScrollId: defenseScrollId || undefined,
@@ -194,84 +518,132 @@ function BattlePanel({ state, battle, dispatch }: {
         <div className="battle-log">
           {battle.log.map((entry, index) => <p key={`${battle.round}-${index}`}>{entry}</p>)}
         </div>
-      </section>
-    </div>
+      </motion.section>
+    </ModalBackdrop>
   );
 }
 
-function PenaltyPanel({ state, dispatch }: {
+function PenaltyPanel({ state, penalty, dispatch, playing }: {
   state: GameState;
-  dispatch: React.Dispatch<Parameters<typeof gameReducer>[1]>;
+  penalty: PvpPenaltyState;
+  dispatch: Dispatch;
+  playing: boolean;
 }) {
-  if (state.phase.kind !== "pvpPenalty") return null;
-  const { winnerId, loserId } = state.phase.penalty;
-  const winner = state.players[winnerId];
-  const loser = state.players[loserId];
+  const winner = state.players[penalty.winnerId];
+  const loser = state.players[penalty.loserId];
   const hpAmount = Math.min(3, winner.maxHp - winner.hp, loser.hp - 1);
   return (
-    <div className="modal-backdrop">
-      <section className="penalty-modal">
+    <ModalBackdrop>
+      <motion.section
+        className="penalty-modal"
+        initial={{ opacity: 0, scale: 0.94, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={SPRING}
+      >
         <div className="modal-kicker">相遇战代价</div>
         <h2>{loser.name}选择交付</h2>
         <p>胜者是{winner.name}。生命已经回溯，战斗中消耗的卷轴不会返还。</p>
         <div className="penalty-options">
           {loser.scrolls.map((item) => (
-            <button key={item.instanceId} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "resource", resourceType: "scroll", instanceId: item.instanceId })}>
+            <button key={item.instanceId} disabled={playing} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "resource", resourceType: "scroll", instanceId: item.instanceId })}>
               <span>交出卷轴</span><strong>{SCROLLS[item.kind].name}</strong>
             </button>
           ))}
           {loser.equipment.map((item) => (
-            <button key={item.instanceId} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "resource", resourceType: "equipment", instanceId: item.instanceId })}>
+            <button key={item.instanceId} disabled={playing} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "resource", resourceType: "equipment", instanceId: item.instanceId })}>
               <span>交出装备</span><strong>{EQUIPMENT[item.kind].name}</strong>
             </button>
           ))}
           {hpAmount > 0 && (
-            <button onClick={() => dispatch({ type: "choosePvpPenalty", choice: "hp" })}>
+            <button disabled={playing} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "hp" })}>
               <span>转移生命</span><strong>{hpAmount} 点生命</strong>
             </button>
           )}
         </div>
-      </section>
-    </div>
+      </motion.section>
+    </ModalBackdrop>
   );
 }
 
-function GameOverPanel({ state, dispatch }: {
-  state: GameState;
-  dispatch: React.Dispatch<Parameters<typeof gameReducer>[1]>;
-}) {
-  if (state.phase.kind !== "gameOver") return null;
-  const winner = state.players[state.phase.winnerId];
+function GameOverPanel({ winner, dispatch }: { winner: Player; dispatch: Dispatch }) {
   return (
-    <div className="modal-backdrop victory-backdrop">
-      <section className="victory-modal">
-        <span className="crown">♛</span>
+    <ModalBackdrop className="victory-backdrop">
+      <motion.section
+        className="victory-modal"
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 220, damping: 20 }}
+      >
+        <motion.span
+          className="crown"
+          initial={{ y: -30, rotate: -20, opacity: 0 }}
+          animate={{ y: 0, rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.15, type: "spring", stiffness: 260, damping: 14 }}
+        >♛</motion.span>
         <div className="modal-kicker">登峰之冠</div>
         <h2>{winner.name}获胜</h2>
         <p>巨龙已经倒下，山巅见证了新的冠军。</p>
         <button className="primary-button" onClick={() => dispatch({ type: "restart" })}>再来一局</button>
-      </section>
-    </div>
+      </motion.section>
+    </ModalBackdrop>
   );
 }
 
-function ActionDock({ state, dispatch }: {
+function ActionDock({ state, dispatch, message, playback }: {
   state: GameState;
-  dispatch: React.Dispatch<Parameters<typeof gameReducer>[1]>;
+  dispatch: Dispatch;
+  message: string;
+  playback: Playback;
 }) {
   const active = state.players[state.activePlayerId];
+  // 投骰事件播到之前先不亮骰面，免得数字比动画早一步出现
+  const rollPending = playback.pending.some((event) => event.type === "movementRolled");
+  const die = rollPending ? undefined : state.lastMovementRoll;
+
   return (
     <section className="action-dock">
       <div>
         <span className="eyebrow">行动提示</span>
-        <p>{state.message}</p>
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={message}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+          >
+            {message}
+          </motion.p>
+        </AnimatePresence>
       </div>
-      {state.lastMovementRoll && <div className="die-result" aria-label={`骰子结果 ${state.lastMovementRoll}`}>{state.lastMovementRoll}</div>}
-      {state.phase.kind === "awaitingRoll" && (
-        <button className="primary-button" onClick={() => dispatch({ type: "rollMovement" })}>为{active.name}投骰</button>
-      )}
-      {state.phase.kind === "turnComplete" && (
-        <button className="primary-button secondary" onClick={() => dispatch({ type: "endTurn" })}>结束回合</button>
+      <AnimatePresence mode="popLayout">
+        {die !== undefined && (
+          <motion.div
+            className="die-result"
+            key={`${state.turn}-${die}`}
+            aria-label={`骰子结果 ${die}`}
+            initial={{ scale: 0.2, rotate: -180, opacity: 0 }}
+            animate={{ scale: 1, rotate: 3, opacity: 1 }}
+            exit={{ scale: 0.4, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 17 }}
+          >
+            {die}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {playback.playing ? (
+        <button className="ghost-button" onClick={playback.skip}>跳过演出（{playback.remaining}）</button>
+      ) : (
+        <>
+          {state.phase.kind === "awaitingRoll" && (
+            <button className="primary-button" onClick={() => dispatch({ type: "rollMovement" })}>为{active.name}投骰</button>
+          )}
+          {state.phase.kind === "turnComplete" && (
+            <button className="primary-button secondary" onClick={() => dispatch({ type: "endTurn" })}>结束回合</button>
+          )}
+        </>
       )}
     </section>
   );
@@ -279,7 +651,16 @@ function ActionDock({ state, dispatch }: {
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialGame());
+  const playback = useEventQueue(state.lastEvents);
+  const [caption, setCaption] = useState("");
+  const [inspecting, setInspecting] = useState<PlayerId | null>(null);
   const activeName = state.players[state.activePlayerId].name;
+
+  // 演出期间跟着 narration 事件逐条推进文案；播完再落到引擎的最终提示
+  useEffect(() => {
+    if (playback.event?.type === "narration") setCaption(playback.event.text);
+  }, [playback.event]);
+  const dockMessage = playback.playing ? caption || state.message : state.message;
 
   return (
     <main className="app-shell">
@@ -296,20 +677,51 @@ export function App() {
       </header>
 
       <div className="game-layout">
-        <PlayerPanel player={state.players.player1} active={state.activePlayerId === "player1"} />
-        <Board state={state} />
-        <PlayerPanel player={state.players.player2} active={state.activePlayerId === "player2"} />
+        <PlayerPanel
+          player={state.players.player1}
+          active={state.activePlayerId === "player1"}
+          playback={playback}
+          onInspect={() => setInspecting("player1")}
+        />
+        <Board state={state} playback={playback} />
+        <PlayerPanel
+          player={state.players.player2}
+          active={state.activePlayerId === "player2"}
+          playback={playback}
+          onInspect={() => setInspecting("player2")}
+        />
       </div>
 
-      <ActionDock state={state} dispatch={dispatch} />
+      <ActionDock state={state} dispatch={dispatch} message={dockMessage} playback={playback} />
       <details className="history-panel">
         <summary>冒险记录</summary>
         {state.history.map((entry, index) => <p key={`${index}-${entry}`}>{entry}</p>)}
       </details>
 
-      {state.phase.kind === "battle" && <BattlePanel state={state} battle={state.phase.battle} dispatch={dispatch} />}
-      <PenaltyPanel state={state} dispatch={dispatch} />
-      <GameOverPanel state={state} dispatch={dispatch} />
+      {/* 三个弹层放在同一个 AnimatePresence 下，阶段切换时才有进退场衔接 */}
+      <AnimatePresence mode="wait">
+        {state.phase.kind === "battle" && (
+          <BattlePanel key="battle" state={state} battle={state.phase.battle} dispatch={dispatch} playback={playback} />
+        )}
+        {state.phase.kind === "pvpPenalty" && (
+          <PenaltyPanel key="penalty" state={state} penalty={state.phase.penalty} dispatch={dispatch} playing={playback.playing} />
+        )}
+        {state.phase.kind === "gameOver" && (
+          <GameOverPanel key="over" winner={state.players[state.phase.winnerId]} dispatch={dispatch} />
+        )}
+      </AnimatePresence>
+
+      {/* 资源弹窗与阶段弹层互不相干，单独一个 AnimatePresence */}
+      <AnimatePresence>
+        {inspecting && (
+          <ResourceModal
+            key={`resource-${inspecting}`}
+            player={state.players[inspecting]}
+            playback={playback}
+            onClose={() => setInspecting(null)}
+          />
+        )}
+      </AnimatePresence>
     </main>
   );
 }

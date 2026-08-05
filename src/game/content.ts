@@ -3,6 +3,7 @@ import type {
   EquipmentKind,
   MapTile,
   ScrollKind,
+  ScrollTiming,
 } from "./types";
 
 export const MAP: MapTile[] = [
@@ -33,9 +34,20 @@ export const ENEMIES: Record<string, EnemyDefinition> = {
   dragon: { id: "dragon", name: "峰顶巨龙", maxHp: 24, attack: 5, defense: 4, reward: "boss" },
 };
 
-export const SCROLLS: Record<ScrollKind, { name: string; description: string }> = {
-  might: { name: "力量卷轴", description: "本次攻击 +3" },
-  guard: { name: "护盾卷轴", description: "本次防御 +3" },
+export interface ScrollDefinition {
+  name: string;
+  description: string;
+  /** 什么时候能打这张牌，界面据此决定攻/防方各自看到哪些牌 */
+  timing: ScrollTiming;
+}
+
+/**
+ * 已实现的卷轴。GameRule 8.8 还规划了精准、坚守、狂暴、闪避四种，
+ * 补进来时只需要在这里加条目并实现对应的 effectType，界面不用动。
+ */
+export const SCROLLS: Record<ScrollKind, ScrollDefinition> = {
+  might: { name: "力量卷轴", description: "本次攻击 +3", timing: "beforeAttackRoll" },
+  guard: { name: "护盾卷轴", description: "本次防御 +3", timing: "beforeDefenseRoll" },
 };
 
 export const EQUIPMENT: Record<EquipmentKind, { name: string; description: string }> = {

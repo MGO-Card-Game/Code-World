@@ -14,6 +14,8 @@ body { margin: 0; min-width: 320px; min-height: 100vh; background:
   linear-gradient(145deg, #17130f, #0d0c0b 65%); }
 button, select { font: inherit; }
 button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .45; filter: saturate(.5); }
+button:disabled:hover { transform: none; filter: saturate(.5); }
 
 .app-shell { min-height: 100vh; padding: 20px 28px 34px; position: relative; overflow: hidden; }
 .app-shell::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .18; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.2'/%3E%3C/svg%3E"); }
@@ -40,7 +42,8 @@ button { cursor: pointer; }
 .hp-row { display: flex; justify-content: space-between; margin-top: 18px; font-size: 12px; color: #b9aa95; }
 .hp-row strong { color: #f1e8db; }
 .health-track { height: 6px; background: #080807; overflow: hidden; margin-top: 7px; border-radius: 4px; box-shadow: inset 0 1px 3px #000; }
-.health-track span { display: block; height: 100%; background: linear-gradient(90deg, #9e3c31, #e66c50); box-shadow: 0 0 9px #e45e42aa; transition: width .35s ease; }
+/* 宽度补间交给 Framer 驱动，这里不能再挂 CSS transition，否则两套补间会打架 */
+.health-track span { display: block; height: 100%; background: linear-gradient(90deg, #9e3c31, #e66c50); box-shadow: 0 0 9px #e45e42aa; }
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: 16px 0 19px; }
 .stat-grid div { text-align: center; border: 1px solid #413a32; background: #11100e8f; padding: 9px 3px; }
 .stat-grid span { display: block; font-size: 9px; color: #8e806d; }
@@ -51,9 +54,48 @@ button { cursor: pointer; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .chips em { font-size: 10px; color: #6e6559; font-style: normal; }
 .chip { padding: 5px 7px; font-size: 9px; border: 1px solid #5b4e40; color: #d8c6ad; background: #29221b; border-radius: 2px; }
-.scroll-might { border-color: #8b4a36; color: #f0a47d; }
-.scroll-guard { border-color: #35647a; color: #8fcce5; }
 .chip.equipment { border-color: #796136; color: #e2c17c; }
+
+/* 侧栏手牌摘要：只露牌背和张数 */
+.hand-backs { display: flex; align-items: center; min-height: 32px; }
+.hand-back { flex: 0 0 auto; width: 21px; height: 29px; border-radius: 3px; border: 1px solid #6a5a44; background: repeating-linear-gradient(45deg, #2c2419 0 3px, #221c15 3px 6px); box-shadow: 0 2px 6px #0007; }
+.hand-backs em { font-size: 10px; color: #6e6559; font-style: normal; }
+.inspect-button { width: 100%; margin-top: 16px; font-size: 11px; padding: 8px; }
+
+/* 资源弹窗 */
+.resource-modal { --player-color: #fff; width: min(600px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
+.resource-modal h2 { font: 900 22px "Noto Serif SC", serif; margin: 7px 0 4px; color: var(--player-color); }
+.resource-heading { display: flex; justify-content: space-between; align-items: baseline; margin: 22px 0 0; padding-bottom: 6px; border-bottom: 1px solid #463d33; color: #baa98f; font-size: 11px; letter-spacing: .08em; }
+.resource-heading span { color: #d8b66c; }
+.resource-chips { justify-content: center; margin-top: 12px; }
+.resource-chips .chip { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; font-size: 10px; }
+.resource-chips .chip i { font-style: normal; font-size: 8px; color: #978a72; }
+.resource-modal .primary-button { margin-top: 22px; }
+.hand-rail { display: flex; justify-content: center; align-items: flex-end; min-height: 146px; padding-top: 16px; }
+.hand-rail.empty { min-height: 62px; padding-top: 0; align-items: center; }
+.hand-empty { color: #6e6559; font-size: 11px; margin: 0; }
+/* 支点压到卡面下方，旋转就会自然摊成扇形 */
+.hand-card { position: relative; flex: 0 0 auto; width: 96px; height: 128px; padding: 10px 9px; display: flex; flex-direction: column; gap: 5px; border: 1px solid #5b4e40; border-radius: 5px; background: linear-gradient(165deg, #2e2620, #1a1613); box-shadow: inset 0 1px #ffffff12, 0 8px 22px #0008; transform-origin: 50% 135%; cursor: default; }
+.hand-card::after { content: ""; position: absolute; inset: 4px; border: 1px solid #ffffff09; border-radius: 3px; pointer-events: none; }
+.hand-card-sigil { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font: 700 10px "Noto Serif SC", serif; border: 1px solid currentColor; opacity: .85; }
+.hand-card-name { font: 700 12px "Noto Serif SC", serif; line-height: 1.2; }
+.hand-card-effect { font-size: 9px; color: #9b8d7a; line-height: 1.4; margin-top: auto; }
+.hand-card.scroll-might { border-color: #8b4a36; background: linear-gradient(165deg, #35221b, #1c1512); }
+.hand-card.scroll-might .hand-card-name, .hand-card.scroll-might .hand-card-sigil { color: #f0a47d; }
+.hand-card.scroll-guard { border-color: #35647a; background: linear-gradient(165deg, #1a2b34, #131a1d); }
+.hand-card.scroll-guard .hand-card-name, .hand-card.scroll-guard .hand-card-sigil { color: #8fcce5; }
+
+/* 战斗骰面与伤害飘字 */
+.combat-dice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
+.combat-slot { display: grid; justify-items: center; gap: 4px; border: 1px solid #433b32; background: #100f0d; padding: 9px 6px; }
+.combat-slot-label { font-size: 8px; color: #8a7a63; letter-spacing: .12em; }
+/* Georgia 用的是老式数字，3/4/5/7/9 会沉到基线以下、6/8 会顶上去，
+   骰面上看着就像没居中。换成有等高数字的 Noto Serif SC，并锁定行高与字宽。 */
+.combat-die { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 6px; background: #e3c787; color: #2b2115; font: 900 19px/1 "Noto Serif SC", Georgia, serif; font-variant-numeric: lining-nums tabular-nums; box-shadow: inset 0 0 0 2px #0002, 0 4px 12px #0007; }
+.combat-die.idle { background: #211e1a; color: #5d564c; box-shadow: inset 0 0 0 1px #ffffff0a; }
+.combat-slot-total { font-size: 9px; color: #b3a58c; min-height: 12px; }
+.combatants > div:not(.clash-mark) { position: relative; }
+.damage-float { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); font: 900 26px Georgia, serif; color: #ff8f6a; text-shadow: 0 0 14px #ff5c2e88, 0 2px 6px #000; pointer-events: none; z-index: 3; }
 
 .board-shell { position: relative; min-height: 485px; border: 1px solid #514536; background:
   linear-gradient(#171613e8, #10100ee8),
@@ -84,7 +126,8 @@ button { cursor: pointer; }
 
 .action-dock { max-width: 960px; margin: 20px auto 0; min-height: 83px; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 22px; padding: 14px 17px 14px 23px; background: #211d18; border: 1px solid #5b4c3a; box-shadow: 0 15px 40px #0006; }
 .action-dock p { margin: 5px 0 0; color: #d0c2ad; font-size: 13px; }
-.die-result { width: 49px; height: 49px; display: grid; place-items: center; border-radius: 7px; color: #2b2115; background: #e3c787; font: 900 24px Georgia, serif; box-shadow: inset 0 0 0 3px #0002, 0 5px 15px #0007; transform: rotate(3deg); }
+/* 同上：等高数字才能在骰面上真正居中。旋转由 Framer 内联设置，这里不再重复挂 transform */
+.die-result { width: 49px; height: 49px; display: grid; place-items: center; border-radius: 7px; color: #2b2115; background: #e3c787; font: 900 24px/1 "Noto Serif SC", Georgia, serif; font-variant-numeric: lining-nums tabular-nums; box-shadow: inset 0 0 0 3px #0002, 0 5px 15px #0007; }
 .primary-button { border: 1px solid #e1bc70; background: linear-gradient(#d8b05f, #aa7733); color: #1d160d; padding: 13px 21px; min-width: 146px; font-weight: 800; letter-spacing: .04em; box-shadow: inset 0 1px #fff6, 0 5px 18px #0005; }
 .primary-button:hover { filter: brightness(1.12); transform: translateY(-1px); }
 .primary-button.secondary { background: linear-gradient(#a9a095, #746b61); border-color: #aaa095; }
@@ -92,7 +135,8 @@ button { cursor: pointer; }
 .history-panel summary { cursor: pointer; text-align: center; letter-spacing: .12em; }
 .history-panel p { margin: 5px 0; padding-left: 12px; border-left: 1px solid #463d32; }
 
-.modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; animation: fade-in .2s ease; }
+/* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
+.modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
 .battle-modal, .penalty-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
 .modal-kicker { color: #caa45f; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; }
 .battle-modal > h2, .penalty-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
@@ -106,9 +150,22 @@ button { cursor: pointer; }
 .combat-role { font-size: 8px; color: #987c57; letter-spacing: .12em; }
 .clash-mark { color: #b76b4f; font-size: 21px; }
 .turn-callout { font-size: 12px; color: #c4b49e; }
-.scroll-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; margin: 16px 0; }
-.scroll-choices label { color: #9d8d78; font-size: 9px; letter-spacing: .08em; }
-.scroll-choices select { width: 100%; margin-top: 5px; background: #12100e; color: #ddcdb6; border: 1px solid #504538; padding: 9px; }
+/* 战斗中的可用卷轴（规格 25.5）。投骰前决定，每方最多一张（8.3 / 8.5） */
+.scroll-notice { color: #8d7f6b; font-size: 10px; margin: 12px 0 4px; letter-spacing: .04em; }
+.battle-hands { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0 16px; }
+.battle-hand { border: 1px solid #433b32; background: #100f0d; padding: 10px 8px 12px; min-height: 108px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.battle-hand-label { font-size: 9px; color: #9d8d78; letter-spacing: .06em; }
+.battle-hand-empty { font-size: 10px; color: #635b50; font-style: normal; margin: auto 0; }
+.battle-hand-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.battle-card { position: relative; width: 86px; min-height: 68px; padding: 8px 7px; display: flex; flex-direction: column; gap: 4px; text-align: left; border: 1px solid #5b4e40; border-radius: 4px; background: linear-gradient(165deg, #2e2620, #1a1613); box-shadow: inset 0 1px #ffffff10, 0 4px 12px #0007; }
+.battle-card-name { font: 700 11px "Noto Serif SC", serif; line-height: 1.2; }
+.battle-card-effect { font-size: 8px; color: #9b8d7a; line-height: 1.35; }
+.battle-card.scroll-might { border-color: #8b4a36; background: linear-gradient(165deg, #35221b, #1c1512); }
+.battle-card.scroll-might .battle-card-name { color: #f0a47d; }
+.battle-card.scroll-guard { border-color: #35647a; background: linear-gradient(165deg, #1a2b34, #131a1d); }
+.battle-card.scroll-guard .battle-card-name { color: #8fcce5; }
+.battle-card.selected { border-color: #e5bd6d; box-shadow: 0 0 0 1px #e5bd6d, 0 0 18px #d9a54c40, inset 0 1px #ffffff18; }
+.battle-card.selected::after { content: "已选"; position: absolute; top: -7px; right: -6px; background: #e3c787; color: #2b2115; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 2px; }
 .battle-button { margin: 2px 0 14px; }
 .battle-log { min-height: 57px; max-height: 110px; overflow-y: auto; text-align: left; border-top: 1px solid #3e362e; padding-top: 8px; }
 .battle-log p { color: #887c6b; font-size: 10px; margin: 4px 0; }
@@ -123,8 +180,6 @@ button { cursor: pointer; }
 .crown { display: block; color: #e1b95e; font-size: 64px; filter: drop-shadow(0 0 20px #d6923c66); }
 .victory-modal .primary-button { margin-top: 16px; }
 
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-
 @media (max-width: 1050px) {
   .game-layout { grid-template-columns: 1fr 1fr; }
   .board-shell { grid-column: 1 / -1; grid-row: 1; }
@@ -138,6 +193,9 @@ button { cursor: pointer; }
   .board { min-width: 650px; height: 420px; }
   .player-panel { order: 2; }.board-shell { order: 1; }
   .action-dock { grid-template-columns: 1fr auto; }.action-dock .primary-button { grid-column: 1 / -1; }
-  .scroll-choices { grid-template-columns: 1fr; }
+  .hand-rail { justify-content: flex-start; overflow-x: auto; padding-bottom: 6px; }
+  .hand-card { width: 84px; height: 116px; }
+  .battle-hands { grid-template-columns: 1fr; }
+  .resource-modal { padding: 22px 15px; }
   .battle-modal { padding: 22px 15px; }.battle-modal > h2 { font-size: 19px; }
 }

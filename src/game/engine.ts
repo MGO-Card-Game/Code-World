@@ -1,5 +1,5 @@
 import { ENEMIES, MAP } from "./content";
-import { getAttack, getDefense } from "./selectors";
+import { getAttack, getDefense, playableScrolls } from "./selectors";
 import type {
   BattleState,
   CombatSide,
@@ -8,12 +8,16 @@ import type {
   GameEvent,
   GameEventBody,
   GameState,
+  LogEntry,
   MapTile,
   OwnedEquipment,
   OwnedScroll,
   Player,
   PlayerId,
+  PlayerStats,
+  ScrollChoice,
   ScrollKind,
+  ScrollTiming,
 } from "./types";
 
 const PLAYER_IDS: PlayerId[] = ["player1", "player2"];
@@ -53,10 +57,21 @@ function emit(state: GameState, body: GameEventBody) {
   state.lastEvents.push(event);
 }
 
-function addHistory(state: GameState, text: string) {
-  state.message = text;
-  state.history = [text, ...state.history].slice(0, 12);
-  emit(state, { type: "narration", text });
+/**
+ * 记录一条旁白。
+ *
+ * secret 用于暗牌：只有 owner 看得到 text，其他人由 viewFor 换成 publicText。
+ * 抽卡类文案必须带上它，否则「获得力量卷轴」这一句会让裁剪手牌数组白做。
+ */
+function addHistory(
+  state: GameState,
+  text: string,
+  secret?: { owner: PlayerId; publicText: string },
+) {
+  const entry: LogEntry = secret ? { text, secret } : { text };
+  state.message = entry;
+  state.history = [entry, ...state.history].slice(0, 12);
+  emit(state, secret ? { type: "narration", text, secret } : { type: "narration", text });
 }
 
 function newPlayer(id: PlayerId, name: string, color: string): Player {
@@ -86,7 +101,7 @@ export function createInitialGame(seed = Date.now()): GameState {
     phase: { kind: "awaitingRoll" },
     rngSeed: normalizedSeed(seed),
     nextInstanceId: 1,
-    message: "",
+    message: { text: "" },
     history: [],
     lastEvents: [],
     nextEventId: 1,
@@ -120,7 +135,19 @@ function makeInstanceId(state: GameState, prefix: string) {
   return id;
 }
 
-function grantScroll(state: GameState, player: Player, kind?: ScrollKind) {
+/**
+ * 一次奖励的两种说法。
+ *
+ * 卷轴是暗牌，旁观者只该知道「获得了一张卷轴」；装备是公开的，两者相同。
+ * 让奖励自己带上这两种说法，而不是让调用方去猜这次给的是不是卷轴——
+ * 装备叠满时会回退成发卷轴，调用方猜不准。
+ */
+interface Reward {
+  name: string;
+  publicName: string;
+}
+
+function grantScroll(state: GameState, player: Player, kind?: ScrollKind): Reward {
   const selected = kind ?? (rollDie(state, 2) === 1 ? "might" : "guard");
   const scroll: OwnedScroll = {
     instanceId: makeInstanceId(state, "scroll"),
@@ -133,7 +160,16 @@ function grantScroll(state: GameState, player: Player, kind?: ScrollKind) {
     instanceId: scroll.instanceId,
     kind: selected,
   });
-  return selected === "might" ? "力量卷轴" : "护盾卷轴";
+  return {
+    name: selected === "might" ? "力量卷轴" : "护盾卷轴",
+    publicName: "一张卷轴",
+  };
+}
+
+/** 按奖励是否需要保密，拼出 addHistory 的第三个参数 */
+function rewardSecret(player: Player, template: (what: string) => string, reward: Reward) {
+  if (reward.name === reward.publicName) return undefined;
+  return { owner: player.id, publicText: template(reward.publicName) };
 }
 
 /**
@@ -200,14 +236,18 @@ function removeEquipmentStats(
   return item;
 }
 
-function grantEquipment(state: GameState, player: Player) {
+function grantEquipment(state: GameState, player: Player): Reward {
   const kinds: EquipmentKind[] = ["sword", "shield", "charm"];
   const available = kinds.filter(
     (kind) => player.equipment.filter((item) => item.kind === kind).length < 2,
   );
   if (available.length === 0) {
-    const scrollName = grantScroll(state, player);
-    return `装备已达叠加上限，改为获得${scrollName}`;
+    // 叠满时回退成发卷轴，这条路径同样要保密，否则暗牌会从这里漏掉
+    const scroll = grantScroll(state, player);
+    return {
+      name: `装备已达叠加上限，改为获得${scroll.name}`,
+      publicName: `装备已达叠加上限，改为获得${scroll.publicName}`,
+    };
   }
   const kind = available[rollDie(state, available.length) - 1];
   const item: OwnedEquipment = {
@@ -226,7 +266,7 @@ function grantEquipment(state: GameState, player: Player) {
     shield: "木盾",
     charm: "生命护符",
   };
-  return names[kind];
+  return { name: names[kind], publicName: names[kind] };
 }
 
 function combatantName(state: GameState, battle: BattleState, side: CombatSide) {
@@ -267,6 +307,9 @@ function startBattle(
     initiativeB,
     round: 1,
     log: [],
+    choiceA: { status: "pending" },
+    // 敌人不使用卷轴（GameRule 8.6），直接视为已提交
+    choiceB: bPlayerId ? { status: "pending" } : { status: "declined" },
   };
   emit(state, {
     type: "initiativeRolled",
@@ -319,7 +362,8 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
         ? grantScroll(state, player)
         : grantEquipment(state, player);
       state.phase = { kind: "turnComplete" };
-      addHistory(state, `${player.name}打开宝箱，获得${reward}。`);
+      const line = (what: string) => `${player.name}打开宝箱，获得${what}。`;
+      addHistory(state, line(reward.name), rewardSecret(player, line, reward));
       return;
     }
     case "event": {
@@ -355,7 +399,9 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
         }
         addHistory(state, `山路落石！${player.name}损失 2 点生命。`);
       } else {
-        addHistory(state, `${player.name}从旅人手中获得${grantScroll(state, player)}。`);
+        const reward = grantScroll(state, player);
+        const line = (what: string) => `${player.name}从旅人手中获得${what}。`;
+        addHistory(state, line(reward.name), rewardSecret(player, line, reward));
       }
       return;
     }
@@ -446,14 +492,32 @@ function syncPveHp(state: GameState, battle: BattleState) {
   }
 }
 
-function resolveBattleRound(
-  state: GameState,
-  attackScrollId?: string,
-  defenseScrollId?: string,
-) {
+function choiceFor(battle: BattleState, side: CombatSide) {
+  return side === "a" ? battle.choiceA : battle.choiceB;
+}
+
+function setChoice(battle: BattleState, side: CombatSide, choice: ScrollChoice) {
+  if (side === "a") battle.choiceA = choice;
+  else battle.choiceB = choice;
+}
+
+/** 新一轮开始时重置双方选择；敌人一侧直接视为已提交 */
+function resetChoices(battle: BattleState) {
+  battle.choiceA = { status: "pending" };
+  battle.choiceB = battle.bPlayerId ? { status: "pending" } : { status: "declined" };
+}
+
+function chosenInstanceId(choice: ScrollChoice) {
+  return choice.status === "chosen" ? choice.instanceId : undefined;
+}
+
+function resolveBattleRound(state: GameState) {
   if (state.phase.kind !== "battle") return;
   const battle = state.phase.battle;
   const attackerSide = battle.attacker;
+  const defenderSideForChoice: CombatSide = attackerSide === "a" ? "b" : "a";
+  const attackScrollId = chosenInstanceId(choiceFor(battle, attackerSide));
+  const defenseScrollId = chosenInstanceId(choiceFor(battle, defenderSideForChoice));
   const defenderSide = attackerSide === "a" ? "b" : "a";
   const attackerId = battlePlayerForSide(battle, attackerSide);
   const defenderId = battlePlayerForSide(battle, defenderSide);
@@ -541,7 +605,8 @@ function resolveBattleRound(
           ? grantEquipment(state, player)
           : grantScroll(state, player);
         state.phase = { kind: "turnComplete" };
-        addHistory(state, `${player.name}击败${enemy.name}，获得${reward}。`);
+        const line = (what: string) => `${player.name}击败${enemy.name}，获得${what}。`;
+        addHistory(state, line(reward.name), rewardSecret(player, line, reward));
       }
       return;
     }
@@ -579,12 +644,48 @@ function resolveBattleRound(
 
   battle.attacker = defenderSide;
   battle.round += 1;
+  resetChoices(battle);
   emit(state, {
     type: "battleRoundAdvanced",
     round: battle.round,
     attacker: defenderSide,
   });
-  state.message = `战斗第 ${battle.round} 轮：轮到${defenderName}攻击。`;
+  state.message = { text: `战斗第 ${battle.round} 轮：轮到${defenderName}攻击。` };
+}
+
+/**
+ * 提交一侧的卷轴选择（GameRule 8.3）。
+ *
+ * 暗牌之下攻防双方在各自设备上独立决定，因此这里只记录选择；
+ * 两侧都提交后才真正结算本回合。
+ */
+function submitScrollChoice(
+  state: GameState,
+  side: CombatSide,
+  instanceId?: string,
+) {
+  if (state.phase.kind !== "battle") return;
+  const battle = state.phase.battle;
+  if (choiceFor(battle, side).status !== "pending") return;
+
+  const playerId = battlePlayerForSide(battle, side);
+  if (!playerId) return;
+
+  if (instanceId) {
+    // 校验这张牌确实在手上，且此刻打得出（8.5 每方每回合最多一张）
+    const timing: ScrollTiming =
+      side === battle.attacker ? "beforeAttackRoll" : "beforeDefenseRoll";
+    const owned = playableScrolls(state.players[playerId], timing)
+      .some((scroll) => scroll.instanceId === instanceId);
+    if (!owned) return;
+    setChoice(battle, side, { status: "chosen", instanceId });
+  } else {
+    setChoice(battle, side, { status: "declined" });
+  }
+
+  if (battle.choiceA.status !== "pending" && battle.choiceB.status !== "pending") {
+    resolveBattleRound(state);
+  }
 }
 
 function finishPenaltyAndResolveTile(state: GameState, tileIndex: number) {
@@ -712,8 +813,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       addHistory(next, `轮到${next.players[next.activePlayerId].name}行动。`);
       return next;
     }
-    case "resolveBattleRound":
-      resolveBattleRound(next, action.attackScrollId, action.defenseScrollId);
+    case "submitScrollChoice":
+      submitScrollChoice(next, action.side, action.instanceId);
       return next;
     case "choosePvpPenalty":
       choosePvpPenalty(next, action);
@@ -721,13 +822,25 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-export function getBattleParticipants(state: GameState, battle: BattleState) {
+/**
+ * 这两个查询只读玩家的非手牌字段，所以对 P 泛型化——
+ * 传 GameState 得到 Player，传 GameStateView 得到 PlayerView，
+ * 界面在本地与联机两种模式下都能复用，不必为暗牌视图另写一份。
+ */
+export function getBattleParticipants<P extends PlayerStats>(
+  state: { players: Record<PlayerId, P> },
+  battle: BattleState,
+) {
   const a = state.players[battle.aPlayerId];
   const b = battle.bPlayerId ? state.players[battle.bPlayerId] : ENEMIES[battle.enemyId!];
   return { a, b };
 }
 
-export function getSidePlayer(state: GameState, battle: BattleState, side: CombatSide) {
+export function getSidePlayer<P extends PlayerStats>(
+  state: { players: Record<PlayerId, P> },
+  battle: BattleState,
+  side: CombatSide,
+): P | undefined {
   const id = battlePlayerForSide(battle, side);
   return id ? state.players[id] : undefined;
 }

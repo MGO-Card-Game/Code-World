@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGame, gameReducer, MAP } from "./engine";
+import { makeBattle, resolveRound } from "./testSupport";
 import type { GameState } from "./types";
 
 function advanceAutomatically(state: GameState) {
@@ -18,7 +19,7 @@ function advanceAutomatically(state: GameState) {
       const defenseScrollId = defenderId
         ? state.players[defenderId].scrolls.find((item) => item.kind === "guard")?.instanceId
         : undefined;
-      return gameReducer(state, { type: "resolveBattleRound", attackScrollId, defenseScrollId });
+      return resolveRound(state, { attack: attackScrollId, defense: defenseScrollId });
     }
     case "pvpPenalty": {
       const loser = state.players[state.phase.penalty.loserId];
@@ -82,22 +83,18 @@ describe("game engine", () => {
     state.players.player2.hp = 15;
     state.phase = {
       kind: "battle",
-      battle: {
+      battle: makeBattle({
         kind: "pvp",
         aPlayerId: "player1",
         bPlayerId: "player2",
         hpA: 11,
         hpB: 15,
-        attacker: "a",
-        initiativeA: 6,
         initiativeB: 2,
-        round: 1,
-        log: [],
-      },
+      }),
     };
 
     for (let step = 0; step < 100 && state.phase.kind === "battle"; step += 1) {
-      state = gameReducer(state, { type: "resolveBattleRound" });
+      state = resolveRound(state);
     }
 
     expect(state.phase.kind).toBe("pvpPenalty");
@@ -110,21 +107,14 @@ describe("game engine", () => {
     state.players.player2.baseDefense = 100;
     state.phase = {
       kind: "battle",
-      battle: {
+      battle: makeBattle({
         kind: "pvp",
         aPlayerId: "player1",
         bPlayerId: "player2",
-        hpA: 18,
-        hpB: 18,
-        attacker: "a",
-        initiativeA: 6,
-        initiativeB: 1,
-        round: 1,
-        log: [],
-      },
+      }),
     };
 
-    state = gameReducer(state, { type: "resolveBattleRound" });
+    state = resolveRound(state);
 
     expect(state.phase.kind).toBe("battle");
     if (state.phase.kind === "battle") {

@@ -12,6 +12,7 @@ import {
   remainingMs,
 } from "./eventQueue";
 import { createInitialGame, gameReducer } from "../game/engine";
+import { resolveRound } from "../game/testSupport";
 import type { GameEvent } from "../game/types";
 
 function narration(id: number): GameEvent {
@@ -187,7 +188,7 @@ describe("事件播放队列", () => {
       } else if (state.phase.kind === "turnComplete") {
         state = gameReducer(state, { type: "endTurn" });
       } else if (state.phase.kind === "battle") {
-        state = gameReducer(state, { type: "resolveBattleRound" });
+        state = resolveRound(state);
       } else {
         break;
       }

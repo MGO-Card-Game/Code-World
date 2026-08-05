@@ -1,4 +1,4 @@
-import type { BattleState, CombatSide, GameEvent, Player } from "../game/types";
+import type { BattleState, CombatSide, GameEvent, PlayerStats } from "../game/types";
 
 /**
  * 把“引擎的最新数值”换算成“此刻应该显示的数值”。
@@ -18,7 +18,7 @@ import type { BattleState, CombatSide, GameEvent, Player } from "../game/types";
  */
 
 /** 玩家真实生命值 */
-export function visualHp(player: Player, pending: readonly GameEvent[]) {
+export function visualHp(player: PlayerStats, pending: readonly GameEvent[]) {
   const held = pending.find(
     (event) => event.type === "playerHpChanged" && event.playerId === player.id,
   );
@@ -26,7 +26,7 @@ export function visualHp(player: Player, pending: readonly GameEvent[]) {
 }
 
 /** 玩家生命上限（生命护符会改） */
-export function visualMaxHp(player: Player, pending: readonly GameEvent[]) {
+export function visualMaxHp(player: PlayerStats, pending: readonly GameEvent[]) {
   const held = pending.find(
     (event) => event.type === "maxHpChanged" && event.playerId === player.id,
   );
@@ -34,7 +34,7 @@ export function visualMaxHp(player: Player, pending: readonly GameEvent[]) {
 }
 
 /** 玩家在棋盘上的位置。移动和战败后退都会改 */
-export function visualPosition(player: Player, pending: readonly GameEvent[]) {
+export function visualPosition(player: PlayerStats, pending: readonly GameEvent[]) {
   const held = pending.find(
     (event) =>
       (event.type === "playerMoved" || event.type === "playerRetreated") &&

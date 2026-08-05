@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SCROLLS } from "./content";
 import { createInitialGame, gameReducer } from "./engine";
 import { playableScrolls } from "./selectors";
+import { makeBattle, resolveRound } from "./testSupport";
 import type { GameEvent, GameState } from "./types";
 
 /** 按事件种类筛选并收窄类型，避免每个断言都写一遍类型守卫 */
@@ -27,12 +28,11 @@ function step(state: GameState): GameState {
       const battle = state.phase.battle;
       const attackerId = battle.attacker === "a" ? battle.aPlayerId : battle.bPlayerId;
       const defenderId = battle.attacker === "a" ? battle.bPlayerId : battle.aPlayerId;
-      return gameReducer(state, {
-        type: "resolveBattleRound",
-        attackScrollId: attackerId
+      return resolveRound(state, {
+        attack: attackerId
           ? state.players[attackerId].scrolls.find((item) => item.kind === "might")?.instanceId
           : undefined,
-        defenseScrollId: defenderId
+        defense: defenderId
           ? state.players[defenderId].scrolls.find((item) => item.kind === "guard")?.instanceId
           : undefined,
       });
@@ -79,18 +79,7 @@ function stagedPvpBattle(seed: number): GameState {
   const state = createInitialGame(seed);
   state.phase = {
     kind: "battle",
-    battle: {
-      kind: "pvp",
-      aPlayerId: "player1",
-      bPlayerId: "player2",
-      hpA: 18,
-      hpB: 18,
-      attacker: "a",
-      initiativeA: 6,
-      initiativeB: 1,
-      round: 1,
-      log: [],
-    },
+    battle: makeBattle({ kind: "pvp", aPlayerId: "player1", bPlayerId: "player2" }),
   };
   return state;
 }
@@ -129,25 +118,10 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     ];
     state.phase = {
       kind: "battle",
-      battle: {
-        kind: "pvp",
-        aPlayerId: "player1",
-        bPlayerId: "player2",
-        hpA: 18,
-        hpB: 18,
-        attacker: "a",
-        initiativeA: 6,
-        initiativeB: 1,
-        round: 1,
-        log: [],
-      },
+      battle: makeBattle({ kind: "pvp", aPlayerId: "player1", bPlayerId: "player2" }),
     };
 
-    state = gameReducer(state, {
-      type: "resolveBattleRound",
-      attackScrollId: "atk-1",
-      defenseScrollId: "def-1",
-    });
+    state = resolveRound(state, { attack: "atk-1", defense: "def-1" });
 
     expect(pick(state.lastEvents, "scrollConsumed")).toHaveLength(2);
     expect(state.players.player1.scrolls.map((item) => item.instanceId)).toEqual(["atk-2"]);
@@ -160,31 +134,25 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     state.players.player1.scrolls = [{ instanceId: "atk-1", kind: "might" }];
     state.phase = {
       kind: "battle",
-      battle: {
+      battle: makeBattle({
         kind: "pve",
         aPlayerId: "player1",
         enemyId: "dragon",
-        hpA: 18,
         hpB: 24,
-        attacker: "a",
-        initiativeA: 6,
-        initiativeB: 1,
-        round: 1,
-        log: [],
-      },
+      }),
     };
 
-    state = gameReducer(state, { type: "resolveBattleRound", attackScrollId: "atk-1" });
+    state = resolveRound(state, { attack: "atk-1" });
     const boosted = only(state.lastEvents, "attackRolled");
     expect(boosted.scrollBonus).toBe(3);
 
     // 巨龙反击后再轮到玩家，此时卷轴已消耗，加值必须归零
     while (state.phase.kind === "battle" && state.phase.battle.attacker === "b") {
-      state = gameReducer(state, { type: "resolveBattleRound" });
+      state = resolveRound(state);
     }
     if (state.phase.kind !== "battle") throw new Error("战斗提前结束，请换个种子");
 
-    state = gameReducer(state, { type: "resolveBattleRound" });
+    state = resolveRound(state);
     expect(only(state.lastEvents, "attackRolled").scrollBonus).toBe(0);
   });
 });
@@ -243,7 +211,7 @@ describe("事件流", () => {
   it("战斗回合的攻防事件与伤害自洽", () => {
     let state = stagedPvpBattle(7);
 
-    state = gameReducer(state, { type: "resolveBattleRound" });
+    state = resolveRound(state);
     const attack = only(state.lastEvents, "attackRolled");
     const defense = only(state.lastEvents, "defenseRolled");
     const damage = only(state.lastEvents, "battleDamage");
@@ -260,7 +228,7 @@ describe("事件流", () => {
   it("攻防事件排在伤害事件之前，保证动画可以按顺序播放", () => {
     let state = stagedPvpBattle(7);
 
-    state = gameReducer(state, { type: "resolveBattleRound" });
+    state = resolveRound(state);
     const order = state.lastEvents
       .filter((event) =>
         event.type === "attackRolled" ||
@@ -277,11 +245,7 @@ describe("事件流", () => {
     state.players.player1.scrolls = [{ instanceId: "scroll-might", kind: "might" }];
     state.players.player2.scrolls = [{ instanceId: "scroll-guard", kind: "guard" }];
 
-    state = gameReducer(state, {
-      type: "resolveBattleRound",
-      attackScrollId: "scroll-might",
-      defenseScrollId: "scroll-guard",
-    });
+    state = resolveRound(state, { attack: "scroll-might", defense: "scroll-guard" });
 
     const consumed = pick(state.lastEvents, "scrollConsumed");
     expect(consumed).toHaveLength(2);
@@ -297,7 +261,7 @@ describe("事件流", () => {
     let state = stagedPvpBattle(7);
     state.players.player1.scrolls = [{ instanceId: "scroll-might", kind: "might" }];
 
-    state = gameReducer(state, { type: "resolveBattleRound" });
+    state = resolveRound(state);
 
     expect(pick(state.lastEvents, "scrollConsumed")).toHaveLength(0);
     expect(only(state.lastEvents, "attackRolled").scrollBonus).toBe(0);
@@ -308,7 +272,7 @@ describe("事件流", () => {
     state.players.player1.position = 13;
     state.phase = {
       kind: "battle",
-      battle: {
+      battle: makeBattle({
         kind: "pve",
         aPlayerId: "player1",
         enemyId: "golem",
@@ -317,13 +281,11 @@ describe("事件流", () => {
         attacker: "b",
         initiativeA: 1,
         initiativeB: 6,
-        round: 1,
-        log: [],
-      },
+      }),
     };
 
     for (let index = 0; index < 50 && state.phase.kind === "battle"; index += 1) {
-      state = gameReducer(state, { type: "resolveBattleRound" });
+      state = resolveRound(state);
     }
 
     const ended = only(state.lastEvents, "battleEnded");
@@ -350,23 +312,17 @@ describe("事件流", () => {
     ];
     state.phase = {
       kind: "battle",
-      battle: {
+      battle: makeBattle({
         kind: "pve",
         aPlayerId: "player1",
         enemyId: "golem",
-        hpA: 18,
         hpB: 1,
-        attacker: "a",
-        initiativeA: 6,
-        initiativeB: 1,
-        round: 1,
-        log: [],
-      },
+      }),
     };
 
     const events: GameEvent[] = [];
     for (let index = 0; index < 50 && state.phase.kind === "battle"; index += 1) {
-      state = gameReducer(state, { type: "resolveBattleRound" });
+      state = resolveRound(state);
       events.push(...state.lastEvents);
     }
 
@@ -386,8 +342,9 @@ describe("事件流", () => {
     let state = createInitialGame(20260805);
     for (let index = 0; index < 40 && state.phase.kind !== "gameOver"; index += 1) {
       const next = step(state);
+      const texts = next.history.map((entry) => entry.text);
       for (const narration of pick(next.lastEvents, "narration")) {
-        expect(next.history).toContain(narration.text);
+        expect(texts).toContain(narration.text);
       }
       state = next;
     }

@@ -55,6 +55,23 @@ export interface MapTile {
 
 export type CombatSide = "a" | "b";
 
+/**
+ * 一侧在本次攻击回合的卷轴选择（GameRule 8.3）。
+ *
+ * 暗牌之下攻防双方在各自设备上独立决定，所以必须能区分
+ * “还没提交”和“提交了但不使用”——前者要继续等，后者可以直接结算。
+ *
+ * submitted 是**只在视图里出现**的状态，引擎永远不会产生它：
+ * viewFor 会把对手的 chosen / declined 一律折叠成 submitted。
+ * 「选了哪张」和「到底选没选」都是情报，8.3 要求双方在互相不知情的
+ * 前提下决定，所以对手那一侧只能透出“已提交”这一个事实。
+ */
+export type ScrollChoice =
+  | { status: "pending" }
+  | { status: "declined" }
+  | { status: "chosen"; instanceId: string }
+  | { status: "submitted" };
+
 export interface BattleState {
   kind: "pve" | "boss" | "pvp";
   aPlayerId: PlayerId;
@@ -67,6 +84,9 @@ export interface BattleState {
   initiativeA: number;
   initiativeB: number;
   log: string[];
+  /** 本回合双方的卷轴选择，两侧都非 pending 时才结算 */
+  choiceA: ScrollChoice;
+  choiceB: ScrollChoice;
 }
 
 export interface PvpPenaltyState {
@@ -90,6 +110,18 @@ export type HpChangeReason =
   | "pvpTransfer";
 
 /**
+ * 一条可按接收方裁剪的文案。
+ *
+ * 暗牌之下「打开宝箱，获得力量卷轴」这种句子会直接泄露手牌，
+ * 所以带上 secret 的条目由 viewFor 按观看者替换成 publicText。
+ * 只裁剪卷轴数组和事件是不够的——文案是最容易漏掉的泄露面。
+ */
+export interface LogEntry {
+  text: string;
+  secret?: { owner: PlayerId; publicText: string };
+}
+
+/**
  * 引擎在一次 action 中产生的结构化事件。
  *
  * 与 `history` 的区别：`history` 是给玩家看的持久文字记录，
@@ -99,7 +131,7 @@ export type HpChangeReason =
  */
 export type GameEventBody =
   /** 与 addHistory 同步产生，用于把旁白文字对齐到动画节点上 */
-  | { type: "narration"; text: string }
+  | { type: "narration"; text: string; secret?: { owner: PlayerId; publicText: string } }
   | { type: "gameStarted"; starterId: PlayerId; rollP1: number; rollP2: number }
   | { type: "turnStarted"; playerId: PlayerId; turn: number }
   | { type: "movementRolled"; playerId: PlayerId; value: number }
@@ -115,11 +147,12 @@ export type GameEventBody =
       reason: HpChangeReason;
     }
   | { type: "maxHpChanged"; playerId: PlayerId; from: number; to: number }
+  /** kind 会被 viewFor 对非持有者裁掉，否则对手抽到什么会从动画事件泄露 */
   | {
       type: "scrollGranted";
       playerId: PlayerId;
       instanceId: string;
-      kind: ScrollKind;
+      kind?: ScrollKind;
     }
   | {
       type: "scrollConsumed";
@@ -213,8 +246,8 @@ export interface GameState {
   rngSeed: number;
   nextInstanceId: number;
   lastMovementRoll?: number;
-  message: string;
-  history: string[];
+  message: LogEntry;
+  history: LogEntry[];
   /** 仅包含最近一次 action 产生的事件，每次 action 开始时清空 */
   lastEvents: GameEvent[];
   nextEventId: number;
@@ -224,14 +257,43 @@ export type GameAction =
   | { type: "restart"; seed?: number }
   | { type: "rollMovement" }
   | { type: "endTurn" }
-  | {
-      type: "resolveBattleRound";
-      attackScrollId?: string;
-      defenseScrollId?: string;
-    }
+  /**
+   * 提交本侧的卷轴选择。省略 instanceId 表示不使用。
+   * 两侧都提交后引擎自动结算本回合，取代原来的 resolveBattleRound。
+   */
+  | { type: "submitScrollChoice"; side: CombatSide; instanceId?: string }
   | {
       type: "choosePvpPenalty";
       choice: "resource" | "hp";
       resourceType?: "scroll" | "equipment";
       instanceId?: string;
     };
+
+/**
+ * 裁剪后的卷轴：对手只看得到牌背。
+ *
+ * 保留 instanceId 是有意的——界面用它做动画 key，牌背才能各自进出，
+ * 而 instanceId 本身只暴露发牌顺序，不暴露牌面。
+ */
+export interface HiddenScroll {
+  instanceId: string;
+  hidden: true;
+}
+
+export type ScrollView = OwnedScroll | HiddenScroll;
+
+/**
+ * 玩家身上与手牌无关的部分。
+ *
+ * 属性计算和动画显示都用不到 scrolls，让它们接受这个类型，
+ * Player 和 PlayerView 就能共用同一套函数，不必为暗牌视图另写一份。
+ */
+export type PlayerStats = Omit<Player, "scrolls">;
+
+/** 玩家的可见视图，scrolls 可能是裁剪过的 */
+export type PlayerView = PlayerStats & { scrolls: ScrollView[] };
+
+/** 发给某一名玩家的状态视图 */
+export type GameStateView = Omit<GameState, "players"> & {
+  players: Record<PlayerId, PlayerView>;
+};

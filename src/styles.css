@@ -131,6 +131,41 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .primary-button { border: 1px solid #e1bc70; background: linear-gradient(#d8b05f, #aa7733); color: #1d160d; padding: 13px 21px; min-width: 146px; font-weight: 800; letter-spacing: .04em; box-shadow: inset 0 1px #fff6, 0 5px 18px #0005; }
 .primary-button:hover { filter: brightness(1.12); transform: translateY(-1px); }
 .primary-button.secondary { background: linear-gradient(#a9a095, #746b61); border-color: #aaa095; }
+/* 大厅 */
+.lobby-shell { display: grid; place-items: center; }
+.lobby-card { width: min(420px, 100%); border: 1px solid #6d573c; background: linear-gradient(160deg, #251f19, #131211); padding: 30px 28px; box-shadow: 0 30px 90px #000, inset 0 1px #ffffff10; display: grid; gap: 14px; }
+.lobby-brand { justify-content: center; margin-bottom: 4px; }
+.lobby-lead { margin: 0; text-align: center; color: #a99b87; font-size: 12px; }
+.lobby-modes { display: grid; gap: 10px; margin-top: 8px; }
+.lobby-modes .primary-button { width: 100%; }
+.lobby-foot { margin: 4px 0 0; text-align: center; color: #7d7263; font-size: 10px; line-height: 1.6; }
+.lobby-field { display: grid; gap: 5px; color: #9d8d78; font-size: 10px; letter-spacing: .08em; }
+.lobby-field input { background: #12100e; color: #e9dcc6; border: 1px solid #504538; padding: 11px 12px; font: 600 15px "Noto Serif SC", serif; letter-spacing: .12em; text-align: center; }
+.lobby-field input:focus { outline: none; border-color: #d2a85c; }
+.lobby-divider { display: flex; align-items: center; gap: 10px; color: #6b6154; font-size: 10px; }
+.lobby-divider::before, .lobby-divider::after { content: ""; flex: 1; height: 1px; background: #463d33; }
+.lobby-status { justify-self: center; font-size: 10px; letter-spacing: .1em; color: #8a7c68; }
+.lobby-status.status-online { color: #8fc58a; }
+.lobby-status.status-offline { color: #d98d6a; }
+.lobby-error { margin: 0; text-align: center; color: #e0876a; font-size: 11px; }
+.lobby-notice { margin: 0; text-align: center; color: #c4b49e; font-size: 11px; }
+.lobby-back { justify-self: center; margin-top: 4px; }
+.lobby-waiting { display: grid; gap: 10px; justify-items: center; text-align: center; }
+.lobby-waiting p { margin: 0; color: #a99b87; font-size: 11px; }
+.room-code { font: 900 34px "Noto Serif SC", serif; letter-spacing: .32em; color: #f1d897; text-indent: .32em; }
+.lobby-members { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.lobby-members span { border: 1px solid #4d4439; padding: 5px 10px; font-size: 10px; color: #7d7263; }
+.lobby-members span.online { border-color: #6f8a5c; color: #cfe0bd; }
+.lobby-members .pending-seat { border-style: dashed; }
+
+/* 对局内的联机状态 */
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.room-tag { font: 700 12px "Noto Serif SC", serif; letter-spacing: .18em; color: #e8c985; border: 1px solid #6d573c; padding: 6px 10px; }
+.topbar-error { color: #e0876a; font-size: 10px; max-width: 160px; }
+.waiting-notice { color: #b4a58f; font-size: 12px; margin: 14px 0; }
+.submitted-hint { margin-left: 8px; color: #8fc58a; font-size: 10px; }
+.resource-hidden-note { margin: 8px 0 0; color: #8a7c68; font-size: 10px; }
+
 .history-panel { max-width: 960px; margin: 9px auto 0; color: #877b6a; font-size: 10px; }
 .history-panel summary { cursor: pointer; text-align: center; letter-spacing: .12em; }
 .history-panel p { margin: 5px 0; padding-left: 12px; border-left: 1px solid #463d32; }

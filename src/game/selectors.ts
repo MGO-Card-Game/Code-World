@@ -1,19 +1,19 @@
 import { EQUIPMENT, SCROLLS } from "./content";
-import type { EquipmentKind, Player, ScrollTiming } from "./types";
+import type { EquipmentKind, Player, PlayerStats, ScrollTiming } from "./types";
 
-function equipmentCount(player: Player, kind: EquipmentKind) {
+function equipmentCount(player: PlayerStats, kind: EquipmentKind) {
   return player.equipment.filter((item) => item.kind === kind).length;
 }
 
-export function getAttack(player: Player) {
+export function getAttack(player: PlayerStats) {
   return player.baseAttack + equipmentCount(player, "sword");
 }
 
-export function getDefense(player: Player) {
+export function getDefense(player: PlayerStats) {
   return player.baseDefense + equipmentCount(player, "shield");
 }
 
-export function describeEquipment(player: Player) {
+export function describeEquipment(player: PlayerStats) {
   return player.equipment.map((item) => EQUIPMENT[item.kind].name);
 }
 

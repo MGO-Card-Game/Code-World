@@ -15,6 +15,7 @@ import {
   visualPosition,
 } from "./visualState";
 import { createInitialGame, gameReducer } from "../game/engine";
+import { makeBattle } from "../game/testSupport";
 import type { BattleState, GameEvent, Player } from "../game/types";
 
 function player(overrides: Partial<Player> = {}): Player {
@@ -90,18 +91,15 @@ describe("显示数值回拉", () => {
   });
 
   it("战斗内临时血量按 targetSide 分别按住", () => {
-    const battle: BattleState = {
+    const battle: BattleState = makeBattle({
       kind: "pve",
       aPlayerId: "player1",
       enemyId: "golem",
       hpA: 14,
       hpB: 8,
-      attacker: "a",
-      initiativeA: 6,
       initiativeB: 2,
       round: 2,
-      log: [],
-    };
+    });
     const damage: GameEvent = {
       id: 1,
       type: "battleDamage",

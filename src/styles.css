@@ -166,6 +166,25 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .submitted-hint { margin-left: 8px; color: #8fc58a; font-size: 10px; }
 .resource-hidden-note { margin: 8px 0 0; color: #8a7c68; font-size: 10px; }
 
+/* 调试面板：仅开发模式渲染 */
+.debug-toggle { position: fixed; right: 14px; bottom: 14px; z-index: 40; border: 1px solid #5a6f4c; background: #1b2117; color: #b9d2a5; padding: 7px 13px; border-radius: 3px; font-size: 11px; letter-spacing: .1em; box-shadow: 0 6px 18px #0008; }
+.debug-toggle:hover { border-color: #8fc58a; color: #dcecd0; }
+.debug-panel { position: fixed; right: 14px; bottom: 14px; z-index: 40; width: 288px; max-height: calc(100vh - 28px); overflow-y: auto; display: grid; gap: 11px; padding: 13px 14px; border: 1px solid #5a6f4c; background: linear-gradient(160deg, #1d2318, #14170f); box-shadow: 0 18px 50px #000a; font-size: 11px; }
+.debug-panel header { display: flex; align-items: center; justify-content: space-between; }
+.debug-panel header strong { color: #b9d2a5; font-size: 12px; letter-spacing: .1em; }
+.debug-panel .ghost-button { padding: 4px 9px; font-size: 10px; }
+.debug-row { display: grid; gap: 5px; }
+.debug-row > span { color: #86977a; font-size: 9px; letter-spacing: .12em; }
+.debug-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
+.debug-panel button:not(.ghost-button) { background: #202718; border: 1px solid #4b5a40; color: #c6d8b7; padding: 6px 9px; border-radius: 2px; font-size: 10px; }
+.debug-panel button:not(.ghost-button):hover { border-color: #8fc58a; background: #2a3322; }
+.debug-seg { display: flex; gap: 5px; }
+.debug-seg button { flex: 1; }
+.debug-seg button.active { border-color: #8fc58a; background: #2f3d26; color: #e2f0d6; }
+.debug-stat { color: #9db08f; font-size: 10px; padding: 6px 8px; background: #161a11; border: 1px solid #3a452f; }
+.debug-panel select { width: 100%; background: #161a11; color: #c6d8b7; border: 1px solid #4b5a40; padding: 6px; font-size: 10px; }
+.debug-note { margin: 0; color: #6f7d64; font-size: 9px; line-height: 1.6; }
+
 .history-panel { max-width: 960px; margin: 9px auto 0; color: #877b6a; font-size: 10px; }
 .history-panel summary { cursor: pointer; text-align: center; letter-spacing: .12em; }
 .history-panel p { margin: 5px 0; padding-left: 12px; border-left: 1px solid #463d32; }

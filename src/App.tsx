@@ -1,8 +1,10 @@
-import { useMemo, useReducer, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { DebugPanel } from "./DebugPanel";
 import { GameScreen } from "./GameScreen";
 import { ModePicker, RoomLobby } from "./Lobby";
 import { createInitialGame, gameReducer } from "./game/engine";
 import { currentActor, viewFor } from "./game/multiplayer";
+import type { GameAction } from "./game/types";
 import { useOnlineGame } from "./net/useOnlineGame";
 
 type Mode = "menu" | "local" | "online";
@@ -17,24 +19,33 @@ type Mode = "menu" | "local" | "online";
  * 这样本地与联机走的是同一套界面：差别只在状态从哪来、观看者是谁。
  */
 function LocalGame({ onExit }: { onExit: () => void }) {
-  const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialGame());
+  // 用 useState 而不是 useReducer：调试面板需要直接替换状态，
+  // 这样调试改动就不必做成 GameAction，也就不可能被发到服务器
+  const [state, setState] = useState(() => createInitialGame());
+  const dispatch = useCallback(
+    (action: GameAction) => setState((current) => gameReducer(current, action)),
+    [],
+  );
   const viewerSeat = currentActor(state);
   const view = useMemo(() => viewFor(state, viewerSeat), [state, viewerSeat]);
 
   return (
-    <GameScreen
-      state={view}
-      viewerSeat={viewerSeat}
-      dispatch={dispatch}
-      toolbar={
-        <div className="topbar-actions">
-          <button className="ghost-button" onClick={() => dispatch({ type: "restart" })}>
-            重新开局
-          </button>
-          <button className="ghost-button" onClick={onExit}>返回菜单</button>
-        </div>
-      }
-    />
+    <>
+      <GameScreen
+        state={view}
+        viewerSeat={viewerSeat}
+        dispatch={dispatch}
+        toolbar={
+          <div className="topbar-actions">
+            <button className="ghost-button" onClick={() => dispatch({ type: "restart" })}>
+              重新开局
+            </button>
+            <button className="ghost-button" onClick={onExit}>返回菜单</button>
+          </div>
+        }
+      />
+      {import.meta.env.DEV && <DebugPanel state={state} onChange={setState} />}
+    </>
   );
 }
 

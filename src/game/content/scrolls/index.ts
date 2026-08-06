@@ -38,7 +38,13 @@ export function scrollDefinition(kind: ScrollKind): ScrollDefinition {
   return SCROLLS[kind];
 }
 
+/** 会出现在随机卡池里的卷轴。装备发的临时牌不在其中。 */
+export function drawableScrollKinds(): ScrollKind[] {
+  // 走 scrollDefinition 取值：SCROLLS 的字面量类型里，没写 drawable 的卡就没有这个属性
+  return (Object.keys(SCROLLS) as ScrollKind[])
+    .filter((kind) => scrollDefinition(kind).drawable !== false);
+}
+
 export function pickScrollKind(random: () => number): ScrollKind {
-  const kinds = Object.keys(SCROLLS) as ScrollKind[];
-  return pickByRarity(kinds, (kind) => SCROLLS[kind].rarity, random);
+  return pickByRarity(drawableScrollKinds(), (kind) => SCROLLS[kind].rarity, random);
 }

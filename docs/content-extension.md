@@ -46,7 +46,9 @@ export const COMBAT_SWING_SCROLLS = {
 } satisfies Record<string, ScrollDefinition>;
 ```
 
-`effects` 可以组合多个通用效果，目前支持：固定加值、替换骰面、增加骰子、设置最低骰值和掷骰前直接伤害。引擎按数组顺序执行。
+`effects` 可以组合多个通用效果，目前支持：固定加值、替换骰面、增加骰子、设置最低骰值、视为最高面和掷骰前直接伤害。引擎按数组顺序执行。
+
+**一回合可以打任意张卷轴**（GameRule 8.5），所以新增效果类型时必须先想清楚它多张叠加怎么合并。累加类求和、`dieSides` 与 `minimumRoll` 取最大——这几种换顺序结果都不变，因此不需要给卡牌配优先级。只有 `directDamage` 和 `custom` 带副作用，按提交顺序结算。`rollModifiers.test.ts` 有一条排列测试和一条登记表测试挡着漏项。
 
 牌面左上角圆圈里的攻／防／通由 `scrollCategory()` 从 `timings` 推导，不要单独配置：只声明 `beforeAttackRoll` 是攻击牌，只声明 `beforeDefenseRoll` 是防守牌，两个都声明是通用牌。
 
@@ -89,7 +91,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
 ### 装备的战斗钩子
 
-通用修正不够用时，在卡上加 `effects`。四个时机：`modifiers`（动态修正）、`onEquip` / `onUnequip`（装备与卸下）、以及战斗内的 `beforeRoll` / `afterRoll`。
+通用修正不够用时，在卡上加 `effects`。五个时机：`modifiers`（动态修正）、`onEquip` / `onUnequip`（装备与卸下）、`onBattleStart`（战斗开始）、以及战斗内的 `beforeRoll` / `afterRoll`。
 
 ```ts
 oldKnightSword: {
@@ -116,6 +118,43 @@ oldKnightSword: {
 * 钩子只对有归属玩家的一侧调用；PvE 的敌人没有装备，会安静跳过。
 
 纯数值的骰面/属性修正仍然走 `modifiers` 配置，不要为它写 `effects`。
+
+### 「每场战斗一次的主动技」怎么写
+
+不要为它新建一套装备发动交互。**战斗开始时发一张战斗限定的临时卷轴**，让它落到已有的选牌阶段上：
+
+```ts
+// equipment/accessories.ts
+fateCrown: {
+  name: "命运王冠",
+  rarity: "PR",
+  modifiers: [],
+  effects: {
+    onBattleStart({ grantBattleScroll }) {
+      grantBattleScroll("fateCrownDecree");
+    },
+  },
+},
+```
+
+```ts
+// scrolls/diceBoost.ts
+fateCrownDecree: {
+  name: "命运王冠",
+  description: "本场战斗限定 · 本次攻或防的第一颗骰直接视为最高面",
+  rarity: "PR",
+  timings: ["beforeAttackRoll", "beforeDefenseRoll"],
+  effects: [{ type: "maxRoll", count: 1 }],
+  drawable: false,   // ← 关键
+},
+```
+
+这样白拿三件事：**每场一次**（一场只发一张，打掉就没了）、**玩家自己挑时机**（选牌阶段现成）、**暗牌与联机归属**（卷轴那套已经处理好）。
+
+两个必须记住的点：
+
+* **`drawable: false` 不能忘**，否则宝箱和战斗奖励会把这张战斗限定牌当普通卷轴发出去，变成永久卡。
+* 发出的牌带 `temporary: true`，由 `dropTemporaryScrolls` 在 `finishBattle` **开头**统一回收——必须早于任何阶段切换。晚一步的话，相遇战代价阶段里败方就能把这张本不属于他的牌交给赢家，凭空变成一张常驻卡。
 
 ## 稀有度与抽取
 

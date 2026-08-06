@@ -31,7 +31,7 @@ describe("动作被拒时原样返回 state", () => {
   it("提交手上没有的卷轴", () => {
     const state = battleState();
     expect(
-      gameReducer(state, { type: "submitScrollChoice", side: "a", instanceId: "ghost" }),
+      gameReducer(state, { type: "submitScrollChoice", side: "a", instanceIds: ["ghost"] }),
     ).toBe(state);
   });
 
@@ -40,7 +40,7 @@ describe("动作被拒时原样返回 state", () => {
     // player1 是攻击方，护盾只能防守时打
     state.players.player1.scrolls = [{ instanceId: "guard-1", kind: "guard" }];
     expect(
-      gameReducer(state, { type: "submitScrollChoice", side: "a", instanceId: "guard-1" }),
+      gameReducer(state, { type: "submitScrollChoice", side: "a", instanceIds: ["guard-1"] }),
     ).toBe(state);
   });
 

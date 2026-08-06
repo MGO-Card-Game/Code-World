@@ -48,9 +48,17 @@ function sideIsPlayer(battle: BattleState, side: CombatSide) {
  * 敌人一侧在开局时就被标记为 declined，所以这里只给玩家一侧提交，
  * 提交齐了引擎会自动结算。
  */
+/** 一侧本回合要打的牌。张数不限，只打一张时可以直接写字符串。 */
+export type RoundChoice = string | readonly string[] | undefined;
+
+function toInstanceIds(choice: RoundChoice): readonly string[] {
+  if (choice === undefined) return [];
+  return typeof choice === "string" ? [choice] : choice;
+}
+
 export function resolveRound(
   state: GameState,
-  choices: { attack?: string; defense?: string } = {},
+  choices: { attack?: RoundChoice; defense?: RoundChoice } = {},
 ): GameState {
   if (state.phase.kind !== "battle") return state;
   const battle = state.phase.battle;
@@ -62,14 +70,14 @@ export function resolveRound(
     next = gameReducer(next, {
       type: "submitScrollChoice",
       side: attacker,
-      instanceId: choices.attack,
+      instanceIds: toInstanceIds(choices.attack),
     });
   }
   if (sideIsPlayer(battle, defender)) {
     next = gameReducer(next, {
       type: "submitScrollChoice",
       side: defender,
-      instanceId: choices.defense,
+      instanceIds: toInstanceIds(choices.defense),
     });
   }
   return next;

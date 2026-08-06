@@ -20,6 +20,13 @@ export type MapRegionId = "foothill" | "mountainside" | "summit";
 export interface OwnedScroll {
   instanceId: string;
   kind: ScrollKind;
+  /**
+   * 战斗开始时由装备临时发放的牌，战斗结束时统一回收。
+   *
+   * 回收必须发生在相遇战代价阶段**之前**，否则败方可以把这张本不属于他的
+   * 临时牌交给赢家，凭空变成一张常驻卡。
+   */
+  temporary?: true;
 }
 
 export interface OwnedEquipment {
@@ -89,7 +96,7 @@ export type CombatSide = "a" | "b";
 export type ScrollChoice =
   | { status: "pending" }
   | { status: "declined" }
-  | { status: "chosen"; instanceId: string }
+  | { status: "chosen"; instanceIds: string[] }
   | { status: "submitted" };
 
 export interface BattleState {
@@ -300,10 +307,13 @@ export type GameAction =
   | { type: "rollMovement" }
   | { type: "endTurn" }
   /**
-   * 提交本侧的卷轴选择。省略 instanceId 表示不使用。
-   * 两侧都提交后引擎自动结算本回合，取代原来的 resolveBattleRound。
+   * 提交本侧本回合要打的全部卷轴（GameRule 8.5，张数不限）。
+   * 省略或传空数组表示不使用。两侧都提交后引擎自动结算本回合。
+   *
+   * 数组顺序即结算顺序。绝大多数效果的合并规则与顺序无关（见 RollModifiers），
+   * 只有 directDamage 和 custom 这类带副作用的效果会受顺序影响。
    */
-  | { type: "submitScrollChoice"; side: CombatSide; instanceId?: string }
+  | { type: "submitScrollChoice"; side: CombatSide; instanceIds?: readonly string[] }
   /**
    * 支付相遇战代价（GameRule 13.1）。三选一：
    * resource 交一张卷轴或装备、hp 转移真实生命、retreat 后退若干格。

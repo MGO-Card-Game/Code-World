@@ -11,6 +11,13 @@ export interface ScrollDefinition {
   /** 可以在哪些时机打出；通用卷轴可以同时属于攻防两个时机。 */
   timings: readonly ScrollTiming[];
   /**
+   * 是否参与随机卡池。默认参与。
+   *
+   * 只有特定来源才能拿到的牌（比如装备在战斗开始时发的临时牌）要设成 false，
+   * 否则宝箱和战斗奖励会把它当普通卷轴发出去。
+   */
+  drawable?: boolean;
+  /**
    * 引擎按数组顺序结算。
    *
    * 无法声明式表达的效果用 `{ type: "custom", resolve }` 直接写函数——

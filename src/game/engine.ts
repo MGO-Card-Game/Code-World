@@ -366,6 +366,8 @@ function startBattle(
   const firstName = combatantName(state, battle, battle.attacker);
   battle.log.unshift(`先攻 ${initiativeA} : ${initiativeB}，${firstName}先攻。`);
   state.phase = { kind: "battle", battle };
+  applyEquipmentBattleStart(state, battle, "a");
+  applyEquipmentBattleStart(state, battle, "b");
   addHistory(state, `${combatantName(state, battle, "a")}与${combatantName(state, battle, "b")}进入战斗！`);
 }
 
@@ -477,6 +479,25 @@ function consumeScroll(
   return scroll.kind;
 }
 
+/**
+ * 消耗本回合提交的全部卷轴。
+ *
+ * 刻意先把牌全部消耗掉，再去结算效果：中途有一张把对手打倒时，
+ * 剩下的牌也已经打出去了，不该因为对面先死就退回手里。
+ */
+function consumeScrolls(
+  state: GameState,
+  player: Player,
+  instanceIds: readonly string[],
+): ScrollKind[] {
+  const kinds: ScrollKind[] = [];
+  for (const instanceId of instanceIds) {
+    const kind = consumeScroll(state, player, instanceId);
+    if (kind) kinds.push(kind);
+  }
+  return kinds;
+}
+
 function battlePlayerForSide(battle: BattleState, side: CombatSide) {
   return side === "a" ? battle.aPlayerId : battle.bPlayerId;
 }
@@ -553,11 +574,14 @@ function resetChoices(battle: BattleState) {
   battle.choiceB = battle.bPlayerId ? { status: "pending" } : { status: "declined" };
 }
 
-function chosenInstanceId(choice: ScrollChoice) {
-  return choice.status === "chosen" ? choice.instanceId : undefined;
+function chosenInstanceIds(choice: ScrollChoice): readonly string[] {
+  return choice.status === "chosen" ? choice.instanceIds : [];
 }
 
 function finishBattle(state: GameState, battle: BattleState, winnerSide: CombatSide) {
+  // 先回收临时牌，再走任何分支——相遇战代价阶段会让败方交出一张卷轴
+  dropTemporaryScrolls(state);
+
   if (battle.kind === "pvp") {
     emit(state, {
       type: "battleEnded",
@@ -661,6 +685,7 @@ function newRollModifiers(): RollModifiers {
     flatBonus: 0,
     extraDice: 0,
     minimumRoll: 1,
+    maxRollDice: 0,
     bonusDamage: 0,
   };
 }
@@ -679,13 +704,24 @@ function applyScrollEffect(
       modifiers.flatBonus += effect.value;
       return false;
     case "dieSides":
-      modifiers.sidesOverride = effect.sides;
+      /*
+        取最大而不是后写覆盖。
+
+        一回合可以打任意多张牌，两张换骰面的卷轴同时打出时，"谁生效"不能取决于
+        提交顺序——那种依赖不会报错，只会让数值悄悄算错。取最大之后顺序在数学上
+        就影响不了结果，也就不需要给每张卡维护优先级。
+        rollModifiers.test.ts 有一条排列测试守着这个性质。
+      */
+      modifiers.sidesOverride = Math.max(modifiers.sidesOverride ?? 0, effect.sides);
       return false;
     case "extraDice":
       modifiers.extraDice += effect.count;
       return false;
     case "minimumRoll":
       modifiers.minimumRoll = Math.max(modifiers.minimumRoll, effect.value);
+      return false;
+    case "maxRoll":
+      modifiers.maxRollDice += effect.count;
       return false;
     case "directDamage":
       return applyDirectScrollDamage(
@@ -725,29 +761,37 @@ function applyScrollEffect(
   }
 }
 
+/**
+ * 依次结算本侧本回合打出的全部卷轴，返回目标是否已被打倒。
+ *
+ * 按提交顺序走，目标一倒就停手——后面的牌已经消耗掉了，只是效果不再结算。
+ * 累加类效果（加值、骰数、骰面）与顺序无关，只有 directDamage / custom
+ * 这类带副作用的会受顺序影响，见 RollModifiers 的说明。
+ */
 function applyScrollEffects(
   state: GameState,
   battle: BattleState,
   sourceSide: CombatSide,
   targetSide: CombatSide,
-  kind: ScrollKind | undefined,
+  kinds: readonly ScrollKind[],
   modifiers: RollModifiers,
 ) {
-  if (!kind) return false;
-  const definition = SCROLLS[kind];
-  for (const effect of definition.effects) {
-    if (
-      applyScrollEffect(
-        state,
-        battle,
-        sourceSide,
-        targetSide,
-        definition.name,
-        effect,
-        modifiers,
-      )
-    ) {
-      return true;
+  for (const kind of kinds) {
+    const definition = SCROLLS[kind];
+    for (const effect of definition.effects) {
+      if (
+        applyScrollEffect(
+          state,
+          battle,
+          sourceSide,
+          targetSide,
+          definition.name,
+          effect,
+          modifiers,
+        )
+      ) {
+        return true;
+      }
     }
   }
   return false;
@@ -770,9 +814,15 @@ function rollForSide(
     1,
     1 + modifiers.extraDice + (player ? getDiceCountBonus(player, dieKind) : 0),
   );
-  const dice = Array.from({ length: count }, () =>
-    Math.min(sides, Math.max(modifiers.minimumRoll, rollDie(state, sides))),
-  );
+  /*
+    每颗骰子都照常掷一次再决定要不要覆盖，而不是"视为最高面就跳过投骰"。
+    这样消耗的随机数个数只取决于骰子数量，与本次生效了哪些效果无关，
+    同种子重放和对照调试才不会因为多了一张牌就整条随机流错位。
+  */
+  const dice = Array.from({ length: count }, (_unused, index) => {
+    const roll = Math.min(sides, Math.max(modifiers.minimumRoll, rollDie(state, sides)));
+    return index < modifiers.maxRollDice ? sides : roll;
+  });
   return {
     sides,
     dice,
@@ -830,7 +880,54 @@ function equipmentBattleContext(
   };
 }
 
-/** 掷骰前的装备钩子。卷轴先结算完才轮到这里，见 CustomEquipmentEffectResolver。 */
+/**
+ * 战斗开始时的装备钩子，目前用于发临时牌。
+ *
+ * 发出去的牌带 temporary 标记，由 dropTemporaryScrolls 在战斗结束时回收。
+ */
+function applyEquipmentBattleStart(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+) {
+  forEachEquipmentEffects(state, battle, side, (effects, item, player) => {
+    effects.onBattleStart?.({
+      state,
+      battle,
+      side,
+      player,
+      item,
+      grantBattleScroll(kind) {
+        const scroll: OwnedScroll = {
+          instanceId: makeInstanceId(state, "battle-scroll"),
+          kind,
+          temporary: true,
+        };
+        player.scrolls.push(scroll);
+        emit(state, {
+          type: "scrollGranted",
+          playerId: player.id,
+          instanceId: scroll.instanceId,
+          kind,
+        });
+      },
+    });
+  });
+}
+
+/**
+ * 回收本场战斗发出的临时牌。
+ *
+ * 必须在任何阶段切换**之前**调用——尤其是相遇战代价阶段：那里败方可以交出
+ * 一张卷轴，临时牌要是还在手上就会被交给赢家，凭空变成一张常驻卡。
+ */
+function dropTemporaryScrolls(state: GameState) {
+  for (const player of Object.values(state.players)) {
+    player.scrolls = player.scrolls.filter((scroll) => !scroll.temporary);
+  }
+}
+
+/** 掷骰前的装备钩子。卷轴先结算完才轮到这里，见 EquipmentEffects。 */
 function applyEquipmentBeforeRoll(
   state: GameState,
   battle: BattleState,
@@ -873,37 +970,37 @@ function resolveBattleRound(state: GameState) {
   const battle = state.phase.battle;
   const attackerSide = battle.attacker;
   const defenderSideForChoice: CombatSide = attackerSide === "a" ? "b" : "a";
-  const attackScrollId = chosenInstanceId(choiceFor(battle, attackerSide));
-  const defenseScrollId = chosenInstanceId(choiceFor(battle, defenderSideForChoice));
+  const attackScrollIds = chosenInstanceIds(choiceFor(battle, attackerSide));
+  const defenseScrollIds = chosenInstanceIds(choiceFor(battle, defenderSideForChoice));
   const defenderSide = attackerSide === "a" ? "b" : "a";
   const attackerId = battlePlayerForSide(battle, attackerSide);
   const defenderId = battlePlayerForSide(battle, defenderSide);
-  const attackScrollKind = attackerId
-    ? consumeScroll(state, state.players[attackerId], attackScrollId)
-    : undefined;
+  const attackScrollKinds = attackerId
+    ? consumeScrolls(state, state.players[attackerId], attackScrollIds)
+    : [];
   const attackModifiers = newRollModifiers();
   if (applyScrollEffects(
     state,
     battle,
     attackerSide,
     defenderSide,
-    attackScrollKind,
+    attackScrollKinds,
     attackModifiers,
   )) {
     finishBattle(state, battle, attackerSide);
     return;
   }
 
-  const defenseScrollKind = defenderId
-    ? consumeScroll(state, state.players[defenderId], defenseScrollId)
-    : undefined;
+  const defenseScrollKinds = defenderId
+    ? consumeScrolls(state, state.players[defenderId], defenseScrollIds)
+    : [];
   const defenseModifiers = newRollModifiers();
   if (applyScrollEffects(
     state,
     battle,
     defenderSide,
     attackerSide,
-    defenseScrollKind,
+    defenseScrollKinds,
     defenseModifiers,
   )) {
     finishBattle(state, battle, defenderSide);
@@ -1019,7 +1116,7 @@ function resolveBattleRound(state: GameState) {
 function submitScrollChoice(
   state: GameState,
   side: CombatSide,
-  instanceId?: string,
+  instanceIds?: readonly string[],
 ) {
   if (state.phase.kind !== "battle") return false;
   const battle = state.phase.battle;
@@ -1028,14 +1125,17 @@ function submitScrollChoice(
   const playerId = battlePlayerForSide(battle, side);
   if (!playerId) return false;
 
-  if (instanceId) {
-    // 校验这张牌确实在手上，且此刻打得出（8.5 每方每回合最多一张）
+  const chosen = instanceIds ?? [];
+  if (chosen.length > 0) {
+    // 张数不限（8.5），但每张都得确实在手上、此刻打得出，且不能重复提交同一张
     const timing: ScrollTiming =
       side === battle.attacker ? "beforeAttackRoll" : "beforeDefenseRoll";
-    const owned = playableScrolls(state.players[playerId], timing)
-      .some((scroll) => scroll.instanceId === instanceId);
-    if (!owned) return false;
-    setChoice(battle, side, { status: "chosen", instanceId });
+    const playable = new Set(
+      playableScrolls(state.players[playerId], timing).map((scroll) => scroll.instanceId),
+    );
+    if (new Set(chosen).size !== chosen.length) return false;
+    if (chosen.some((id) => !playable.has(id))) return false;
+    setChoice(battle, side, { status: "chosen", instanceIds: [...chosen] });
   } else {
     setChoice(battle, side, { status: "declined" });
   }
@@ -1285,7 +1385,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return next;
     }
     case "submitScrollChoice":
-      return submitScrollChoice(next, action.side, action.instanceId) ? next : state;
+      return submitScrollChoice(next, action.side, action.instanceIds) ? next : state;
     case "choosePvpPenalty":
       return choosePvpPenalty(next, action) ? next : state;
     case "chooseEquipment":

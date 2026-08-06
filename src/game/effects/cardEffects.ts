@@ -3,6 +3,7 @@ import type {
   CombatSide,
   GameState,
   OwnedEquipment,
+  OwnedScroll,
   Player,
   PlayerStats,
 } from "../types";
@@ -33,6 +34,8 @@ export type ScrollEffectDefinition =
   | { type: "dieSides"; sides: number }
   | { type: "extraDice"; count: number }
   | { type: "minimumRoll"; value: number }
+  /** 把本次投骰中的前 count 颗直接视为最高面，不影响其余骰子 */
+  | { type: "maxRoll"; count: number }
   | { type: "directDamage"; amount: number }
   | { type: "custom"; resolve: ScrollEffectResolver };
 
@@ -44,6 +47,13 @@ export interface RollModifiers {
   sidesOverride?: number;
   extraDice: number;
   minimumRoll: number;
+  /**
+   * 本次投骰中有几颗直接视为最高面。
+   *
+   * 和 minimumRoll 的区别：minimumRoll 抬高**每一颗**骰子的下限，
+   * 配上满载骰池会把三颗一起拉满；这个只作用于指定数量的骰子。
+   */
+  maxRollDice: number;
   /**
    * 攻防差算完之后再追加的伤害，不被防御吸收。
    *
@@ -110,7 +120,26 @@ export interface EquipmentBattleContext {
  * 通用 modifier 表达不了的装备逻辑，直接写在卡牌定义的 effects 上。
  * 和卷轴的 custom 同理：定义不进 GameState，放函数是安全的。
  */
+/**
+ * 战斗开始时装备能做的事。
+ *
+ * grantBattleScroll 发的是**临时牌**：战斗结束时统一回收，不进常驻手牌，
+ * 也不会出现在随机卡池里。用它可以把「每场战斗一次的主动技」表达成一张
+ * 战斗内限定的卷轴——发动时机、暗牌、联机归属全部复用已有的选牌阶段，
+ * 不必为装备另开一套交互。
+ */
+export interface EquipmentBattleStartContext {
+  state: GameState;
+  battle: BattleState;
+  side: CombatSide;
+  player: Player;
+  item: OwnedEquipment;
+  grantBattleScroll: (kind: OwnedScroll["kind"]) => void;
+}
+
 export interface EquipmentEffects {
+  /** 战斗开始、投先攻骰之后。 */
+  onBattleStart?: (context: EquipmentBattleStartContext) => void;
   /** 条件装备可根据玩家当前状态动态返回额外修正。 */
   modifiers?: (context: {
     player: PlayerStats;

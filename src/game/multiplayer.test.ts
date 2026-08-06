@@ -144,12 +144,12 @@ describe("战斗回合拆分", () => {
     state.players.player1.scrolls = [{ instanceId: "guard-1", kind: "guard" }];
 
     // player1 是攻击方，护盾卷轴时机不对
-    state = gameReducer(state, { type: "submitScrollChoice", side: "a", instanceId: "guard-1" });
+    state = gameReducer(state, { type: "submitScrollChoice", side: "a", instanceIds: ["guard-1"] });
     if (state.phase.kind !== "battle") throw new Error("unreachable");
     expect(state.phase.battle.choiceA.status).toBe("pending");
 
     // 手上根本没有的牌
-    state = gameReducer(state, { type: "submitScrollChoice", side: "a", instanceId: "ghost" });
+    state = gameReducer(state, { type: "submitScrollChoice", side: "a", instanceIds: ["ghost"] });
     if (state.phase.kind !== "battle") throw new Error("unreachable");
     expect(state.phase.battle.choiceA.status).toBe("pending");
   });
@@ -230,7 +230,7 @@ describe("暗牌裁剪 viewFor", () => {
     state = gameReducer(state, {
       type: "submitScrollChoice",
       side: "a",
-      instanceId: "atk-1",
+      instanceIds: ["atk-1"],
     });
 
     const foe = viewFor(state, "player2");
@@ -245,7 +245,7 @@ describe("暗牌裁剪 viewFor", () => {
     // 提交方自己看得到完整选择
     const own = viewFor(state, "player1");
     if (own.phase.kind !== "battle") throw new Error("unreachable");
-    expect(own.phase.battle.choiceA).toEqual({ status: "chosen", instanceId: "atk-1" });
+    expect(own.phase.battle.choiceA).toEqual({ status: "chosen", instanceIds: ["atk-1"] });
   });
 
   it("对手选择不使用卷轴，同样只显示已提交", () => {

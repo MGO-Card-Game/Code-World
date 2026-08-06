@@ -97,6 +97,8 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .hand-card.scroll-fate .hand-card-name { color: #d3afff; }
 .hand-card.scroll-dragonStrike { border-color: #a94f38; background: linear-gradient(165deg, #472119, #1f1210); }
 .hand-card.scroll-dragonStrike .hand-card-name { color: #ff9875; }
+.hand-card.scroll-fateCrownDecree { border-color: #8a6a2e; background: linear-gradient(165deg, #3d3117, #1d1810); }
+.hand-card.scroll-fateCrownDecree .hand-card-name { color: #ffcf6b; }
 
 /* 战斗骰面与伤害飘字 */
 .combat-dice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
@@ -259,6 +261,8 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .battle-card.scroll-fate .battle-card-name { color: #d3afff; }
 .battle-card.scroll-dragonStrike { border-color: #a94f38; background: linear-gradient(165deg, #472119, #1f1210); }
 .battle-card.scroll-dragonStrike .battle-card-name { color: #ff9875; }
+.battle-card.scroll-fateCrownDecree { border-color: #8a6a2e; background: linear-gradient(165deg, #3d3117, #1d1810); }
+.battle-card.scroll-fateCrownDecree .battle-card-name { color: #ffcf6b; }
 .battle-card.selected { border-color: #e5bd6d; box-shadow: 0 0 0 1px #e5bd6d, 0 0 18px #d9a54c40, inset 0 1px #ffffff18; }
 .battle-card.selected::after { content: "已选"; position: absolute; top: -7px; right: -6px; background: #e3c787; color: #2b2115; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 2px; }
 .battle-button { margin: 2px 0 14px; }

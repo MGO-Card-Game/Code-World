@@ -32,20 +32,21 @@ describe("卡牌类型", () => {
     expect(scrollCategory(SCROLLS.might)).toBe("attack");
     expect(scrollCategory(SCROLLS.ironWallOrder)).toBe("defense");
     expect(scrollCategory(SCROLLS.fate)).toBe("universal");
+    expect(scrollCategory(SCROLLS.firstAidBandage)).toBe("healing");
     // 巨龙打击攻防都能打，牌名里没有"通"字，类型仍然是通用
     expect(scrollCategory(SCROLLS.dragonStrike)).toBe("universal");
   });
 
-  it("每张牌都落得进三类里，牌面圆圈不会开天窗", () => {
+  it("每张牌都落得进四类里，牌面圆圈不会开天窗", () => {
     for (const kind of ALL_KINDS) {
       const category = scrollCategory(SCROLLS[kind]);
-      expect(SCROLL_CATEGORY_SIGILS[category]).toMatch(/^[攻防通]$/);
+      expect(SCROLL_CATEGORY_SIGILS[category]).toMatch(/^[攻防通疗]$/);
       expect(SCROLL_CATEGORY_NAMES[category]).toBeTruthy();
     }
   });
 
   it("圆圈里的字就是类型名的首字", () => {
-    for (const category of ["attack", "defense", "universal"] as const) {
+    for (const category of ["attack", "defense", "universal", "healing"] as const) {
       expect(SCROLL_CATEGORY_SIGILS[category]).toBe(SCROLL_CATEGORY_NAMES[category][0]);
     }
   });

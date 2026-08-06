@@ -32,12 +32,13 @@ export interface ScrollDefinition {
  * 注意这和卷轴的文件分组是两个维度：文件按效果主题分（骰子强化、攻防转换……），
  * 类型则永远由 timings 推导，不参与文件组织。
  */
-export type ScrollCategory = "attack" | "defense" | "universal";
+export type ScrollCategory = "attack" | "defense" | "universal" | "healing";
 
 export const SCROLL_CATEGORY_NAMES: Record<ScrollCategory, string> = {
   attack: "攻击牌",
   defense: "防守牌",
   universal: "通用牌",
+  healing: "疗牌",
 };
 
 /** 圆圈里的单字，取类型名的首字，和战斗界面的"攻击／防御"两栏对得上。 */
@@ -45,15 +46,17 @@ export const SCROLL_CATEGORY_SIGILS: Record<ScrollCategory, string> = {
   attack: "攻",
   defense: "防",
   universal: "通",
+  healing: "疗",
 };
 
 /**
- * 卡牌类型直接由 timings 推导，不另外配置。
+ * 疗牌由 heal 效果识别；其余卡牌由 timings 推导，不另外配置。
  *
- * 牌面上标的就是"这张牌什么时候能打"，而这件事 timings 已经说全了；
- * 再手写一份就多出一处可以和它对不上的地方。
+ * 这样疗牌可以同时拥有地图、攻击和防御时机，却仍显示独立的「疗」标识；
+ * 其他牌继续由使用时机自然分成攻、防、通。
  */
 export function scrollCategory(definition: ScrollDefinition): ScrollCategory {
+  if (definition.effects.some((effect) => effect.type === "heal")) return "healing";
   const attack = definition.timings.includes("beforeAttackRoll");
   const defense = definition.timings.includes("beforeDefenseRoll");
   if (attack && defense) return "universal";

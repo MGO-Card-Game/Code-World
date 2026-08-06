@@ -35,6 +35,9 @@ export type ScrollEffectDefinition =
   /** 把本次投骰中的前 count 颗直接视为最高面，不影响其余骰子 */
   | { type: "maxRoll"; count: number }
   | { type: "directDamage"; amount: number }
+  | { type: "heal"; amount: number }
+  /** 地图阶段放弃本次移动；战斗中使用则失去下一次地图移动。 */
+  | { type: "forfeitMovement" }
   | { type: "custom"; resolve: ScrollEffectResolver };
 
 /** 声明式效果覆盖不了的卷轴，直接在卡牌定义里写这个函数。 */

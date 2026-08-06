@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { isRevealed, visualHp, visualMaxHp, visualPosition } from "../anim/visualState";
-import { EQUIPMENT } from "../game/content/equipment";
+import { EQUIPMENT, type EquipmentKind } from "../game/content/equipment";
 import { getAttack, getDefense } from "../game/selectors";
 import type { PlayerView } from "../game/types";
 import { HealthBar, revealedScrolls, SPRING, type Playback } from "./shared";
@@ -29,12 +29,20 @@ function HandBacks({ player, playback }: { player: PlayerView; playback: Playbac
   );
 }
 
-export function PlayerPanel({ player, active, destination, playback, onInspect }: {
+export function PlayerPanel({
+  player,
+  active,
+  destination,
+  playback,
+  onInspect,
+  onInspectEquipment,
+}: {
   player: PlayerView;
   active: boolean;
   destination: number;
   playback: Playback;
   onInspect: () => void;
+  onInspectEquipment: (kind: EquipmentKind) => void;
 }) {
   const hp = visualHp(player, playback.pending);
   const maxHp = visualMaxHp(player, playback.pending);
@@ -77,7 +85,8 @@ export function PlayerPanel({ player, active, destination, playback, onInspect }
           {equipment.length === 0 && <em>尚未获得</em>}
           <AnimatePresence initial={false} mode="popLayout">
             {equipment.map((item) => (
-              <motion.span
+              <motion.button
+                type="button"
                 className="chip equipment"
                 key={item.instanceId}
                 layout
@@ -85,9 +94,11 @@ export function PlayerPanel({ player, active, destination, playback, onInspect }
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.6 }}
                 transition={SPRING}
+                onClick={() => onInspectEquipment(item.kind)}
+                aria-label={`查看${EQUIPMENT[item.kind].name}详情`}
               >
                 {EQUIPMENT[item.kind].name}
-              </motion.span>
+              </motion.button>
             ))}
           </AnimatePresence>
         </div>

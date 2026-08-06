@@ -120,6 +120,27 @@ describe("显示数值回拉", () => {
     expect(visualBattleHp(battle, "b", [])).toBe(8);
   });
 
+  it("战斗治疗也会把血量按在治疗前，播到时再回升", () => {
+    const battle: BattleState = makeBattle({
+      kind: "pvp",
+      aPlayerId: "player1",
+      bPlayerId: "player2",
+      hpA: 13,
+    });
+    const healed: GameEvent = {
+      id: 1,
+      type: "battleHealed",
+      targetSide: "a",
+      amount: 3,
+      hpBefore: 10,
+      hpAfter: 13,
+      hpMax: 18,
+    };
+
+    expect(visualBattleHp(battle, "a", [healed])).toBe(10);
+    expect(visualBattleHp(battle, "a", [])).toBe(13);
+  });
+
   it("攻防归属按住到交接动画播到，骰点不会挂到下一轮的攻击方名下", () => {
     // 攻击方（a 侧）打出 D20，引擎结算完 attacker 立刻翻成 b。
     // 若界面直接读 battle.attacker，这颗 D20 会显示成对手的攻击骰。

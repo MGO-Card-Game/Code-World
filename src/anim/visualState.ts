@@ -53,9 +53,11 @@ export function visualBattleHp(
   pending: readonly GameEvent[],
 ) {
   const held = pending.find(
-    (event) => event.type === "battleDamage" && event.targetSide === side,
+    (event) =>
+      (event.type === "battleDamage" || event.type === "battleHealed") &&
+      event.targetSide === side,
   );
-  if (held?.type === "battleDamage") return held.hpBefore;
+  if (held?.type === "battleDamage" || held?.type === "battleHealed") return held.hpBefore;
   return side === "a" ? battle.hpA : battle.hpB;
 }
 
@@ -102,7 +104,7 @@ export function battleWithDamage(
   let hpA = battle.hpA;
   let hpB = battle.hpB;
   for (const event of events) {
-    if (event.type !== "battleDamage") continue;
+    if (event.type !== "battleDamage" && event.type !== "battleHealed") continue;
     if (event.targetSide === "a") hpA = event.hpAfter;
     else hpB = event.hpAfter;
   }
@@ -128,4 +130,9 @@ export function isRevealed(instanceId: string, pending: readonly GameEvent[]) {
 /** 正在播放的伤害事件，用于飘伤害数字 */
 export function activeDamage(event: GameEvent | null) {
   return event?.type === "battleDamage" ? event : null;
+}
+
+/** 正在播放的战斗治疗事件，用于飘回血数字 */
+export function activeHealing(event: GameEvent | null) {
+  return event?.type === "battleHealed" ? event : null;
 }

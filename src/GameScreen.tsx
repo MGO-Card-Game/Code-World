@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useEventQueue } from "./anim/useEventQueue";
+import type { EquipmentKind } from "./game/content/equipment";
 import type { GameStateView, PlayerId } from "./game/types";
 import { ActionDock } from "./ui/ActionDock";
 import { BattlePanel, useLingeringBattle } from "./ui/BattlePanel";
 import { Board } from "./ui/Board";
+import { EquipmentDetailModal } from "./ui/EquipmentDetailModal";
 import {
   EquipmentChoicePanel,
   GameOverPanel,
@@ -32,8 +34,16 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
   const playback = useEventQueue(state.lastEvents);
   const [caption, setCaption] = useState("");
   const [inspecting, setInspecting] = useState<PlayerId | null>(null);
+  const [inspectingEquipment, setInspectingEquipment] = useState<EquipmentKind | null>(null);
   const activeName = state.players[state.activePlayerId].name;
   const lingeringBattle = useLingeringBattle(state, playback);
+  const mapUsePhase =
+    inspecting === viewerSeat &&
+    inspecting === state.activePlayerId &&
+    !playback.playing &&
+    (state.phase.kind === "awaitingRoll" || state.phase.kind === "turnComplete")
+      ? state.phase.kind
+      : undefined;
 
   // 演出期间跟着 narration 事件逐条推进文案；播完再落到引擎的最终提示
   useEffect(() => {
@@ -62,6 +72,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
           destination={state.map.tiles.length - 1}
           playback={playback}
           onInspect={() => setInspecting("player1")}
+          onInspectEquipment={setInspectingEquipment}
         />
         <Board state={state} playback={playback} />
         <PlayerPanel
@@ -70,6 +81,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
           destination={state.map.tiles.length - 1}
           playback={playback}
           onInspect={() => setInspecting("player2")}
+          onInspectEquipment={setInspectingEquipment}
         />
       </div>
 
@@ -121,7 +133,20 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
             key={`resource-${inspecting}`}
             player={state.players[inspecting]}
             playback={playback}
-            onClose={() => setInspecting(null)}
+            onClose={() => {
+              setInspecting(null);
+              setInspectingEquipment(null);
+            }}
+            onInspectEquipment={setInspectingEquipment}
+            mapUsePhase={mapUsePhase}
+            onUseMapScroll={(instanceId) => dispatch({ type: "useMapScroll", instanceId })}
+          />
+        )}
+        {inspectingEquipment && (
+          <EquipmentDetailModal
+            key={`equipment-${inspectingEquipment}`}
+            kind={inspectingEquipment}
+            onClose={() => setInspectingEquipment(null)}
           />
         )}
       </AnimatePresence>

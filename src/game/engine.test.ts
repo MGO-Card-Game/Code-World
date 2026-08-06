@@ -57,6 +57,21 @@ function advanceAutomatically(state: GameState) {
 }
 
 describe("game engine", () => {
+  it("accepts player names and preserves them when restarting", () => {
+    let state = createInitialGame(20260806, {
+      player1: "云雀",
+      player2: "长风",
+    });
+
+    expect(state.players.player1.name).toBe("云雀");
+    expect(state.players.player2.name).toBe("长风");
+
+    state = gameReducer(state, { type: "restart", seed: 42 });
+
+    expect(state.players.player1.name).toBe("云雀");
+    expect(state.players.player2.name).toBe("长风");
+  });
+
   it("replays deterministically from the same seed", () => {
     let first = createInitialGame(20260805);
     let second = createInitialGame(20260805);
@@ -67,6 +82,26 @@ describe("game engine", () => {
     }
 
     expect(second).toEqual(first);
+  });
+
+  it("非 Boss 战的卷轴和装备奖励各有 50% 概率，不受怪物种类影响", () => {
+    for (const enemyId of ["slime", "golem"] as const) {
+      const outcomes = new Set<"scroll" | "equipment">();
+
+      for (let seed = 1; seed <= 100 && outcomes.size < 2; seed += 1) {
+        let state = createInitialGame(seed);
+        state.players.player1.baseAttack = 99;
+        state.phase = {
+          kind: "battle",
+          battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId, hpB: 1 }),
+        };
+
+        state = resolveRound(state);
+        outcomes.add(state.players.player1.scrolls.length > 0 ? "scroll" : "equipment");
+      }
+
+      expect(outcomes).toEqual(new Set(["scroll", "equipment"]));
+    }
   });
 
   it("keeps core state inside valid bounds during a full automated game", () => {
@@ -139,6 +174,40 @@ describe("game engine", () => {
     if (movement?.type !== "movementRolled") throw new Error("应产生移动投骰事件");
     expect(movement.sides).toBe(7);
     expect(movement.value).toBeLessThanOrEqual(7);
+  });
+
+  it("进入 PvE 时按移动前的位置锁定战败休整点", () => {
+    let state: GameState | undefined;
+    let roll = 0;
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const candidate = createInitialGame(seed);
+      candidate.players.player1.position = 10;
+      const preview = gameReducer(candidate, { type: "rollMovement" });
+      const movement = preview.lastEvents.find((event) => event.type === "movementRolled");
+      if (movement?.type === "movementRolled" && movement.value >= 2) {
+        state = candidate;
+        roll = movement.value;
+        break;
+      }
+    }
+    if (!state) throw new Error("20 个种子内应当能找到至少移动 2 格的一次投骰");
+
+    // 4 是移动前已有的最近泉水；11 是这次前进途中刚越过的泉水。
+    for (let index = 1; index <= 10; index += 1) state.map.tiles[index].type = "event";
+    state.map.tiles[4].type = "spring";
+    state.map.tiles[11].type = "spring";
+    const target = state.map.tiles[10 + roll];
+    target.type = "battle";
+    target.enemyId = "slime";
+    delete target.eliteAffix;
+
+    state = gameReducer(state, { type: "rollMovement" });
+
+    expect(state.phase.kind).toBe("battle");
+    if (state.phase.kind === "battle") {
+      expect(state.phase.battle.retreatTo).toBe(4);
+      expect(state.phase.battle.retreatTo).toBeLessThanOrEqual(10);
+    }
   });
 
   it("restores real player health after a PvP battle", () => {

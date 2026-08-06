@@ -55,12 +55,12 @@ describe("怪物档位表", () => {
     );
   });
 
-  it("每只怪都有名字和正数的攻防血", () => {
+  it("每只怪都有名字、正数的攻血和非负防御", () => {
     for (const definition of Object.values(ENEMIES)) {
       expect(definition.name).toBeTruthy();
       expect(definition.maxHp).toBeGreaterThan(0);
       expect(definition.attack).toBeGreaterThan(0);
-      expect(definition.defense).toBeGreaterThan(0);
+      expect(definition.defense).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -78,12 +78,11 @@ describe("怪物档位表", () => {
     }
   });
 
-  it("boss 档不带 reward——击败即胜利，那个字段永远读不到", () => {
-    for (const kind of kindsOf("boss")) {
-      expect(enemyDefinition(kind).reward).toBeUndefined();
-    }
-    for (const kind of [...kindsOf("roaming"), ...kindsOf("apex")]) {
-      expect(["scroll", "equipment"]).toContain(enemyDefinition(kind).reward);
+  it("怪物不配置奖励种类——非 Boss 战统一随机，Boss 击败即胜利", () => {
+    for (const tier of ["roaming", "apex", "boss"] as const) {
+      for (const kind of kindsOf(tier)) {
+        expect("reward" in enemyDefinition(kind)).toBe(false);
+      }
     }
   });
 

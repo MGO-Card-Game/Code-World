@@ -78,7 +78,6 @@ describe("怪物战斗钩子", () => {
       attack: 3,
       defense: 2,
       regions: { foothill: 1 },
-      reward: "scroll",
       modifiers: [{ type: "dieSides", die: "defense", value: 2 }],
     };
     try {

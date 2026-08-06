@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EQUIPMENT, type EquipmentDefinition } from "./content/equipment";
 import { createInitialGame } from "./engine";
+import { getDieSidesBonus } from "./selectors";
 import { makeBattle, resolveRound } from "./testSupport";
 import type { GameEvent, GameState } from "./types";
 
@@ -174,6 +175,58 @@ describe("装备战斗钩子", () => {
     expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(1);
   });
 
+  it("寒铁长枪只对精英和首领追加伤害", () => {
+    const cases = [
+      { kind: "pve" as const, enemyAffix: undefined, bonus: 0 },
+      { kind: "pve" as const, enemyAffix: "frenzied" as const, bonus: 1 },
+      { kind: "boss" as const, enemyAffix: undefined, bonus: 1 },
+    ];
+
+    for (const scenario of cases) {
+      let state = createInitialGame(4242);
+      state.players.player1.equipment = [
+        { instanceId: "spear-1", kind: "coldIronSpear" },
+      ];
+      state.phase = {
+        kind: "battle",
+        battle: makeBattle({
+          kind: scenario.kind,
+          aPlayerId: "player1",
+          enemyId: scenario.kind === "boss" ? "dragon" : "slime",
+          enemyAffix: scenario.enemyAffix,
+        }),
+      };
+
+      state = resolveRound(state);
+
+      const attack = only(state.lastEvents, "attackRolled");
+      const defense = only(state.lastEvents, "defenseRolled");
+      expect(only(state.lastEvents, "battleDamage").amount).toBe(
+        Math.max(0, attack.total - defense.total) + scenario.bonus,
+      );
+    }
+  });
+
+  it("血誓指环在战斗生命低于一半时同时强化攻防骰", () => {
+    for (const [hp, expectedSides] of [[9, 6], [8, 7]] as const) {
+      let state = pvpBattle(20260805);
+      state.players.player1.equipment = [
+        { instanceId: "ring-1", kind: "bloodOathRing" },
+      ];
+      state.players.player2.equipment = [
+        { instanceId: "ring-2", kind: "bloodOathRing" },
+      ];
+      if (state.phase.kind !== "battle") throw new Error("unreachable");
+      state.phase.battle.hpA = hp;
+      state.phase.battle.hpB = hp;
+
+      state = resolveRound(state);
+
+      expect(only(state.lastEvents, "attackRolled").sides).toBe(expectedSides);
+      expect(only(state.lastEvents, "defenseRolled").sides).toBe(expectedSides);
+    }
+  });
+
   it("卡牌定义不进 GameState，挂了函数的装备照样能克隆和序列化", () => {
     /*
       定义里能放函数，唯一的前提就是它不会进状态：reducer 每次都会
@@ -203,8 +256,8 @@ describe("装备战斗钩子", () => {
 });
 
 describe("已接入的武器", () => {
-  it("两把新武器都归在武器表里，骰面加值走普通 modifier", () => {
-    for (const kind of ["oldKnightSword", "monsterHunterBlade"] as const) {
+  it("带钩子的武器都归在武器表里，骰面加值走普通 modifier", () => {
+    for (const kind of ["oldKnightSword", "monsterHunterBlade", "coldIronSpear"] as const) {
       const definition = EQUIPMENT[kind];
       expect(definition.category).toBe("weapon");
       expect(definition.modifiers).toContainEqual({
@@ -214,5 +267,21 @@ describe("已接入的武器", () => {
       });
       expect(definition.effects).toBeDefined();
     }
+  });
+
+  it("数值型新装备直接复用骰面 modifier", () => {
+    const state = createInitialGame(1);
+    const player = state.players.player1;
+
+    player.equipment = [{ instanceId: "axe-1", kind: "rendingAxe" }];
+    expect(getDieSidesBonus(player, "attack")).toBe(2);
+    expect(getDieSidesBonus(player, "defense")).toBe(-1);
+
+    player.equipment = [{ instanceId: "wall-1", kind: "heavyBulwark" }];
+    expect(getDieSidesBonus(player, "defense")).toBe(2);
+    expect(getDieSidesBonus(player, "movement")).toBe(-1);
+
+    player.equipment = [{ instanceId: "pointer-1", kind: "huntersPointer" }];
+    expect(getDieSidesBonus(player, "movement")).toBe(1);
   });
 });

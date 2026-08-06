@@ -102,6 +102,18 @@ describe("入座与开局", () => {
     expect(guest.lastRoom()?.state).not.toBeNull();
   });
 
+  it("把大厅输入的名字带入对局，重新开局后仍然保留", () => {
+    const { store, host, guest, code } = seatedRoom();
+
+    expect(host.lastRoom()?.state?.players.player1.name).toBe("赤焰");
+    expect(guest.lastRoom()?.state?.players.player2.name).toBe("苍潮");
+
+    store.applyAction(host, { type: "restart", seed: 20260806 });
+
+    expect(store.peek(code)?.state?.players.player1.name).toBe("赤焰");
+    expect(store.peek(code)?.state?.players.player2.name).toBe("苍潮");
+  });
+
   it("第三个人被拒绝", () => {
     const { store, code } = seatedRoom();
     const third = store.joinRoom(new FakeConnection(), code, "第三者", "token-third");

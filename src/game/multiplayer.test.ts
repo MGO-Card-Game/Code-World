@@ -47,6 +47,16 @@ describe("动作授权 canAct", () => {
     expect(canAct(state, { type: "endTurn" }, state.activePlayerId)).toBe(false);
   });
 
+  it("地图疗牌只能由当前行动玩家使用", () => {
+    const state = createInitialGame(20260805);
+    const active = state.activePlayerId;
+    const idle: PlayerId = active === "player1" ? "player2" : "player1";
+    const action = { type: "useMapScroll", instanceId: "bandage-1" } as const;
+
+    expect(canAct(state, action, active)).toBe(true);
+    expect(canAct(state, action, idle)).toBe(false);
+  });
+
   it("相遇战代价由败方选择，不是当前行动方", () => {
     const state = createInitialGame(20260805);
     state.activePlayerId = "player1";

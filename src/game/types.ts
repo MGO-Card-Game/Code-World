@@ -12,9 +12,9 @@ export type PlayerId = "player1" | "player2";
  * 决定一张牌归攻击方还是防守方打的是 timing，不是 kind——
  * 8.8 中力量/精准/狂暴属于 beforeAttackRoll，护盾/坚守/闪避属于
  * beforeDefenseRoll；D20 与巨龙打击同时支持两个时机。
- * 第一阶段只开放这两个时机。
+ * 疗牌额外开放地图阶段；在战斗中仍复用攻、防两种选牌时机。
  */
-export type ScrollTiming = "beforeAttackRoll" | "beforeDefenseRoll";
+export type ScrollTiming = "map" | "beforeAttackRoll" | "beforeDefenseRoll";
 export type TileType =
   | "start"
   | "battle"
@@ -58,6 +58,8 @@ export interface Player {
   baseAttack: number;
   baseDefense: number;
   position: number;
+  /** 战斗中使用战地药剂后，下一次自己的地图行动会失去移动机会。 */
+  skipNextMovement?: true;
   scrolls: OwnedScroll[];
   equipment: OwnedEquipment[];
 }
@@ -116,6 +118,8 @@ export interface BattleState {
   bPlayerId?: PlayerId;
   enemyId?: EnemyKind;
   enemyAffix?: EliteAffixKind;
+  /** PvE 战败时返回的休整点；开战时按本次移动前的位置锁定。 */
+  retreatTo?: number;
   hpA: number;
   hpB: number;
   attacker: CombatSide;
@@ -155,6 +159,7 @@ export type HpChangeReason =
   | "spring"
   | "event"
   | "equipment"
+  | "scroll"
   | "defeatRecovery"
   | "pvpTransfer";
 
@@ -272,6 +277,15 @@ export type GameEventBody =
       hpAfter: number;
       hpMax: number;
     }
+  /** 战斗内治疗；和 battleDamage 一样，PvP 时只改变临时战斗生命。 */
+  | {
+      type: "battleHealed";
+      targetSide: CombatSide;
+      amount: number;
+      hpBefore: number;
+      hpAfter: number;
+      hpMax: number;
+    }
   /** fromRound / fromAttacker 供界面在动画播到之前按住上一轮的攻防归属 */
   | {
       type: "battleRoundAdvanced";
@@ -308,6 +322,8 @@ export interface GameState {
   rngSeed: number;
   nextInstanceId: number;
   lastMovementRoll?: number;
+  /** 当前回合掷骰移动前的位置，用来锁定随后 PvE 战斗的后退边界。 */
+  movementOrigin?: number;
   message: LogEntry;
   history: LogEntry[];
   /** 仅包含最近一次 action 产生的事件，每次 action 开始时清空 */
@@ -318,6 +334,7 @@ export interface GameState {
 export type GameAction =
   | { type: "restart"; seed?: number }
   | { type: "rollMovement" }
+  | { type: "useMapScroll"; instanceId: string }
   | { type: "endTurn" }
   /**
    * 提交本侧本回合要打的全部卷轴（GameRule 8.5，张数不限）。

@@ -227,3 +227,10 @@ export function findPreviousRestTile(map: GameMap, position: number) {
     .reverse()
     .find((tile) => tile.id < position && (tile.type === "start" || tile.type === "spring"))?.id ?? 0;
 }
+
+/** 位于指定位置或其后方的最近休整点；用于在掷骰移动前锁定战败退路。 */
+export function findRestTileAtOrBefore(map: GameMap, position: number) {
+  return [...map.tiles]
+    .reverse()
+    .find((tile) => tile.id <= position && (tile.type === "start" || tile.type === "spring"))?.id ?? 0;
+}

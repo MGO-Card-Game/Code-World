@@ -33,4 +33,19 @@ export const COMBAT_SWING_SCROLLS = {
     timings: ["beforeDefenseRoll"],
     effects: [{ type: "minimumRoll", value: 3 }],
   },
+
+  decapitationOrder: {
+    name: "斩首命令",
+    description: "本次攻击对首领或敌方玩家额外造成 3 点伤害",
+    rarity: "R",
+    timings: ["beforeAttackRoll"],
+    effects: [{
+      type: "custom",
+      resolve({ battle, modifiers, addBattleLog }) {
+        if (battle.kind !== "boss" && battle.kind !== "pvp") return;
+        modifiers.bonusDamage += 3;
+        addBattleLog("斩首命令锁定强敌，额外造成 3 点伤害。");
+      },
+    }],
+  },
 } satisfies Record<string, ScrollDefinition>;

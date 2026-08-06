@@ -161,12 +161,47 @@ describe("一回合多张卷轴", () => {
       commutative：换顺序结果不变；sequential：带副作用，按提交顺序结算。
       */
     const COMMUTATIVE = ["flatBonus", "dieSides", "extraDice", "minimumRoll", "maxRoll"];
-    const SEQUENTIAL = ["directDamage", "custom"];
+    const SEQUENTIAL = ["directDamage", "heal", "forfeitMovement", "custom"];
 
     for (const kind of Object.keys(SCROLLS) as ScrollKind[]) {
       for (const effect of SCROLLS[kind].effects) {
         expect([...COMMUTATIVE, ...SEQUENTIAL]).toContain(effect.type);
       }
+    }
+  });
+});
+
+describe("斩首命令", () => {
+  it("只对首领和敌方玩家追加 3 点伤害", () => {
+    const cases = [
+      { kind: "pve" as const, enemyId: "slime" as const, bPlayerId: undefined, bonus: 0 },
+      { kind: "boss" as const, enemyId: "dragon" as const, bPlayerId: undefined, bonus: 3 },
+      { kind: "pvp" as const, enemyId: undefined, bPlayerId: "player2" as const, bonus: 3 },
+    ];
+
+    for (const scenario of cases) {
+      let state = createInitialGame(20260805);
+      state.players.player1.scrolls = [
+        { instanceId: "order-1", kind: "decapitationOrder" },
+      ];
+      state.phase = {
+        kind: "battle",
+        battle: makeBattle({
+          kind: scenario.kind,
+          aPlayerId: "player1",
+          bPlayerId: scenario.bPlayerId,
+          enemyId: scenario.enemyId,
+        }),
+      };
+
+      state = resolveRound(state, { attack: "order-1" });
+
+      const attack = only(state.lastEvents, "attackRolled");
+      const defense = only(state.lastEvents, "defenseRolled");
+      expect(only(state.lastEvents, "battleDamage").amount).toBe(
+        Math.max(0, attack.total - defense.total) + scenario.bonus,
+      );
+      expect(state.players.player1.scrolls).toHaveLength(0);
     }
   });
 });

@@ -9,28 +9,25 @@ import { defineEnemies } from "./definition";
 export const ROAMING_ENEMIES = defineEnemies("roaming", {
   slime: {
     name: "史莱姆",
-    maxHp: 8,
-    attack: 2,
-    defense: 1,
+    maxHp: 5,
+    attack: 1,
+    defense: 0,
     regions: { foothill: 2 },
-    reward: "scroll",
   },
 
   wolf: {
     name: "山狼",
-    maxHp: 11,
-    attack: 3,
-    defense: 2,
+    maxHp: 8,
+    attack: 2,
+    defense: 1,
     regions: { foothill: 1, mountainside: 2, summit: 1 },
-    reward: "scroll",
   },
 
   golem: {
     name: "石像守卫",
-    maxHp: 15,
-    attack: 4,
-    defense: 3,
+    maxHp: 13,
+    attack: 3,
+    defense: 2,
     regions: { mountainside: 1, summit: 2 },
-    reward: "equipment",
   },
 });

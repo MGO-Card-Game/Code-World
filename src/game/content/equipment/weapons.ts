@@ -46,4 +46,30 @@ export const WEAPONS = defineEquipment("weapon", {
       },
     },
   },
+
+  rendingAxe: {
+    name: "裂甲战斧",
+    description: "攻击骰上限 +2，但防御骰上限 -1",
+    rarity: "R",
+    modifiers: [
+      { type: "dieSides", die: "attack", value: 2 },
+      { type: "dieSides", die: "defense", value: -1 },
+    ],
+  },
+
+  coldIronSpear: {
+    name: "寒铁长枪",
+    description: "攻击骰上限 +1；对精英敌人和首领额外造成 1 点伤害",
+    rarity: "R",
+    modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
+    effects: {
+      afterRoll({ battle, dieKind, modifiers, addBattleLog }) {
+        if (dieKind !== "attack") return;
+        const targetsEliteOrBoss = battle.kind === "boss" || battle.enemyAffix !== undefined;
+        if (!targetsEliteOrBoss) return;
+        modifiers.bonusDamage += 1;
+        addBattleLog("寒铁长枪贯穿强敌，额外造成 1 点伤害。");
+      },
+    },
+  },
 });

@@ -31,6 +31,7 @@ export const DEFAULT_DURATIONS: Record<GameEvent["type"], number> = {
   attackRolled: 640,
   defenseRolled: 640,
   battleDamage: 560,
+  battleHealed: 560,
   battleRoundAdvanced: 300,
   battleEnded: 700,
   gameOver: 600,

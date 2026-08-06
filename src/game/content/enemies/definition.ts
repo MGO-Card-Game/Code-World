@@ -30,13 +30,6 @@ export interface EnemyBody {
    */
   regions?: Partial<Record<MapRegionId, number>>;
   /**
-   * 击败奖励。boss 档不写：击败即胜利，引擎走不到发奖励那一步。
-   *
-   * 旧结构里这个字段还有一个 "boss" 取值，混着表达「这是不是 Boss」，
-   * 而且永远读不到——那件事现在由 tier 说。
-   */
-  reward?: "scroll" | "equipment";
-  /**
    * 攻防血之外的永久修正，和装备卡的 modifiers 同一份类型。
    *
    * 骰面和骰数没有对应的基础字段，只能走这里；写成 modifier 而不是钩子，

@@ -40,6 +40,12 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
     case "rollMovement":
       return state.phase.kind === "awaitingRoll" && state.activePlayerId === actor;
 
+    case "useMapScroll":
+      return (
+        (state.phase.kind === "awaitingRoll" || state.phase.kind === "turnComplete") &&
+        state.activePlayerId === actor
+      );
+
     case "endTurn":
       return state.phase.kind === "turnComplete" && state.activePlayerId === actor;
 

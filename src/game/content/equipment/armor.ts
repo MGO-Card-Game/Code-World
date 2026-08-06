@@ -15,4 +15,14 @@ export const ARMOR = defineEquipment("armor", {
     rarity: "N",
     modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
   },
+
+  heavyBulwark: {
+    name: "沉重壁垒",
+    description: "防御骰上限 +2，但地图移动骰上限 -1",
+    rarity: "R",
+    modifiers: [
+      { type: "dieSides", die: "defense", value: 2 },
+      { type: "dieSides", die: "movement", value: -1 },
+    ],
+  },
 });

@@ -1,5 +1,6 @@
 import type { MapRegionId } from "../../types";
 import { pickByRarity } from "../rarity";
+import { pickWeighted } from "../weighted";
 import { ELITE_AFFIXES, type EliteAffixKind } from "./affixes";
 import { APEX_ENEMIES } from "./apex";
 import { BOSS_ENEMIES } from "./boss";
@@ -43,25 +44,6 @@ export function enemyDefinition(kind: EnemyKind): EnemyDefinition {
 
 export function enemyTier(kind: EnemyKind): EnemyTier {
   return ENEMIES[kind].tier;
-}
-
-/**
- * 按权重抽一项，只消耗一个随机数。
- *
- * 消耗个数固定这件事对地图很重要：同种子必须生成完全相同的地图，
- * 抽取过程多耗一个数，后面整条随机流就错位了。
- */
-function pickWeighted<T>(
-  entries: readonly (readonly [T, number])[],
-  random: () => number,
-): T {
-  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
-  let ticket = Math.min(0.999999999, Math.max(0, random())) * total;
-  for (const [item, weight] of entries) {
-    ticket -= weight;
-    if (ticket < 0) return item;
-  }
-  return entries.at(-1)![0];
 }
 
 /** 某个档位在某个区域的投放池，权重为 0 或未声明的怪不参加。 */

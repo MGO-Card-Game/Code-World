@@ -28,4 +28,25 @@ export const ACCESSORIES = defineEquipment("accessory", {
       },
     },
   },
+
+  huntersPointer: {
+    name: "猎人的指针",
+    description: "地图移动骰上限 +1",
+    rarity: "N",
+    modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
+  },
+
+  bloodOathRing: {
+    name: "血誓指环",
+    description: "战斗生命值低于一半时，攻击骰和防御骰上限 +1",
+    rarity: "R",
+    modifiers: [],
+    effects: {
+      beforeRoll({ ownHp, ownMaxHp, modifiers, addBattleLog }) {
+        if (ownHp * 2 >= ownMaxHp) return;
+        modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + 1;
+        addBattleLog("血誓指环回应伤势，本次骰面上限 +1。");
+      },
+    },
+  },
 });

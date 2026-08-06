@@ -129,6 +129,7 @@ export class RoomStore {
       existing.connection = connection;
       existing.connected = true;
       existing.name = sanitizeName(playerName, existing.name);
+      if (room.state) room.state.players[existing.seat].name = existing.name;
       this.bySocket.set(connection, { code, token: playerToken });
       this.broadcast(room);
       return { ok: true, roomCode: code, seat: existing.seat };
@@ -150,7 +151,11 @@ export class RoomStore {
 
     // 两人到齐即开局。种子由服务器定，客户端无法反复重开挑开局
     if (room.seats.length === SEATS.length && !room.state) {
-      room.state = createInitialGame();
+      const playerNames: Partial<Record<PlayerId, string>> = {};
+      for (const roomSeat of room.seats) {
+        playerNames[roomSeat.seat] = roomSeat.name;
+      }
+      room.state = createInitialGame(undefined, playerNames);
     }
     this.broadcast(room);
     return { ok: true, roomCode: code, seat };

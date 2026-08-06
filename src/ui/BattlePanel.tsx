@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   activeDamage,
+  activeHealing,
   battleWithDamage,
   isBattleEnding,
   visualAttacker,
   visualBattleHp,
   visualBattleRound,
 } from "../anim/visualState";
-import { SCROLLS } from "../game/content/scrolls";
+import { SCROLLS, scrollCategory } from "../game/content/scrolls";
 import { getBattleParticipants, getSidePlayer } from "../game/engine";
 import type {
   BattleState,
@@ -69,6 +70,7 @@ function BattleHand({ player, timing, label, selectedIds, onToggle, disabled }: 
           <AnimatePresence initial={false} mode="popLayout">
             {cards.map((scroll) => {
               const selected = selectedIds.includes(scroll.instanceId);
+              const category = scrollCategory(SCROLLS[scroll.kind]);
               return (
                 <motion.button
                   key={scroll.instanceId}
@@ -76,7 +78,7 @@ function BattleHand({ player, timing, label, selectedIds, onToggle, disabled }: 
                   type="button"
                   disabled={disabled}
                   aria-pressed={selected}
-                  className={`battle-card scroll-${scroll.kind} ${selected ? "selected" : ""}`}
+                  className={`battle-card scroll-${scroll.kind} card-${category} ${selected ? "selected" : ""}`}
                   onClick={() => onToggle(scroll.instanceId)}
                   initial={{ opacity: 0, y: 18, scale: 0.8 }}
                   animate={{ opacity: 1, y: selected ? -9 : 0, scale: selected ? 1.05 : 1 }}
@@ -99,24 +101,28 @@ function BattleHand({ player, timing, label, selectedIds, onToggle, disabled }: 
   );
 }
 
-function CombatSlot({ label, tone, dice, sides = 6, total }: {
-  label: string;
+function CombatSlot({ ownerName, role, dice, sides = 6, total }: {
+  ownerName: string;
   /** 攻防两侧沿用力量／护盾卷轴的配色，两个合计并排时一眼能分清谁是谁 */
-  tone: "attack" | "defense";
+  role: "attack" | "defense";
   dice?: number[];
   sides?: number;
   total?: number;
 }) {
+  const roleLabel = role === "attack" ? "攻击" : "防御";
   return (
-    <div className={`combat-slot ${tone}`}>
-      <span className="combat-slot-label">{label} D{sides}</span>
+    <div className={`combat-slot ${role}`}>
+      <span className="combat-slot-label">
+        <strong>{ownerName}</strong>
+        <em>{roleLabel} · D{sides}</em>
+      </span>
       <AnimatePresence mode="wait">
         {dice === undefined ? (
           <motion.span className="combat-die idle" key="idle">—</motion.span>
         ) : (
           <motion.div
             className="combat-rolls"
-            key={`${label}-${dice.join("-")}-${total}`}
+            key={`${ownerName}-${role}-${dice.join("-")}-${total}`}
             initial={{ scale: 0.2, rotate: -160, opacity: 0 }}
             animate={{ scale: 1, rotate: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 320, damping: 18 }}
@@ -250,6 +256,25 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
   const hpA = visualBattleHp(battle, "a", playback.pending);
   const hpB = visualBattleHp(battle, "b", playback.pending);
   const damage = activeDamage(playback.event);
+  const healing = activeHealing(playback.event);
+  const displayedRollFor = (side: CombatSide) => {
+    const attacking = side === shownAttacker;
+    return attacking
+      ? {
+          role: "attack" as const,
+          dice: rolls.attackDice,
+          sides: rolls.attackSides,
+          total: rolls.attackTotal,
+        }
+      : {
+          role: "defense" as const,
+          dice: rolls.defenseDice,
+          sides: rolls.defenseSides,
+          total: rolls.defenseTotal,
+        };
+  };
+  const aRoll = displayedRollFor("a");
+  const bRoll = displayedRollFor("b");
 
   return (
     <ModalBackdrop>
@@ -282,6 +307,18 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
                   −{damage.amount}
                 </motion.span>
               )}
+              {healing?.targetSide === "a" && healing.amount > 0 && (
+                <motion.span
+                  className="healing-float"
+                  key={healing.id}
+                  initial={{ opacity: 0, y: 6, scale: 0.5 }}
+                  animate={{ opacity: 1, y: -40, scale: 1.3 }}
+                  exit={{ opacity: 0, y: -62 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  +{healing.amount}
+                </motion.span>
+              )}
             </AnimatePresence>
           </div>
           <div className="clash-mark">⚔</div>
@@ -303,13 +340,26 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
                   −{damage.amount}
                 </motion.span>
               )}
+              {healing?.targetSide === "b" && healing.amount > 0 && (
+                <motion.span
+                  className="healing-float"
+                  key={healing.id}
+                  initial={{ opacity: 0, y: 6, scale: 0.5 }}
+                  animate={{ opacity: 1, y: -40, scale: 1.3 }}
+                  exit={{ opacity: 0, y: -62 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  +{healing.amount}
+                </motion.span>
+              )}
             </AnimatePresence>
           </div>
         </div>
 
         <div className="combat-dice">
-          <CombatSlot label="攻击" tone="attack" dice={rolls.attackDice} sides={rolls.attackSides} total={rolls.attackTotal} />
-          <CombatSlot label="防御" tone="defense" dice={rolls.defenseDice} sides={rolls.defenseSides} total={rolls.defenseTotal} />
+          <CombatSlot ownerName={a.name} {...aRoll} />
+          <span className="combat-dice-divider" aria-hidden="true">↔</span>
+          <CombatSlot ownerName={b.name} {...bRoll} />
         </div>
 
         <p className="turn-callout"><strong>{nameOf(shownAttacker)}</strong>发动攻击，{nameOf(shownDefender)}进行防御。</p>

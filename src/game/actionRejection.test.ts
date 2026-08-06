@@ -35,6 +35,16 @@ describe("动作被拒时原样返回 state", () => {
     ).toBe(state);
   });
 
+  it("地图阶段不能使用不存在或非疗牌卷轴", () => {
+    const state = createInitialGame(20260805);
+    state.players[state.activePlayerId].scrolls = [
+      { instanceId: "might-1", kind: "might" },
+    ];
+
+    expect(gameReducer(state, { type: "useMapScroll", instanceId: "ghost" })).toBe(state);
+    expect(gameReducer(state, { type: "useMapScroll", instanceId: "might-1" })).toBe(state);
+  });
+
   it("提交时机不对的卷轴", () => {
     const state = battleState();
     // player1 是攻击方，护盾只能防守时打

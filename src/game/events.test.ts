@@ -122,7 +122,7 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     for (const definition of Object.values(SCROLLS)) {
       expect(definition.timings.length).toBeGreaterThan(0);
       for (const timing of definition.timings) {
-        expect(["beforeAttackRoll", "beforeDefenseRoll"]).toContain(timing);
+        expect(["map", "beforeAttackRoll", "beforeDefenseRoll"]).toContain(timing);
       }
     }
   });
@@ -452,24 +452,66 @@ describe("事件流", () => {
     expect(state.players.player1.position).toBe(expectedRetreat);
   });
 
-  it("生命护符发出上限变化事件，且与实际属性一致", () => {
-    // 固定种子的这次魔像奖励是生命护符，避免构造违反新槽位规则的装备状态。
-    let state = createInitialGame(2);
+  it("战败退路在开战时锁定，不会退到本次移动途中越过的前方泉水", () => {
+    let state = createInitialGame(4242);
+    state.map.tiles[8].type = "spring";
+    state.players.player1.position = 13;
     state.phase = {
       kind: "battle",
       battle: makeBattle({
         kind: "pve",
         aPlayerId: "player1",
         enemyId: "golem",
-        hpB: 1,
+        retreatTo: 3,
+        hpA: 1,
+        hpB: 15,
+        attacker: "b",
+        initiativeA: 1,
+        initiativeB: 6,
       }),
     };
 
-    const events: GameEvent[] = [];
     for (let index = 0; index < 50 && state.phase.kind === "battle"; index += 1) {
       state = resolveRound(state);
-      events.push(...state.lastEvents);
     }
+
+    expect(state.players.player1.position).toBe(3);
+    const retreat = only(state.lastEvents, "playerRetreated");
+    expect(retreat.from).toBe(13);
+    expect(retreat.to).toBe(3);
+  });
+
+  it("生命护符发出上限变化事件，且与实际属性一致", () => {
+    // 卡池扩充会改变同一种子抽到的装备，因此寻找一局真实抽到护符的奖励，
+    // 不把这条生命周期测试绑死在 EQUIPMENT 的键数量和排列上。
+    let state: GameState | undefined;
+    let events: GameEvent[] = [];
+    for (let seed = 1; seed <= 500; seed += 1) {
+      let candidate = createInitialGame(seed);
+      candidate.phase = {
+        kind: "battle",
+        battle: makeBattle({
+          kind: "pve",
+          aPlayerId: "player1",
+          enemyId: "golem",
+          hpB: 1,
+        }),
+      };
+
+      const candidateEvents: GameEvent[] = [];
+      for (let index = 0; index < 50 && candidate.phase.kind === "battle"; index += 1) {
+        candidate = resolveRound(candidate);
+        candidateEvents.push(...candidate.lastEvents);
+      }
+      const granted = pick(candidateEvents, "equipmentGranted")[0];
+      if (granted?.kind === "charm") {
+        state = candidate;
+        events = candidateEvents;
+        break;
+      }
+    }
+
+    if (!state) throw new Error("500 个种子内应当能抽到生命护符");
 
     expect(only(events, "battleEnded").outcome).toBe("playerWon");
 

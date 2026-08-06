@@ -55,6 +55,9 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .chips em { font-size: 10px; color: #6e6559; font-style: normal; }
 .chip { padding: 5px 7px; font-size: 9px; border: 1px solid #5b4e40; color: #d8c6ad; background: #29221b; border-radius: 2px; }
 .chip.equipment { border-color: #796136; color: #e2c17c; }
+button.chip.equipment { font: inherit; cursor: pointer; transition: border-color .16s ease, background .16s ease, color .16s ease, transform .16s ease; }
+button.chip.equipment:hover { border-color: #d2a85c; background: #3a2d1d; color: #ffe1a0; transform: translateY(-1px); }
+button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset: 2px; }
 
 /* 侧栏手牌摘要：只露牌背和张数 */
 .hand-backs { display: flex; align-items: center; min-height: 32px; }
@@ -82,11 +85,12 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .card-rarity.rarity-r { color: #69b9e8; box-shadow: 0 0 8px #4aaee833; }
 .card-rarity.rarity-sr { color: #d8a8ff; box-shadow: 0 0 9px #ad6fe755; }
 .card-rarity.rarity-pr { color: #ffcf6b; box-shadow: 0 0 12px #ffab3c77; }
-/* 圆圈标的是卡牌类型（攻／守／通），所以配色跟着类型走，不参与卡牌自身的配色 */
+/* 圆圈标的是卡牌类型（攻／守／通／疗），所以配色跟着类型走，不参与卡牌自身的配色 */
 .hand-card-sigil { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font: 700 10px "Noto Serif SC", serif; border: 1px solid currentColor; opacity: .85; }
 .hand-card-sigil.type-attack { color: #f0a47d; background: #f0a47d14; }
 .hand-card-sigil.type-defense { color: #8fcce5; background: #8fcce514; }
 .hand-card-sigil.type-universal { color: #e3c787; background: #e3c78714; }
+.hand-card-sigil.type-healing { color: #8dd9a5; background: #8dd9a514; }
 .hand-card-name { font: 700 12px "Noto Serif SC", serif; line-height: 1.2; }
 .hand-card-effect { font-size: 9px; color: #9b8d7a; line-height: 1.4; margin-top: auto; }
 .hand-card.scroll-might { border-color: #8b4a36; background: linear-gradient(165deg, #35221b, #1c1512); }
@@ -99,14 +103,21 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .hand-card.scroll-dragonStrike .hand-card-name { color: #ff9875; }
 .hand-card.scroll-fateCrownDecree { border-color: #8a6a2e; background: linear-gradient(165deg, #3d3117, #1d1810); }
 .hand-card.scroll-fateCrownDecree .hand-card-name { color: #ffcf6b; }
+.hand-card.card-healing { height: 150px; border-color: #477a58; background: linear-gradient(165deg, #1c3023, #111a14); }
+.hand-card.card-healing .hand-card-name { color: #9be0b0; }
+.hand-card-use { margin-top: 2px; padding: 5px 4px; border: 1px solid #538566; border-radius: 3px; background: #17291d; color: #aee8be; font-size: 8px; }
+.hand-card-use:hover:not(:disabled) { border-color: #8dd9a5; background: #203a29; }
 
 /* 战斗骰面与伤害飘字 */
-.combat-dice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
+.combat-dice { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: stretch; gap: 13px; margin: 4px 0 14px; }
+.combat-dice-divider { display: grid; place-items: center; color: #635747; font: 700 16px "Noto Serif SC", serif; }
 .combat-slot { display: grid; justify-items: center; gap: 7px; border: 1px solid #433b32; background: #100f0d; padding: 10px 6px 12px; }
 /* 攻防两栏沿用力量／护盾卷轴的配色，两个合计并排时不用读字也分得清 */
 .combat-slot.attack { border-color: #6b3a2b; }
 .combat-slot.defense { border-color: #2b4f60; }
-.combat-slot-label { font-size: 8px; color: #8a7a63; letter-spacing: .12em; }
+.combat-slot-label { min-height: 29px; display: grid; justify-items: center; align-content: center; gap: 2px; color: #8a7a63; }
+.combat-slot-label strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 9px "Noto Serif SC", serif; color: #c4b49e; }
+.combat-slot-label em { font-size: 8px; font-style: normal; letter-spacing: .12em; }
 .combat-slot.attack .combat-slot-label { color: #b9765a; }
 .combat-slot.defense .combat-slot-label { color: #6a9cb3; }
 /* Georgia 用的是老式数字，3/4/5/7/9 会沉到基线以下、6/8 会顶上去，
@@ -122,7 +133,9 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .combat-slot.defense .combat-total-value { color: #8fcce5; text-shadow: 0 0 18px #3d90b066, 0 2px 4px #000; }
 .combat-total-value.idle { color: #4e483f; text-shadow: none; }
 .combatants > div:not(.clash-mark) { position: relative; }
-.damage-float { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); font: 900 26px Georgia, serif; color: #ff8f6a; text-shadow: 0 0 14px #ff5c2e88, 0 2px 6px #000; pointer-events: none; z-index: 3; }
+.damage-float, .healing-float { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); font: 900 26px Georgia, serif; pointer-events: none; z-index: 3; }
+.damage-float { color: #ff8f6a; text-shadow: 0 0 14px #ff5c2e88, 0 2px 6px #000; }
+.healing-float { color: #83e3a1; text-shadow: 0 0 14px #42bd6888, 0 2px 6px #000; }
 
 .board-shell { position: relative; min-height: 485px; border: 1px solid #514536; background:
   linear-gradient(#171613e8, #10100ee8),
@@ -232,7 +245,7 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 
 /* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
-.battle-modal, .penalty-modal, .equipment-choice-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
+.battle-modal, .penalty-modal, .equipment-choice-modal, .equipment-detail-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
 .modal-kicker { color: #caa45f; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; }
 .battle-modal > h2, .penalty-modal h2, .equipment-choice-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
 .battle-modal > h2 span { color: #a45a43; font: 900 14px Georgia, serif; padding: 0 12px; }
@@ -265,6 +278,8 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .battle-card.scroll-dragonStrike .battle-card-name { color: #ff9875; }
 .battle-card.scroll-fateCrownDecree { border-color: #8a6a2e; background: linear-gradient(165deg, #3d3117, #1d1810); }
 .battle-card.scroll-fateCrownDecree .battle-card-name { color: #ffcf6b; }
+.battle-card.card-healing { border-color: #477a58; background: linear-gradient(165deg, #1c3023, #111a14); }
+.battle-card.card-healing .battle-card-name { color: #9be0b0; }
 .battle-card.selected { border-color: #e5bd6d; box-shadow: 0 0 0 1px #e5bd6d, 0 0 18px #d9a54c40, inset 0 1px #ffffff18; }
 .battle-card.selected::after { content: "已选"; position: absolute; top: -7px; right: -6px; background: #e3c787; color: #2b2115; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 2px; }
 .battle-button { margin: 2px 0 14px; }
@@ -282,6 +297,19 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .offered-equipment span { color: #9f8b6b; font-size: 9px; letter-spacing: .16em; }
 .offered-equipment strong { color: #edcc83; font: 700 17px "Noto Serif SC", serif; }
 .offered-equipment p { color: #b7a991; font-size: 11px; margin: 0; }
+.equipment-detail-backdrop { z-index: 21; }
+.equipment-detail-modal { width: min(430px, 100%); }
+.equipment-detail-modal h2 { margin: 12px 0 18px; color: #edcc83; font: 900 25px "Noto Serif SC", serif; }
+.equipment-detail-meta { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
+.equipment-detail-meta span { min-width: 38px; padding: 4px 7px; border: 1px solid currentColor; border-radius: 2px; color: #a99b87; font-size: 9px; letter-spacing: .1em; }
+.equipment-detail-meta .rarity-n { color: #a9a49b; }
+.equipment-detail-meta .rarity-r { color: #69b9e8; }
+.equipment-detail-meta .rarity-sr { color: #d8a8ff; }
+.equipment-detail-meta .rarity-pr { color: #ffcf6b; }
+.equipment-detail-effect { padding: 17px; border: 1px solid #5b4932; background: #17130f; text-align: left; }
+.equipment-detail-effect span { color: #8f7b5f; font-size: 9px; letter-spacing: .16em; }
+.equipment-detail-effect p { margin: 8px 0 0; color: #dfd0b8; font-size: 12px; line-height: 1.7; }
+.equipment-detail-modal .primary-button { margin-top: 20px; }
 .equipment-choice-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 18px; }
 .equipment-choice-options button { min-height: 82px; padding: 13px 10px; border: 1px solid #5c4b38; background: #171411; color: #d5c0a1; display: grid; gap: 4px; }
 .equipment-choice-options button:hover { border-color: #d2a85c; background: #2b2117; }

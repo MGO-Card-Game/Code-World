@@ -2,6 +2,7 @@ import { CARD_RARITY_WEIGHTS, pickByRarity } from "../rarity";
 import { COMBAT_SWING_SCROLLS } from "./combatSwing";
 import type { ScrollDefinition } from "./definition";
 import { DICE_BOOST_SCROLLS } from "./diceBoost";
+import { RECOVERY_SCROLLS } from "./recovery";
 
 export {
   SCROLL_CATEGORY_NAMES,
@@ -17,6 +18,7 @@ export const SCROLL_RARITY_WEIGHTS = CARD_RARITY_WEIGHTS;
 export const SCROLLS_BY_GROUP = {
   diceBoost: DICE_BOOST_SCROLLS,
   combatSwing: COMBAT_SWING_SCROLLS,
+  recovery: RECOVERY_SCROLLS,
 } as const satisfies Record<string, Record<string, ScrollDefinition>>;
 
 /**
@@ -29,6 +31,7 @@ export const SCROLLS_BY_GROUP = {
 export const SCROLLS = {
   ...DICE_BOOST_SCROLLS,
   ...COMBAT_SWING_SCROLLS,
+  ...RECOVERY_SCROLLS,
 };
 
 /** 直接由配置键推导；新增卷轴时无需再维护另一份字符串联合类型。 */

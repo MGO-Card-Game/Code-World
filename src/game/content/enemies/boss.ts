@@ -16,7 +16,7 @@ import { defineEnemies } from "./definition";
 export const BOSS_ENEMIES = defineEnemies("boss", {
   dragon: {
     name: "峰顶巨龙",
-    maxHp: 24,
+    maxHp: 50,
     attack: 5,
     defense: 4,
   },

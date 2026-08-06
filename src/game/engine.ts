@@ -1,4 +1,3 @@
-import { enemyDefinition } from "./content/enemies";
 import {
   EQUIPMENT,
   EQUIPMENT_SLOT_LIMITS,
@@ -6,8 +5,14 @@ import {
   equipmentDefinition,
   pickEquipmentKind,
 } from "./content/equipment";
-import { pickScrollKind, SCROLLS } from "./content/scrolls";
-import { findPreviousRestTile, generateMap } from "./map";
+import {
+  mapEventDefinition,
+  pickMapEvent,
+  type MapEventEffectDefinition,
+  type MapEventResource,
+} from "./content/events";
+import { pickScrollKind, SCROLLS, scrollDefinition } from "./content/scrolls";
+import { findPreviousRestTile, findRestTileAtOrBefore, generateMap } from "./map";
 import {
   enemyDiceCountBonus,
   enemyDieSidesBonus,
@@ -121,12 +126,15 @@ function newPlayer(id: PlayerId, name: string, color: string): Player {
   };
 }
 
-export function createInitialGame(seed = Date.now()): GameState {
+export function createInitialGame(
+  seed = Date.now(),
+  playerNames: Partial<Record<PlayerId, string>> = {},
+): GameState {
   const normalized = normalizedSeed(seed);
   const state: GameState = {
     players: {
-      player1: newPlayer("player1", "赤焰旅者", "#ff7a4d"),
-      player2: newPlayer("player2", "苍潮旅者", "#55bde8"),
+      player1: newPlayer("player1", playerNames.player1 ?? "赤焰旅者", "#ff7a4d"),
+      player2: newPlayer("player2", playerNames.player2 ?? "苍潮旅者", "#55bde8"),
     },
     map: generateMap(normalized),
     activePlayerId: "player1",
@@ -198,6 +206,13 @@ function grantScroll(state: GameState, player: Player, kind?: ScrollKind): Rewar
     name: SCROLLS[selected].name,
     publicName: "一张卷轴",
   };
+}
+
+/** 宝箱与非 Boss 战斗共用的资源奖励：卷轴、装备各 50%。 */
+function grantRandomResourceReward(state: GameState, player: Player): Reward {
+  return rollDie(state, 2) === 1
+    ? grantScroll(state, player)
+    : grantEquipment(state, player);
 }
 
 /** 按奖励是否需要保密，拼出 addHistory 的第三个参数 */
@@ -325,6 +340,86 @@ function grantEquipment(state: GameState, player: Player): Reward {
   return { name, publicName: name };
 }
 
+function grantMapEventResource(
+  state: GameState,
+  player: Player,
+  resource: MapEventResource,
+) {
+  switch (resource) {
+    case "scroll":
+      return grantScroll(state, player);
+    case "equipment":
+      return grantEquipment(state, player);
+    case "random":
+      return grantRandomResourceReward(state, player);
+  }
+}
+
+/**
+ * 结算一条声明式地图事件效果；返回 true 表示装备槽选择暂停了后续即时效果。
+ */
+function applyMapEventEffect(
+  state: GameState,
+  player: Player,
+  effect: MapEventEffectDefinition,
+) {
+  switch (effect.type) {
+    case "heal": {
+      const hpBefore = player.hp;
+      player.hp = Math.min(player.maxHp, player.hp + Math.max(0, effect.amount));
+      const amount = player.hp - hpBefore;
+      if (amount > 0) {
+        emit(state, {
+          type: "playerHpChanged",
+          playerId: player.id,
+          from: hpBefore,
+          to: player.hp,
+          maxHp: player.maxHp,
+          reason: "event",
+        });
+      }
+      addHistory(state, effect.narration({ playerName: player.name, amount }));
+      return false;
+    }
+    case "damage": {
+      const hpBefore = player.hp;
+      const minimumHp = Math.max(0, Math.min(player.hp, effect.minimumHp ?? 1));
+      player.hp = Math.max(minimumHp, player.hp - Math.max(0, effect.amount));
+      const amount = hpBefore - player.hp;
+      if (amount > 0) {
+        emit(state, {
+          type: "playerHpChanged",
+          playerId: player.id,
+          from: hpBefore,
+          to: player.hp,
+          maxHp: player.maxHp,
+          reason: "event",
+        });
+      }
+      addHistory(state, effect.narration({ playerName: player.name, amount }));
+      return false;
+    }
+    case "grantResource": {
+      const reward = grantMapEventResource(state, player, effect.resource);
+      const line = (rewardName: string) => effect.narration({
+        playerName: player.name,
+        rewardName,
+      });
+      addHistory(state, line(reward.name), rewardSecret(player, line, reward));
+      return reward.pendingEquipmentChoice === true;
+    }
+  }
+}
+
+function resolveRandomMapEvent(state: GameState, player: Player, region: MapTile["region"]) {
+  const kind = pickMapEvent(region, () => nextRandom(state));
+  const definition = mapEventDefinition(kind);
+  state.phase = { kind: "turnComplete" };
+  for (const effect of definition.effects) {
+    if (applyMapEventEffect(state, player, effect)) break;
+  }
+}
+
 /** 折算过词缀的敌方属性。b 侧是玩家时不该调用。 */
 function battleEnemyStats(battle: BattleState) {
   return enemyStats(battle.enemyId!, battle.enemyAffix);
@@ -364,6 +459,12 @@ function startBattle(
     bPlayerId,
     enemyId,
     enemyAffix,
+    retreatTo: kind === "pvp"
+      ? undefined
+      : findRestTileAtOrBefore(
+          state.map,
+          state.movementOrigin ?? state.players[aPlayerId].position,
+        ),
     hpA: state.players[aPlayerId].hp,
     // 精英词缀会抬高血量上限，所以这里必须走折算，不能直接读定义
     hpB: bPlayerId ? state.players[bPlayerId].hp : enemyStats(enemyId!, enemyAffix).maxHp,
@@ -427,9 +528,7 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
       return;
     }
     case "treasure": {
-      const reward = rollDie(state, 2) === 1
-        ? grantScroll(state, player)
-        : grantEquipment(state, player);
+      const reward = grantRandomResourceReward(state, player);
       if (!reward.pendingEquipmentChoice) {
         state.phase = { kind: "turnComplete" };
       }
@@ -438,42 +537,7 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
       return;
     }
     case "event": {
-      const outcome = rollDie(state, 3);
-      state.phase = { kind: "turnComplete" };
-      if (outcome === 1) {
-        const hpBefore = player.hp;
-        const healed = Math.min(3, player.maxHp - player.hp);
-        player.hp += healed;
-        if (healed > 0) {
-          emit(state, {
-            type: "playerHpChanged",
-            playerId: player.id,
-            from: hpBefore,
-            to: player.hp,
-            maxHp: player.maxHp,
-            reason: "event",
-          });
-        }
-        addHistory(state, `奇遇带来喘息，${player.name}恢复 ${healed} 点生命。`);
-      } else if (outcome === 2) {
-        const hpBefore = player.hp;
-        player.hp = Math.max(1, player.hp - 2);
-        if (player.hp !== hpBefore) {
-          emit(state, {
-            type: "playerHpChanged",
-            playerId: player.id,
-            from: hpBefore,
-            to: player.hp,
-            maxHp: player.maxHp,
-            reason: "event",
-          });
-        }
-        addHistory(state, `山路落石！${player.name}损失 2 点生命。`);
-      } else {
-        const reward = grantScroll(state, player);
-        const line = (what: string) => `${player.name}从旅人手中获得${what}。`;
-        addHistory(state, line(reward.name), rewardSecret(player, line, reward));
-      }
+      resolveRandomMapEvent(state, player, tile.region);
       return;
     }
     case "start":
@@ -627,9 +691,7 @@ function finishBattle(state: GameState, battle: BattleState, winnerSide: CombatS
       emit(state, { type: "gameOver", winnerId: player.id });
       addHistory(state, `${player.name}击败峰顶巨龙，夺得登峰之冠！`);
     } else {
-      const reward = enemyDefinition(battle.enemyId!).reward === "equipment"
-        ? grantEquipment(state, player)
-        : grantScroll(state, player);
+      const reward = grantRandomResourceReward(state, player);
       if (!reward.pendingEquipmentChoice) {
         state.phase = { kind: "turnComplete" };
       }
@@ -651,7 +713,9 @@ function finishBattle(state: GameState, battle: BattleState, winnerSide: CombatS
   const hpBeforeRecovery = player.hp;
   const positionBefore = player.position;
   player.hp = Math.ceil(player.maxHp / 2);
-  const retreat = findPreviousRestTile(state.map, player.position);
+  // retreatTo 在开战时就按移动起点锁定，不能把本次掷骰途中越过的泉水算进去。
+  // 回退分支兼容旧存档或测试中手工构造、尚未携带该字段的战斗状态。
+  const retreat = battle.retreatTo ?? findPreviousRestTile(state.map, player.position);
   player.position = retreat;
   emit(state, {
     type: "playerHpChanged",
@@ -700,6 +764,36 @@ function applyDirectScrollDamage(
   battle.log = battle.log.slice(0, 8);
   syncPveHp(state, battle);
   return hpAfter <= 0;
+}
+
+function applyBattleHealing(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  amount: number,
+  effectName: string,
+) {
+  const hpBefore = sideHp(battle, side);
+  const hpMax = sideMaxHp(state, battle, side);
+  const hpAfter = Math.min(hpMax, hpBefore + Math.max(0, amount));
+  const healed = hpAfter - hpBefore;
+  if (side === "a") battle.hpA = hpAfter;
+  else battle.hpB = hpAfter;
+  if (healed > 0) {
+    emit(state, {
+      type: "battleHealed",
+      targetSide: side,
+      amount: healed,
+      hpBefore,
+      hpAfter,
+      hpMax,
+    });
+  }
+  battle.log.unshift(
+    `${combatantName(state, battle, side)}使用${effectName}，恢复 ${healed} 点生命。`,
+  );
+  battle.log = battle.log.slice(0, 8);
+  syncPveHp(state, battle);
 }
 
 function newRollModifiers(): RollModifiers {
@@ -754,6 +848,18 @@ function applyScrollEffect(
         effect.amount,
         effectName,
       );
+    case "heal":
+      applyBattleHealing(state, battle, sourceSide, effect.amount, effectName);
+      return false;
+    case "forfeitMovement": {
+      const playerId = battlePlayerForSide(battle, sourceSide);
+      if (playerId) state.players[playerId].skipNextMovement = true;
+      battle.log.unshift(
+        `${combatantName(state, battle, sourceSide)}将在下一次地图行动中无法移动。`,
+      );
+      battle.log = battle.log.slice(0, 8);
+      return false;
+    }
     case "custom": {
       let targetDefeated = false;
       const result = effect.resolve({
@@ -781,6 +887,60 @@ function applyScrollEffect(
       return targetDefeated || result?.targetDefeated === true;
     }
   }
+}
+
+function applyMapHealing(state: GameState, player: Player, amount: number) {
+  const hpBefore = player.hp;
+  player.hp = Math.min(player.maxHp, player.hp + Math.max(0, amount));
+  const healed = player.hp - hpBefore;
+  if (healed > 0) {
+    emit(state, {
+      type: "playerHpChanged",
+      playerId: player.id,
+      from: hpBefore,
+      to: player.hp,
+      maxHp: player.maxHp,
+      reason: "scroll",
+    });
+  }
+  return healed;
+}
+
+/** 地图阶段使用疗牌；返回 false 时保持“非法动作不产生新状态”的约定。 */
+function useMapScroll(state: GameState, instanceId: string) {
+  if (state.phase.kind !== "awaitingRoll" && state.phase.kind !== "turnComplete") {
+    return false;
+  }
+  const player = state.players[state.activePlayerId];
+  const owned = player.scrolls.find((scroll) => scroll.instanceId === instanceId);
+  if (!owned) return false;
+  const definition = scrollDefinition(owned.kind);
+  if (!definition.timings.includes("map")) return false;
+  const supported = definition.effects.every(
+    (effect) => effect.type === "heal" || effect.type === "forfeitMovement",
+  );
+  if (!supported) return false;
+  const forfeitsMovement = definition.effects.some(
+    (effect) => effect.type === "forfeitMovement",
+  );
+  // 已经移动完再喝药无法支付“本回合不能移动”的代价。
+  if (forfeitsMovement && state.phase.kind === "turnComplete") return false;
+  const canHeal = definition.effects.some(
+    (effect) => effect.type === "heal" && effect.amount > 0,
+  );
+  if (canHeal && player.hp >= player.maxHp) return false;
+
+  consumeScroll(state, player, instanceId);
+  let healed = 0;
+  for (const effect of definition.effects) {
+    if (effect.type === "heal") healed += applyMapHealing(state, player, effect.amount);
+  }
+  if (forfeitsMovement) state.phase = { kind: "turnComplete" };
+  addHistory(
+    state,
+    `${player.name}使用${definition.name}，恢复 ${healed} 点生命${forfeitsMovement ? "，本回合不再移动" : ""}。`,
+  );
+  return true;
 }
 
 /**
@@ -1441,7 +1601,10 @@ function rebaseEventIds(state: GameState, startId: number): GameState {
  */
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === "restart") {
-    return rebaseEventIds(createInitialGame(action.seed), state.nextEventId);
+    return rebaseEventIds(createInitialGame(action.seed, {
+      player1: state.players.player1.name,
+      player2: state.players.player2.name,
+    }), state.nextEventId);
   }
   const next = structuredClone(state);
   next.lastEvents = [];
@@ -1454,6 +1617,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const roll = rollDie(next, sides);
       next.lastMovementRoll = roll;
       const positionBefore = player.position;
+      next.movementOrigin = positionBefore;
       player.position = Math.min(next.map.tiles.length - 1, player.position + roll);
       emit(next, {
         type: "movementRolled",
@@ -1472,18 +1636,32 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       resolveTile(next, targetTile);
       return next;
     }
+    case "useMapScroll":
+      return useMapScroll(next, action.instanceId) ? next : state;
     case "endTurn": {
       if (next.phase.kind !== "turnComplete") return state;
       next.activePlayerId = otherPlayer(next.activePlayerId);
       next.turn += 1;
       next.lastMovementRoll = undefined;
-      next.phase = { kind: "awaitingRoll" };
+      next.movementOrigin = undefined;
+      const incoming = next.players[next.activePlayerId];
+      if (incoming.skipNextMovement) {
+        delete incoming.skipNextMovement;
+        next.phase = { kind: "turnComplete" };
+      } else {
+        next.phase = { kind: "awaitingRoll" };
+      }
       emit(next, {
         type: "turnStarted",
         playerId: next.activePlayerId,
         turn: next.turn,
       });
-      addHistory(next, `轮到${next.players[next.activePlayerId].name}行动。`);
+      addHistory(
+        next,
+        next.phase.kind === "turnComplete"
+          ? `${incoming.name}受战地药剂影响，本回合无法移动。`
+          : `轮到${incoming.name}行动。`,
+      );
       return next;
     }
     case "submitScrollChoice":

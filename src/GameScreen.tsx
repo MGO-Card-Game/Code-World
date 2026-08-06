@@ -4,8 +4,12 @@ import { handCardLayout, handSpacing } from "./anim/handLayout";
 import { useEventQueue } from "./anim/useEventQueue";
 import {
   activeDamage,
+  battleWithDamage,
+  isBattleEnding,
   isRevealed,
+  visualAttacker,
   visualBattleHp,
+  visualBattleRound,
   visualHp,
   visualMaxHp,
   visualPosition,
@@ -15,7 +19,13 @@ import {
   EQUIPMENT_CATEGORY_NAMES,
   equipmentCategory,
 } from "./game/content/equipment";
-import { SCROLLS, scrollDefinition } from "./game/content/scrolls";
+import {
+  SCROLL_CATEGORY_NAMES,
+  SCROLL_CATEGORY_SIGILS,
+  SCROLLS,
+  scrollCategory,
+  scrollDefinition,
+} from "./game/content/scrolls";
 import { TILE_ICON } from "./game/content/tiles";
 import { getBattleParticipants, getSidePlayer, PLAYER_IDS } from "./game/engine";
 import { isHiddenScroll } from "./game/multiplayer";
@@ -175,6 +185,7 @@ function ResourceModal({ player, playback, onClose }: {
             {cards.map((scroll, index) => {
               // 绕卡面下方的支点旋转形成扇形
               const { rotate, lift, zIndex } = handCardLayout(index, cards.length);
+              const category = scrollCategory(SCROLLS[scroll.kind]);
               return (
                 <motion.article
                   key={scroll.instanceId}
@@ -190,7 +201,13 @@ function ResourceModal({ player, playback, onClose }: {
                   <span className={`card-rarity rarity-${SCROLLS[scroll.kind].rarity.toLowerCase()}`}>
                     {SCROLLS[scroll.kind].rarity}
                   </span>
-                  <span className="hand-card-sigil">{SCROLLS[scroll.kind].sigil}</span>
+                  {/* 圆圈标的是卡牌类型（攻击／防守／通用），不是牌名简称 */}
+                  <span
+                    className={`hand-card-sigil type-${category}`}
+                    title={SCROLL_CATEGORY_NAMES[category]}
+                  >
+                    {SCROLL_CATEGORY_SIGILS[category]}
+                  </span>
                   <span className="hand-card-name">{SCROLLS[scroll.kind].name}</span>
                   <span className="hand-card-effect">{SCROLLS[scroll.kind].description}</span>
                 </motion.article>
@@ -570,14 +587,16 @@ function Board({ state, playback }: { state: GameStateView; playback: Playback }
   );
 }
 
-function CombatSlot({ label, dice, sides = 6, total }: {
+function CombatSlot({ label, tone, dice, sides = 6, total }: {
   label: string;
+  /** 攻防两侧沿用力量／护盾卷轴的配色，两个合计并排时一眼能分清谁是谁 */
+  tone: "attack" | "defense";
   dice?: number[];
   sides?: number;
   total?: number;
 }) {
   return (
-    <div className="combat-slot">
+    <div className={`combat-slot ${tone}`}>
       <span className="combat-slot-label">{label} D{sides}</span>
       <AnimatePresence mode="wait">
         {dice === undefined ? (
@@ -596,14 +615,43 @@ function CombatSlot({ label, dice, sides = 6, total }: {
           </motion.div>
         )}
       </AnimatePresence>
-      <span className="combat-slot-total">{total === undefined ? "" : `合计 ${total}`}</span>
+      {/* 合计才是决定这一轮伤害的数字，比骰面本身更该被看见 */}
+      <div className="combat-slot-total">
+        <span className="combat-total-label">合计</span>
+        <motion.strong
+          className={`combat-total-value${total === undefined ? " idle" : ""}`}
+          key={total ?? "idle"}
+          initial={total === undefined ? false : { scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 460, damping: 15 }}
+        >
+          {total ?? "—"}
+        </motion.strong>
+      </div>
     </div>
   );
 }
 
-function BattlePanel({ state, battle, dispatch, playback, viewerSeat }: {
+/**
+ * 战斗弹层要活到 battleEnded 播完为止，胜负揭晓那一轮的演出才有地方播。
+ * 判定与补血都在 visualState 里，这里只负责记住最后一份 battle 快照。
+ */
+function useLingeringBattle(state: GameStateView, playback: Playback): BattleState | null {
+  const remembered = useRef<BattleState | null>(null);
+  if (state.phase.kind === "battle") {
+    remembered.current = state.phase.battle;
+    return state.phase.battle;
+  }
+  if (!remembered.current) return null;
+  if (!isBattleEnding(playback.event, playback.pending)) return null;
+  return battleWithDamage(remembered.current, state.lastEvents);
+}
+
+function BattlePanel({ state, battle, live, dispatch, playback, viewerSeat }: {
   state: GameStateView;
   battle: BattleState;
+  /** 引擎里战斗是否还在进行。false 表示只是在补播最后一轮的演出 */
+  live: boolean;
   dispatch: Dispatch;
   playback: Playback;
   viewerSeat: PlayerId;
@@ -615,10 +663,21 @@ function BattlePanel({ state, battle, dispatch, playback, viewerSeat }: {
   }>({});
   const { a, b } = getBattleParticipants(state, battle);
   const attackerSide = battle.attacker;
-  const defenderSide: CombatSide = attackerSide === "a" ? "b" : "a";
 
-  // 依次轮到谁选牌：攻击方先（7.7 第 4 步），再防守方（第 5 步）
-  const choosingSide = pendingChoiceSide(battle);
+  /*
+    引擎结算是原子的：本轮的骰点、伤害动画还没播，battle.attacker 就已经翻给下一轮了。
+    直接拿它渲染，玩家会看到自己打出的 D20 挂在"正在攻击"的对手名下。
+    因此展示用的攻防归属和轮次都按住到 battleRoundAdvanced 播到为止（见 visualState）。
+  */
+  const shownAttacker = visualAttacker(battle, playback.pending);
+  const shownDefender: CombatSide = shownAttacker === "a" ? "b" : "a";
+  const shownRound = visualBattleRound(battle, playback.pending);
+
+  // 依次轮到谁选牌：攻击方先（7.7 第 4 步），再防守方（第 5 步）。
+  // 选牌判定必须用引擎的真实 attacker，否则提交的时机会跟引擎校验对不上；
+  // 但下一轮的选牌提示要等交接动画播完再露面，免得跟按住的攻防归属自相矛盾。
+  const handedOver = live && shownRound === battle.round;
+  const choosingSide = handedOver ? pendingChoiceSide(battle) : null;
   const choosingPlayer = choosingSide ? getSidePlayer(state, battle, choosingSide) : undefined;
   const choosingTiming: ScrollTiming =
     choosingSide === attackerSide ? "beforeAttackRoll" : "beforeDefenseRoll";
@@ -630,8 +689,13 @@ function BattlePanel({ state, battle, dispatch, playback, viewerSeat }: {
 
   useEffect(() => {
     setPendingChoiceId("");
-    setRolls({});
   }, [battle.round]);
+
+  // 骰面跟着展示轮次走：上一轮的骰点留到交接动画播到时才清，
+  // 否则本轮骰点会被下一轮的引擎状态提前抹掉，或者反过来挂到新攻击方名下
+  useEffect(() => {
+    setRolls({});
+  }, [shownRound]);
 
   // 换一方选牌时清空选择，免得把上一方的选中态带过去
   useEffect(() => {
@@ -676,10 +740,10 @@ function BattlePanel({ state, battle, dispatch, playback, viewerSeat }: {
       >
         <div className="modal-kicker">{battle.kind === "pvp" ? "旅者相遇战" : battle.kind === "boss" ? "最终决战" : "山路遭遇"}</div>
         <h2>{a.name} <span>VS</span> {b.name}</h2>
-        <div className="initiative-line">先攻投骰 {battle.initiativeA} : {battle.initiativeB} · 第 {battle.round} 轮</div>
+        <div className="initiative-line">先攻投骰 {battle.initiativeA} : {battle.initiativeB} · 第 {shownRound} 轮</div>
         <div className="combatants">
-          <div className={attackerSide === "a" ? "attacking" : ""}>
-            <span className="combat-role">{attackerSide === "a" ? "正在攻击" : "防守"}</span>
+          <div className={shownAttacker === "a" ? "attacking" : ""}>
+            <span className="combat-role">{shownAttacker === "a" ? "正在攻击" : "防守"}</span>
             <h3>{a.name}</h3>
             <strong>{hpA}/{a.maxHp}</strong>
             <HealthBar value={hpA} max={a.maxHp} />
@@ -699,8 +763,8 @@ function BattlePanel({ state, battle, dispatch, playback, viewerSeat }: {
             </AnimatePresence>
           </div>
           <div className="clash-mark">⚔</div>
-          <div className={attackerSide === "b" ? "attacking" : ""}>
-            <span className="combat-role">{attackerSide === "b" ? "正在攻击" : "防守"}</span>
+          <div className={shownAttacker === "b" ? "attacking" : ""}>
+            <span className="combat-role">{shownAttacker === "b" ? "正在攻击" : "防守"}</span>
             <h3>{b.name}</h3>
             <strong>{hpB}/{hpMaxB}</strong>
             <HealthBar value={hpB} max={hpMaxB} />
@@ -722,11 +786,11 @@ function BattlePanel({ state, battle, dispatch, playback, viewerSeat }: {
         </div>
 
         <div className="combat-dice">
-          <CombatSlot label="攻击" dice={rolls.attackDice} sides={rolls.attackSides} total={rolls.attackTotal} />
-          <CombatSlot label="防御" dice={rolls.defenseDice} sides={rolls.defenseSides} total={rolls.defenseTotal} />
+          <CombatSlot label="攻击" tone="attack" dice={rolls.attackDice} sides={rolls.attackSides} total={rolls.attackTotal} />
+          <CombatSlot label="防御" tone="defense" dice={rolls.defenseDice} sides={rolls.defenseSides} total={rolls.defenseTotal} />
         </div>
 
-        <p className="turn-callout"><strong>{nameOf(attackerSide)}</strong>发动攻击，{nameOf(defenderSide)}进行防御。</p>
+        <p className="turn-callout"><strong>{nameOf(shownAttacker)}</strong>发动攻击，{nameOf(shownDefender)}进行防御。</p>
 
         {/*
           规格 8.3：双方必须在看到骰子结果之前决定是否使用卷轴。
@@ -985,6 +1049,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
   const [caption, setCaption] = useState("");
   const [inspecting, setInspecting] = useState<PlayerId | null>(null);
   const activeName = state.players[state.activePlayerId].name;
+  const lingeringBattle = useLingeringBattle(state, playback);
 
   // 演出期间跟着 narration 事件逐条推进文案；播完再落到引擎的最终提示
   useEffect(() => {
@@ -1030,22 +1095,27 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
         {state.history.map((entry, index) => <p key={`${index}-${entry.text}`}>{entry.text}</p>)}
       </details>
 
-      {/* 三个弹层放在同一个 AnimatePresence 下，阶段切换时才有进退场衔接 */}
+      {/*
+        三个弹层放在同一个 AnimatePresence 下，阶段切换时才有进退场衔接。
+        战后的弹层都要等 lingeringBattle 让位——否则决出胜负的那一瞬间，
+        战斗演出还没播，代价/装备弹层就先盖上来了。
+      */}
       <AnimatePresence mode="wait">
-        {state.phase.kind === "battle" && (
+        {lingeringBattle && (
           <BattlePanel
             key="battle"
             state={state}
-            battle={state.phase.battle}
+            battle={lingeringBattle}
+            live={state.phase.kind === "battle"}
             dispatch={dispatch}
             playback={playback}
             viewerSeat={viewerSeat}
           />
         )}
-        {state.phase.kind === "pvpPenalty" && (
+        {!lingeringBattle && state.phase.kind === "pvpPenalty" && (
           <PenaltyPanel key="penalty" state={state} penalty={state.phase.penalty} dispatch={dispatch} playing={playback.playing} />
         )}
-        {state.phase.kind === "equipmentChoice" && (
+        {!lingeringBattle && state.phase.kind === "equipmentChoice" && (
           <EquipmentChoicePanel
             key="equipment-choice"
             state={state}
@@ -1055,7 +1125,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
             viewerSeat={viewerSeat}
           />
         )}
-        {state.phase.kind === "gameOver" && (
+        {!lingeringBattle && state.phase.kind === "gameOver" && (
           <GameOverPanel key="over" winner={state.players[state.phase.winnerId]} dispatch={dispatch} />
         )}
       </AnimatePresence>

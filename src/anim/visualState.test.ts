@@ -8,14 +8,18 @@ import {
   remainingMs,
 } from "./eventQueue";
 import {
+  battleWithDamage,
+  isBattleEnding,
   isRevealed,
+  visualAttacker,
   visualBattleHp,
+  visualBattleRound,
   visualHp,
   visualMaxHp,
   visualPosition,
 } from "./visualState";
 import { createInitialGame, gameReducer } from "../game/engine";
-import { makeBattle } from "../game/testSupport";
+import { makeBattle, resolveRound } from "../game/testSupport";
 import type { BattleState, GameEvent, Player } from "../game/types";
 
 function player(overrides: Partial<Player> = {}): Player {
@@ -114,6 +118,114 @@ describe("显示数值回拉", () => {
     // a 侧没有待播伤害，照常显示真实值
     expect(visualBattleHp(battle, "a", [damage])).toBe(14);
     expect(visualBattleHp(battle, "b", [])).toBe(8);
+  });
+
+  it("攻防归属按住到交接动画播到，骰点不会挂到下一轮的攻击方名下", () => {
+    // 攻击方（a 侧）打出 D20，引擎结算完 attacker 立刻翻成 b。
+    // 若界面直接读 battle.attacker，这颗 D20 会显示成对手的攻击骰。
+    let state = createInitialGame(1234);
+    state.players.player1.scrolls = [{ instanceId: "fate-a", kind: "fate" }];
+    state.players.player2.scrolls = [];
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pvp", aPlayerId: "player1", bPlayerId: "player2" }),
+    };
+
+    state = resolveRound(state, { attack: "fate-a" });
+    if (state.phase.kind !== "battle") throw new Error("战斗提前结束，请换个种子");
+    const battle = state.phase.battle;
+    expect(battle.attacker).toBe("b");
+    expect(battle.round).toBe(2);
+
+    let queue = enqueue(createEventQueue(), state.lastEvents);
+    let sawAttackRoll = false;
+    while (isPlaying(queue)) {
+      const playing = queue.current?.event;
+      if (playing?.type === "attackRolled") {
+        sawAttackRoll = true;
+        expect(playing.sides).toBe(20);
+        // 骰点正在播，展示上仍是 a 在攻击、仍是第 1 轮
+        expect(visualAttacker(battle, pendingEvents(queue))).toBe("a");
+        expect(visualBattleRound(battle, pendingEvents(queue))).toBe(1);
+      }
+      queue = advance(queue, remainingMs(queue)!);
+    }
+
+    expect(sawAttackRoll).toBe(true);
+    // 队列放空后跟上引擎的真实状态
+    expect(visualAttacker(battle, pendingEvents(queue))).toBe("b");
+    expect(visualBattleRound(battle, pendingEvents(queue))).toBe(2);
+  });
+
+  it("决出胜负的那一批事件里，骰点和 phase 离开 battle 是同时发生的", () => {
+    // 这条正是战斗弹层必须 linger 的原因：照 phase 渲染，弹层会赶在
+    // 最后一轮的 attackRolled 之前退场，骰子格子永远空着。
+    let state = createInitialGame(4242);
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId: "slime", hpB: 3 }),
+    };
+
+    state = resolveRound(state);
+
+    expect(state.phase.kind).not.toBe("battle");
+    const types = state.lastEvents.map((event) => event.type);
+    expect(types).toContain("attackRolled");
+    expect(types).toContain("battleEnded");
+
+    // 这批事件全都还没播，弹层得留到 battleEnded 播完
+    expect(isBattleEnding(null, state.lastEvents)).toBe(true);
+  });
+
+  it("battleEnded 播完之前弹层不退场，播完才让位", () => {
+    const ended: GameEvent = {
+      id: 9,
+      type: "battleEnded",
+      battleKind: "pve",
+      outcome: "playerWon",
+      winnerSide: "a",
+    };
+    const after: GameEvent = {
+      id: 10,
+      type: "scrollGranted",
+      playerId: "player1",
+      instanceId: "s-1",
+      kind: "might",
+    };
+
+    expect(isBattleEnding(null, [ended, after])).toBe(true);
+    // 正在播 battleEnded 时它已经不在 pending 里，仍要留着把这段演完
+    expect(isBattleEnding(ended, [after])).toBe(true);
+    expect(isBattleEnding(after, [])).toBe(false);
+  });
+
+  it("最后一击的伤害补进快照，血条不会停在挨打之前", () => {
+    // 战斗结束时引擎不再更新 battle 快照，界面手上的还是结算前那份
+    const battle: BattleState = makeBattle({
+      kind: "pve",
+      aPlayerId: "player1",
+      enemyId: "slime",
+      hpA: 14,
+      hpB: 3,
+    });
+    const damage: GameEvent = {
+      id: 1,
+      type: "battleDamage",
+      targetSide: "b",
+      amount: 3,
+      hpBefore: 3,
+      hpAfter: 0,
+      hpMax: 8,
+    };
+
+    const patched = battleWithDamage(battle, [damage]);
+    expect(patched.hpB).toBe(0);
+    expect(patched.hpA).toBe(14);
+    // 伤害还没播到时按住在 hpBefore，播完落到补过的终值
+    expect(visualBattleHp(patched, "b", [damage])).toBe(3);
+    expect(visualBattleHp(patched, "b", [])).toBe(0);
+    // 没有伤害事件就原样返回，不制造无谓的新对象
+    expect(battleWithDamage(battle, [])).toBe(battle);
   });
 
   it("获得动画播完前卡牌先不显形", () => {

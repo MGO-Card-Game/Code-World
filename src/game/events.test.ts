@@ -5,7 +5,6 @@ import {
   SCROLLS,
   type ScrollDefinition,
 } from "./content/scrolls";
-import { CUSTOM_SCROLL_EFFECTS } from "./effects/customScrollEffects";
 import { createInitialGame, gameReducer } from "./engine";
 import { findPreviousRestTile } from "./map";
 import { playableScrolls } from "./selectors";
@@ -194,8 +193,8 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     expect(attack.die).toBeLessThanOrEqual(20);
     expect(defense.die).toBeGreaterThanOrEqual(1);
     expect(defense.die).toBeLessThanOrEqual(21);
-    expect(attack.scrollBonus).toBe(0);
-    expect(defense.scrollBonus).toBe(0);
+    expect(attack.flatBonus).toBe(0);
+    expect(defense.flatBonus).toBe(0);
     expect(pick(state.lastEvents, "scrollConsumed").map((event) => event.kind))
       .toEqual(["fate", "fate"]);
   });
@@ -211,7 +210,7 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     const attack = only(state.lastEvents, "attackRolled");
     expect(attack.dice).toHaveLength(3);
     expect(attack.die).toBe(attack.dice.reduce((sum, die) => sum + die, 0));
-    expect(attack.total).toBe(attack.base + attack.die + attack.scrollBonus);
+    expect(attack.total).toBe(attack.base + attack.die + attack.flatBonus);
   });
 
   it("铁壁令把每个防御骰的最低结果提高到 3", () => {
@@ -226,22 +225,25 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     expect(defense.dice.every((die) => die >= 3)).toBe(true);
   });
 
-  it("无法声明式表达的卷轴可以通过具名解析器接入", () => {
+  it("无法声明式表达的卷轴可以直接在定义里挂函数", () => {
     const might = SCROLLS.might as ScrollDefinition;
     const originalEffects = might.effects;
-    CUSTOM_SCROLL_EFFECTS.testBonus = ({ modifiers }) => {
-      modifiers.flatBonus += 5;
-    };
-    might.effects = [{ type: "custom", resolver: "testBonus" }];
+    might.effects = [
+      {
+        type: "custom",
+        resolve: ({ modifiers }) => {
+          modifiers.flatBonus += 5;
+        },
+      },
+    ];
 
     try {
       let state = stagedPvpBattle(9191);
       state.players.player1.scrolls = [{ instanceId: "custom-1", kind: "might" }];
       state = resolveRound(state, { attack: "custom-1" });
-      expect(only(state.lastEvents, "attackRolled").scrollBonus).toBe(5);
+      expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(5);
     } finally {
       might.effects = originalEffects;
-      delete CUSTOM_SCROLL_EFFECTS.testBonus;
     }
   });
 
@@ -283,7 +285,7 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
 
     state = resolveRound(state, { attack: "atk-1" });
     const boosted = only(state.lastEvents, "attackRolled");
-    expect(boosted.scrollBonus).toBe(3);
+    expect(boosted.flatBonus).toBe(3);
 
     // 巨龙反击后再轮到玩家，此时卷轴已消耗，加值必须归零
     while (state.phase.kind === "battle" && state.phase.battle.attacker === "b") {
@@ -292,7 +294,7 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     if (state.phase.kind !== "battle") throw new Error("战斗提前结束，请换个种子");
 
     state = resolveRound(state);
-    expect(only(state.lastEvents, "attackRolled").scrollBonus).toBe(0);
+    expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(0);
   });
 });
 
@@ -357,8 +359,8 @@ describe("事件流", () => {
 
     expect(attack.side).toBe("a");
     expect(defense.side).toBe("b");
-    expect(attack.total).toBe(attack.base + attack.die + attack.scrollBonus);
-    expect(defense.total).toBe(defense.base + defense.die + defense.scrollBonus);
+    expect(attack.total).toBe(attack.base + attack.die + attack.flatBonus);
+    expect(defense.total).toBe(defense.base + defense.die + defense.flatBonus);
     expect(damage.amount).toBe(Math.max(0, attack.total - defense.total));
     expect(damage.targetSide).toBe("b");
     expect(damage.hpAfter).toBe(Math.max(0, damage.hpBefore - damage.amount));
@@ -392,8 +394,8 @@ describe("事件流", () => {
       "scroll-guard",
       "scroll-might",
     ]);
-    expect(only(state.lastEvents, "attackRolled").scrollBonus).toBe(3);
-    expect(only(state.lastEvents, "defenseRolled").scrollBonus).toBe(3);
+    expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(3);
+    expect(only(state.lastEvents, "defenseRolled").flatBonus).toBe(3);
   });
 
   it("未使用卷轴时不发出消耗事件", () => {
@@ -403,7 +405,7 @@ describe("事件流", () => {
     state = resolveRound(state);
 
     expect(pick(state.lastEvents, "scrollConsumed")).toHaveLength(0);
-    expect(only(state.lastEvents, "attackRolled").scrollBonus).toBe(0);
+    expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(0);
   });
 
   it("战败发出结束、回血与后退三条事件", () => {

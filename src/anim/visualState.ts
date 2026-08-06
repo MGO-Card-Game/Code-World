@@ -60,6 +60,56 @@ export function visualBattleHp(
 }
 
 /**
+ * 战斗轮次与攻防归属。
+ *
+ * 引擎在结算的同一瞬间就把 attacker 翻给了下一轮，而攻防骰、伤害的动画还没播。
+ * 不按住的话，玩家会看到"自己打出的 D20"标在已经切换成攻击方的对手头上。
+ */
+function heldRoundAdvance(pending: readonly GameEvent[]) {
+  const held = pending.find((event) => event.type === "battleRoundAdvanced");
+  return held?.type === "battleRoundAdvanced" ? held : undefined;
+}
+
+export function visualBattleRound(battle: BattleState, pending: readonly GameEvent[]) {
+  return heldRoundAdvance(pending)?.fromRound ?? battle.round;
+}
+
+export function visualAttacker(battle: BattleState, pending: readonly GameEvent[]) {
+  return heldRoundAdvance(pending)?.fromAttacker ?? battle.attacker;
+}
+
+/**
+ * 战斗弹层是否还要留在屏幕上。
+ *
+ * 决出胜负的那一次结算里，引擎在吐出 attackRolled / battleDamage 的同时就把 phase
+ * 切走了（PvE 直接进 turnComplete）。照 phase 渲染的话，弹层会赶在这批动画之前退场，
+ * 最后一轮就变成"骰子格子空着、血却已经掉了"。battleEnded 播完才是真正该退场的时刻。
+ */
+export function isBattleEnding(current: GameEvent | null, pending: readonly GameEvent[]) {
+  return current?.type === "battleEnded" || pending.some((e) => e.type === "battleEnded");
+}
+
+/**
+ * 把这一批事件里的战斗伤害补进快照。
+ *
+ * 战斗结束时不会再有 resetChoices，界面手上的 battle 快照停在结算之前，
+ * 不补的话最后一击打完血条还停在挨打前的数值。
+ */
+export function battleWithDamage(
+  battle: BattleState,
+  events: readonly GameEvent[],
+): BattleState {
+  let hpA = battle.hpA;
+  let hpB = battle.hpB;
+  for (const event of events) {
+    if (event.type !== "battleDamage") continue;
+    if (event.targetSide === "a") hpA = event.hpAfter;
+    else hpB = event.hpAfter;
+  }
+  return hpA === battle.hpA && hpB === battle.hpB ? battle : { ...battle, hpA, hpB };
+}
+
+/**
  * 卷轴/装备是否应该已经出现在界面上。
  *
  * 获得类事件播完之前先不渲染，免得卡牌在“获得”动画播之前就凭空出现在手牌里。

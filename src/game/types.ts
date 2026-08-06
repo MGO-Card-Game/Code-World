@@ -230,7 +230,7 @@ export type GameEventBody =
       dice: number[];
       sides: number;
       base: number;
-      scrollBonus: number;
+      flatBonus: number;
       total: number;
     }
   | {
@@ -240,7 +240,7 @@ export type GameEventBody =
       dice: number[];
       sides: number;
       base: number;
-      scrollBonus: number;
+      flatBonus: number;
       total: number;
     }
   /** 战斗内临时生命值变化，PvP 时不代表真实生命值 */
@@ -252,7 +252,14 @@ export type GameEventBody =
       hpAfter: number;
       hpMax: number;
     }
-  | { type: "battleRoundAdvanced"; round: number; attacker: CombatSide }
+  /** fromRound / fromAttacker 供界面在动画播到之前按住上一轮的攻防归属 */
+  | {
+      type: "battleRoundAdvanced";
+      round: number;
+      attacker: CombatSide;
+      fromRound: number;
+      fromAttacker: CombatSide;
+    }
   | {
       type: "battleEnded";
       battleKind: BattleState["kind"];

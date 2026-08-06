@@ -1,21 +1,14 @@
 import { EQUIPMENT, equipmentDefinition } from "./content/equipment";
 import { scrollDefinition } from "./content/scrolls";
-import { CUSTOM_EQUIPMENT_EFFECTS } from "./effects/customEquipmentEffects";
 import type { DiceKind, EquipmentModifier } from "./effects/cardEffects";
 import type { Player, PlayerStats, ScrollTiming } from "./types";
 
 export function equipmentModifiers(player: PlayerStats): EquipmentModifier[] {
   return player.equipment.flatMap((item) => {
     const definition = equipmentDefinition(item.kind);
-    const custom = definition.customResolver
-      ? CUSTOM_EQUIPMENT_EFFECTS[definition.customResolver]
-      : undefined;
-    if (definition.customResolver && !custom) {
-      throw new Error(`装备效果解析器未注册：${definition.customResolver}`);
-    }
     return [
       ...definition.modifiers,
-      ...(custom?.modifiers?.({ player, item }) ?? []),
+      ...(definition.effects?.modifiers?.({ player, item }) ?? []),
     ];
   });
 }

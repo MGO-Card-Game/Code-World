@@ -26,32 +26,39 @@ import {
 export function useEventQueue(events: readonly GameEvent[], speed = 1) {
   const [queue, setQueue] = useState(createEventQueue);
 
-  useEffect(() => {
-    setQueue((current) => enqueue(current, events, speed));
-  }, [events, speed]);
+  /*
+    入队放在渲染阶段，不能放进 effect。
+
+    引擎是原子结算的，state 一变就已经是最终值；如果等 effect 才入队，中间会多出
+    一帧“状态已经到终点、队列却还是空的”。那一帧里所有按住逻辑都会短暂放开——
+    血条会闪一下终值，战斗弹层甚至会先退场再重新挂上。
+    enqueue 没有新事件时返回原对象，所以这里不会陷入循环。
+  */
+  const synced = enqueue(queue, events, speed);
+  if (synced !== queue) setQueue(synced);
 
   useEffect(() => {
-    const wait = remainingMs(queue);
+    const wait = remainingMs(synced);
     if (wait === null) return;
     const timer = window.setTimeout(() => {
       setQueue((current) => advance(current, wait));
     }, wait);
     return () => window.clearTimeout(timer);
-  }, [queue]);
+  }, [synced]);
 
   const skip = useCallback(() => setQueue(drain), []);
 
   return {
     /** 正在播放的事件，界面据此决定播什么动画 */
-    event: currentEvent(queue),
+    event: currentEvent(synced),
     /** 还没播到的事件。用于把对应数值按住在动画起点，见 visualState.ts */
-    pending: pendingEvents(queue),
+    pending: pendingEvents(synced),
     /** 队列非空。用于在动画播放期间锁住操作按钮 */
-    playing: isPlaying(queue),
+    playing: isPlaying(synced),
     /** 当前事件的播放进度 0～1 */
-    progress: progress(queue),
+    progress: progress(synced),
     /** 还剩多少条事件没播完 */
-    remaining: queueLength(queue),
+    remaining: queueLength(synced),
     skip,
   };
 }

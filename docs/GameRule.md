@@ -851,7 +851,7 @@ interface ScrollCard {
 }
 ```
 
-一张卷轴可以声明多个效果，引擎按数组顺序组合结算。常规数值牌只修改配置；无法由通用效果表达的牌使用 `custom.resolver` 指向独立代码解析器。解析器名称进入配置，对局状态仍只保存卡牌种类和实例 ID，因此可以安全序列化和联机同步。
+一张卷轴可以声明多个效果，引擎按数组顺序组合结算。常规数值牌只修改配置；无法由通用效果表达的牌使用 `custom.resolve` 直接挂函数。对局状态只保存卡牌种类和实例 ID，卡牌定义本身从不进入状态，因此定义里放代码不影响序列化与联机同步。
 
 第一阶段主要开放：
 
@@ -1007,13 +1007,15 @@ interface EquipmentCard {
   name: string;
   description: string;
   rarity: "N" | "R" | "SR";
-  category: EquipmentCategory;
+  category: EquipmentCategory;  // 由所在的分类表盖章，不写在卡上
   modifiers: EquipmentModifier[];
-  customResolver?: string;
+  effects?: EquipmentEffects;
 }
 ```
 
-`customResolver` 是复杂装备的代码扩展口，可以提供动态修正和装备/卸下生命周期逻辑。常规装备不需要解析器。
+`effects` 是复杂装备的代码扩展口，可以提供动态修正、装备/卸下生命周期，以及战斗内的 `beforeRoll` / `afterRoll` 两个时机。常规装备不需要它。
+
+战斗钩子与卷轴共用同一份本次投骰修正（加值、骰面替换、额外骰子、最低骰值、追加伤害），结算顺序是先卷轴后装备。`beforeRoll` 是唯一能读到对手状态的时机，`afterRoll` 能读到骰面结果。追加伤害不被防御吸收，且目前只结算攻击方那一份。
 
 ---
 

@@ -15,11 +15,12 @@ import {
   getDieSidesBonus,
   playableScrolls,
 } from "./selectors";
-import { CUSTOM_EQUIPMENT_EFFECTS } from "./effects/customEquipmentEffects";
-import { CUSTOM_SCROLL_EFFECTS } from "./effects/customScrollEffects";
 import type {
+  EquipmentBattleContext,
+  EquipmentEffects,
+  EquipmentRollResult,
+  RollModifiers,
   ScrollEffectDefinition,
-  ScrollRollModifiers,
 } from "./effects/cardEffects";
 import type {
   BattleState,
@@ -206,11 +207,7 @@ function runEquipmentHook(
   player: Player,
   item: OwnedEquipment,
 ) {
-  const resolverId = equipmentDefinition(item.kind).customResolver;
-  if (!resolverId) return;
-  const resolver = CUSTOM_EQUIPMENT_EFFECTS[resolverId];
-  if (!resolver) throw new Error(`装备效果解析器未注册：${resolverId}`);
-  resolver[hook]?.({ state, player, item });
+  equipmentDefinition(item.kind).effects?.[hook]?.({ state, player, item });
 }
 
 /** 只负责装备入槽和属性联动；调用方决定发哪一种获得/转移事件。 */
@@ -493,6 +490,10 @@ function sideStats(state: GameState, battle: BattleState, side: CombatSide) {
   return { attack: enemy.attack, defense: enemy.defense };
 }
 
+function sideHp(battle: BattleState, side: CombatSide) {
+  return side === "a" ? battle.hpA : battle.hpB;
+}
+
 function sideMaxHp(state: GameState, battle: BattleState, side: CombatSide) {
   const playerId = battlePlayerForSide(battle, side);
   if (playerId) return state.players[playerId].maxHp;
@@ -657,11 +658,12 @@ function applyDirectScrollDamage(
   return hpAfter <= 0;
 }
 
-function newRollModifiers(): ScrollRollModifiers {
+function newRollModifiers(): RollModifiers {
   return {
     flatBonus: 0,
     extraDice: 0,
     minimumRoll: 1,
+    bonusDamage: 0,
   };
 }
 
@@ -672,7 +674,7 @@ function applyScrollEffect(
   targetSide: CombatSide,
   effectName: string,
   effect: ScrollEffectDefinition,
-  modifiers: ScrollRollModifiers,
+  modifiers: RollModifiers,
 ) {
   switch (effect.type) {
     case "flatBonus":
@@ -697,18 +699,13 @@ function applyScrollEffect(
         effectName,
       );
     case "custom": {
-      const resolver = CUSTOM_SCROLL_EFFECTS[effect.resolver];
-      if (!resolver) {
-        throw new Error(`卷轴效果解析器未注册：${effect.resolver}`);
-      }
       let targetDefeated = false;
-      const result = resolver({
+      const result = effect.resolve({
         state,
         battle,
         sourceSide,
         targetSide,
         modifiers,
-        parameters: effect.parameters ?? {},
         dealDamage(rawDamage) {
           targetDefeated = applyDirectScrollDamage(
             state,
@@ -736,7 +733,7 @@ function applyScrollEffects(
   sourceSide: CombatSide,
   targetSide: CombatSide,
   kind: ScrollKind | undefined,
-  modifiers: ScrollRollModifiers,
+  modifiers: RollModifiers,
 ) {
   if (!kind) return false;
   const definition = SCROLLS[kind];
@@ -763,7 +760,7 @@ function rollForSide(
   battle: BattleState,
   side: CombatSide,
   dieKind: "attack" | "defense",
-  modifiers: ScrollRollModifiers,
+  modifiers: RollModifiers,
 ) {
   const playerId = battlePlayerForSide(battle, side);
   const player = playerId ? state.players[playerId] : undefined;
@@ -783,6 +780,94 @@ function rollForSide(
     dice,
     sum: dice.reduce((total, die) => total + die, 0),
   };
+}
+
+/**
+ * 遍历该侧玩家身上带自定义效果的装备。
+ * 敌人一侧没有玩家，自然也没有装备，直接跳过。
+ */
+function forEachEquipmentEffects(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  visit: (effects: EquipmentEffects, item: OwnedEquipment, player: Player) => void,
+) {
+  const playerId = battlePlayerForSide(battle, side);
+  if (!playerId) return;
+  const player = state.players[playerId];
+  // 复制一份：钩子理论上可以改动装备列表，遍历时被改会漏掉后面的装备
+  for (const item of [...player.equipment]) {
+    const effects = equipmentDefinition(item.kind).effects;
+    if (effects) visit(effects, item, player);
+  }
+}
+
+function equipmentBattleContext(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  opponentSide: CombatSide,
+  dieKind: "attack" | "defense",
+  modifiers: RollModifiers,
+  player: Player,
+  item: OwnedEquipment,
+): EquipmentBattleContext {
+  return {
+    state,
+    battle,
+    side,
+    opponentSide,
+    dieKind,
+    player,
+    item,
+    modifiers,
+    ownHp: sideHp(battle, side),
+    ownMaxHp: sideMaxHp(state, battle, side),
+    opponentHp: sideHp(battle, opponentSide),
+    opponentMaxHp: sideMaxHp(state, battle, opponentSide),
+    addBattleLog(text) {
+      battle.log.unshift(text);
+      battle.log = battle.log.slice(0, 8);
+    },
+  };
+}
+
+/** 掷骰前的装备钩子。卷轴先结算完才轮到这里，见 CustomEquipmentEffectResolver。 */
+function applyEquipmentBeforeRoll(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  opponentSide: CombatSide,
+  dieKind: "attack" | "defense",
+  modifiers: RollModifiers,
+) {
+  forEachEquipmentEffects(state, battle, side, (effects, item, player) => {
+    effects.beforeRoll?.(
+      equipmentBattleContext(
+        state, battle, side, opponentSide, dieKind, modifiers, player, item,
+      ),
+    );
+  });
+}
+
+/** 掷骰后的装备钩子，能读到骰面结果。 */
+function applyEquipmentAfterRoll(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  opponentSide: CombatSide,
+  dieKind: "attack" | "defense",
+  modifiers: RollModifiers,
+  roll: EquipmentRollResult,
+) {
+  forEachEquipmentEffects(state, battle, side, (effects, item, player) => {
+    effects.afterRoll?.({
+      ...equipmentBattleContext(
+        state, battle, side, opponentSide, dieKind, modifiers, player, item,
+      ),
+      roll,
+    });
+  });
 }
 
 function resolveBattleRound(state: GameState) {
@@ -826,6 +911,13 @@ function resolveBattleRound(state: GameState) {
     finishBattle(state, battle, defenderSide);
     return;
   }
+  applyEquipmentBeforeRoll(
+    state, battle, attackerSide, defenderSide, "attack", attackModifiers,
+  );
+  applyEquipmentBeforeRoll(
+    state, battle, defenderSide, attackerSide, "defense", defenseModifiers,
+  );
+
   const attackRoll = rollForSide(
     state,
     battle,
@@ -840,13 +932,23 @@ function resolveBattleRound(state: GameState) {
     "defense",
     defenseModifiers,
   );
+
+  // 在读 flatBonus 之前调用，掷骰后的钩子改加值仍算进本次合计
+  applyEquipmentAfterRoll(
+    state, battle, attackerSide, defenderSide, "attack", attackModifiers, attackRoll,
+  );
+  applyEquipmentAfterRoll(
+    state, battle, defenderSide, attackerSide, "defense", defenseModifiers, defenseRoll,
+  );
+
   const attackBase = sideStats(state, battle, attackerSide).attack;
   const defenseBase = sideStats(state, battle, defenderSide).defense;
   const attackBonus = attackModifiers.flatBonus;
   const defenseBonus = defenseModifiers.flatBonus;
   const attackTotal = attackBase + attackRoll.sum + attackBonus;
   const defenseTotal = defenseBase + defenseRoll.sum + defenseBonus;
-  const damage = Math.max(0, attackTotal - defenseTotal);
+  // bonusDamage 是攻防差之外的追加伤害，防御挡不住它
+  const damage = Math.max(0, attackTotal - defenseTotal) + attackModifiers.bonusDamage;
 
   emit(state, {
     type: "attackRolled",
@@ -855,7 +957,7 @@ function resolveBattleRound(state: GameState) {
     dice: attackRoll.dice,
     sides: attackRoll.sides,
     base: attackBase,
-    scrollBonus: attackBonus,
+    flatBonus: attackBonus,
     total: attackTotal,
   });
   emit(state, {
@@ -865,7 +967,7 @@ function resolveBattleRound(state: GameState) {
     dice: defenseRoll.dice,
     sides: defenseRoll.sides,
     base: defenseBase,
-    scrollBonus: defenseBonus,
+    flatBonus: defenseBonus,
     total: defenseTotal,
   });
 
@@ -896,6 +998,7 @@ function resolveBattleRound(state: GameState) {
     return;
   }
 
+  const previousRound = battle.round;
   battle.attacker = defenderSide;
   battle.round += 1;
   resetChoices(battle);
@@ -903,6 +1006,8 @@ function resolveBattleRound(state: GameState) {
     type: "battleRoundAdvanced",
     round: battle.round,
     attacker: defenderSide,
+    fromRound: previousRound,
+    fromAttacker: attackerSide,
   });
   state.message = { text: `战斗第 ${battle.round} 轮：轮到${defenderName}攻击。` };
 }

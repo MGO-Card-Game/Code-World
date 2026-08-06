@@ -81,28 +81,43 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .card-rarity.rarity-n { color: #a9a49b; }
 .card-rarity.rarity-r { color: #69b9e8; box-shadow: 0 0 8px #4aaee833; }
 .card-rarity.rarity-sr { color: #d8a8ff; box-shadow: 0 0 9px #ad6fe755; }
+/* 圆圈标的是卡牌类型（攻／守／通），所以配色跟着类型走，不参与卡牌自身的配色 */
 .hand-card-sigil { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font: 700 10px "Noto Serif SC", serif; border: 1px solid currentColor; opacity: .85; }
+.hand-card-sigil.type-attack { color: #f0a47d; background: #f0a47d14; }
+.hand-card-sigil.type-defense { color: #8fcce5; background: #8fcce514; }
+.hand-card-sigil.type-universal { color: #e3c787; background: #e3c78714; }
 .hand-card-name { font: 700 12px "Noto Serif SC", serif; line-height: 1.2; }
 .hand-card-effect { font-size: 9px; color: #9b8d7a; line-height: 1.4; margin-top: auto; }
 .hand-card.scroll-might { border-color: #8b4a36; background: linear-gradient(165deg, #35221b, #1c1512); }
-.hand-card.scroll-might .hand-card-name, .hand-card.scroll-might .hand-card-sigil { color: #f0a47d; }
+.hand-card.scroll-might .hand-card-name { color: #f0a47d; }
 .hand-card.scroll-guard { border-color: #35647a; background: linear-gradient(165deg, #1a2b34, #131a1d); }
-.hand-card.scroll-guard .hand-card-name, .hand-card.scroll-guard .hand-card-sigil { color: #8fcce5; }
+.hand-card.scroll-guard .hand-card-name { color: #8fcce5; }
 .hand-card.scroll-fate { border-color: #8066a6; background: linear-gradient(165deg, #302344, #17131f); }
-.hand-card.scroll-fate .hand-card-name, .hand-card.scroll-fate .hand-card-sigil { color: #d3afff; }
+.hand-card.scroll-fate .hand-card-name { color: #d3afff; }
 .hand-card.scroll-dragonStrike { border-color: #a94f38; background: linear-gradient(165deg, #472119, #1f1210); }
-.hand-card.scroll-dragonStrike .hand-card-name, .hand-card.scroll-dragonStrike .hand-card-sigil { color: #ff9875; }
+.hand-card.scroll-dragonStrike .hand-card-name { color: #ff9875; }
 
 /* 战斗骰面与伤害飘字 */
 .combat-dice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
-.combat-slot { display: grid; justify-items: center; gap: 4px; border: 1px solid #433b32; background: #100f0d; padding: 9px 6px; }
+.combat-slot { display: grid; justify-items: center; gap: 7px; border: 1px solid #433b32; background: #100f0d; padding: 10px 6px 12px; }
+/* 攻防两栏沿用力量／护盾卷轴的配色，两个合计并排时不用读字也分得清 */
+.combat-slot.attack { border-color: #6b3a2b; }
+.combat-slot.defense { border-color: #2b4f60; }
 .combat-slot-label { font-size: 8px; color: #8a7a63; letter-spacing: .12em; }
+.combat-slot.attack .combat-slot-label { color: #b9765a; }
+.combat-slot.defense .combat-slot-label { color: #6a9cb3; }
 /* Georgia 用的是老式数字，3/4/5/7/9 会沉到基线以下、6/8 会顶上去，
    骰面上看着就像没居中。换成有等高数字的 Noto Serif SC，并锁定行高与字宽。 */
 .combat-die { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 6px; background: #e3c787; color: #2b2115; font: 900 19px/1 "Noto Serif SC", Georgia, serif; font-variant-numeric: lining-nums tabular-nums; box-shadow: inset 0 0 0 2px #0002, 0 4px 12px #0007; }
 .combat-rolls { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .combat-die.idle { background: #211e1a; color: #5d564c; box-shadow: inset 0 0 0 1px #ffffff0a; }
-.combat-slot-total { font-size: 9px; color: #b3a58c; min-height: 12px; }
+/* 合计决定本轮伤害，做成这一栏的视觉落点；min-height 占住位置，出数时不跳版 */
+.combat-slot-total { display: flex; align-items: baseline; justify-content: center; gap: 7px; min-height: 30px; }
+.combat-total-label { font-size: 8px; color: #7d705e; letter-spacing: .12em; }
+.combat-total-value { font: 900 28px/1 "Noto Serif SC", Georgia, serif; font-variant-numeric: lining-nums tabular-nums; }
+.combat-slot.attack .combat-total-value { color: #f0a47d; text-shadow: 0 0 18px #d0603066, 0 2px 4px #000; }
+.combat-slot.defense .combat-total-value { color: #8fcce5; text-shadow: 0 0 18px #3d90b066, 0 2px 4px #000; }
+.combat-total-value.idle { color: #4e483f; text-shadow: none; }
 .combatants > div:not(.clash-mark) { position: relative; }
 .damage-float { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); font: 900 26px Georgia, serif; color: #ff8f6a; text-shadow: 0 0 14px #ff5c2e88, 0 2px 6px #000; pointer-events: none; z-index: 3; }
 

@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ELITE_AFFIXES,
-  ENEMIES,
   type EliteAffixDefinition,
-  type EnemyDefinition,
 } from "./content/enemies";
 import type { BattleHookContext, RollModifiers } from "./effects/battleHooks";
 import { enemyEffects, enemyStats } from "./selectors";
@@ -68,27 +66,11 @@ describe("怪物战斗钩子", () => {
     expect(only(honed.lastEvents, "attackRolled").sides).toBe(8);
   });
 
-  it("本体自己的骰面修正也生效，不止词缀那一份（探针怪物）", () => {
-    // 目前没有正式怪物带骰面修正，但 enemyModifiers 会把本体那一份摊进来
-    const table = ENEMIES as unknown as Record<string, EnemyDefinition>;
-    table.probeArmored = {
-      tier: "roaming",
-      name: "测试重甲兽",
-      maxHp: 12,
-      attack: 3,
-      defense: 2,
-      regions: { foothill: 1 },
-      modifiers: [{ type: "dieSides", die: "defense", value: 2 }],
-    };
-    try {
-      // 玩家攻击，探针怪防守
-      const state = resolveRound(
-        pveBattle(20260805, "probeArmored" as EnemyKind, undefined, { attacker: "a" }),
-      );
-      expect(only(state.lastEvents, "defenseRolled").sides).toBe(8);
-    } finally {
-      delete table.probeArmored;
-    }
+  it("岩穴蝠群本体自己的攻击骰面修正生效", () => {
+    const state = resolveRound(
+      pveBattle(20260805, "caveBats", undefined, { attacker: "b" }),
+    );
+    expect(only(state.lastEvents, "attackRolled").sides).toBe(7);
   });
 
   /*
@@ -142,12 +124,12 @@ describe("怪物战斗钩子", () => {
   });
 
   it("濒死反扑：低于一半才触发，正好一半不算", () => {
-    // 史莱姆 8 + 精英基础 4 = 12，半血正好是 6
-    expect(enemyStats("slime", "cornered").maxHp).toBe(12);
+    // 山狼 8 + 精英基础 4 = 12，半血正好是 6
+    expect(enemyStats("wolf", "cornered").maxHp).toBe(12);
 
     for (const [hpB, expected] of [[6, 0], [5, 3]] as const) {
       const state = resolveRound(
-        pveBattle(20260805, "slime", "cornered", { attacker: "b", hpB }),
+        pveBattle(20260805, "wolf", "cornered", { attacker: "b", hpB }),
       );
       expect(attackBonusOf(state)).toBe(expected);
     }
@@ -196,22 +178,43 @@ describe("怪物战斗钩子", () => {
     });
     expect(modifiers.bonusDamage).toBe(2);
   });
+
+  it("雾毒蜘蛛：攻击骰掷出上限时追加 1 点毒伤", () => {
+    const modifiers: RollModifiers = {
+      flatBonus: 0,
+      extraDice: 0,
+      minimumRoll: 1,
+      maxRollDice: 0,
+      bonusDamage: 0,
+    };
+    const context = {
+      dieKind: "attack",
+      modifiers,
+      addBattleLog() {},
+    } as unknown as BattleHookContext;
+    const [effects] = enemyEffects("mistSpider");
+
+    effects.afterRoll?.({ ...context, roll: { sides: 6, dice: [5], sum: 5 } });
+    expect(modifiers.bonusDamage).toBe(0);
+    effects.afterRoll?.({ ...context, roll: { sides: 6, dice: [6], sum: 6 } });
+    expect(modifiers.bonusDamage).toBe(1);
+  });
 });
 
 describe("精英怪属性折算", () => {
   it("词缀的加成叠在本体之上，名字带上前缀", () => {
     expect(enemyStats("wolf")).toMatchObject({
       name: "山狼",
-      maxHp: 11,
-      attack: 3,
-      defense: 2,
+      maxHp: 8,
+      attack: 2,
+      defense: 1,
     });
     // 精英基础只 +4 血，攻防全交给词缀；狂暴 +1 攻
     expect(enemyStats("wolf", "frenzied")).toMatchObject({
       name: "狂暴的山狼",
-      maxHp: 15,
-      attack: 4,
-      defense: 2,
+      maxHp: 12,
+      attack: 3,
+      defense: 1,
     });
   });
 
@@ -238,7 +241,7 @@ describe("精英怪属性折算", () => {
 
     if (next.phase.kind !== "battle") throw new Error("应当进入战斗");
     expect(next.phase.battle.enemyAffix).toBe("frenzied");
-    // 史莱姆 8 + 精英基础 4 = 12，不是本体的 8
-    expect(next.phase.battle.hpB).toBe(12);
+    // 史莱姆 5 + 精英基础 4 = 9，不是本体的 5
+    expect(next.phase.battle.hpB).toBe(9);
   });
 });

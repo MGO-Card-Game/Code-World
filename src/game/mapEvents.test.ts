@@ -52,12 +52,12 @@ describe("地图事件结算", () => {
         expect(eventsOf(state, "equipmentGranted")).toHaveLength(1);
       } else if (statChanged?.stat === "attack") {
         outcomes.add("attack");
-        expect(player.baseAttack).toBe(5);
-        expect(statChanged).toMatchObject({ from: 4, to: 5 });
+        expect(player.baseAttack).toBe(statChanged.to);
+        expect(statChanged.to - statChanged.from).toBe(1);
       } else if (statChanged?.stat === "defense") {
         outcomes.add("defense");
-        expect(player.baseDefense).toBe(3);
-        expect(statChanged).toMatchObject({ from: 2, to: 3 });
+        expect(player.baseDefense).toBe(statChanged.to);
+        expect(statChanged.to - statChanged.from).toBe(1);
       } else if (player.scrolls.length > 0) {
         outcomes.add("scroll");
         expect(eventsOf(state, "scrollGranted")).toHaveLength(1);

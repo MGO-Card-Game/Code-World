@@ -43,7 +43,7 @@ describe("装备战斗钩子", () => {
       { instanceId: "blade-1", kind: "monsterHunterBlade" },
     ];
     if (state.phase.kind !== "battle") throw new Error("unreachable");
-    // 对手 8/18，低于一半
+    // 对手 8/20，低于一半
     state.phase.battle.hpB = 8;
 
     state = resolveRound(state);
@@ -56,16 +56,19 @@ describe("装备战斗钩子", () => {
   });
 
   it("对手血量不到一半才触发，正好一半不算", () => {
-    for (const [hpB, expected] of [[9, 0], [8, 1]] as const) {
+    for (const belowHalf of [false, true]) {
       let state = pvpBattle(20260805);
       state.players.player1.equipment = [
         { instanceId: "blade-1", kind: "monsterHunterBlade" },
       ];
       if (state.phase.kind !== "battle") throw new Error("unreachable");
-      state.phase.battle.hpB = hpB;
+      const opponentMaxHp = state.players.player2.maxHp;
+      state.phase.battle.hpB = belowHalf
+        ? Math.floor((opponentMaxHp - 1) / 2)
+        : Math.ceil(opponentMaxHp / 2);
 
       state = resolveRound(state);
-      expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(expected);
+      expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(belowHalf ? 1 : 0);
     }
   });
 
@@ -166,12 +169,12 @@ describe("装备战斗钩子", () => {
     ];
     state.phase = {
       kind: "battle",
-      battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId: "slime", hpB: 3 }),
+      battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId: "slime", hpB: 2 }),
     };
 
     state = resolveRound(state);
 
-    // 史莱姆 3/8 血，不到一半，短刃应该生效且不报错
+    // 史莱姆 2/5 血，不到一半，短刃应该生效且不报错
     expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(1);
   });
 
@@ -208,7 +211,7 @@ describe("装备战斗钩子", () => {
   });
 
   it("血誓指环在战斗生命低于一半时同时强化攻防骰", () => {
-    for (const [hp, expectedSides] of [[9, 6], [8, 7]] as const) {
+    for (const belowHalf of [false, true]) {
       let state = pvpBattle(20260805);
       state.players.player1.equipment = [
         { instanceId: "ring-1", kind: "bloodOathRing" },
@@ -217,11 +220,16 @@ describe("装备战斗钩子", () => {
         { instanceId: "ring-2", kind: "bloodOathRing" },
       ];
       if (state.phase.kind !== "battle") throw new Error("unreachable");
+      const maxHp = state.players.player1.maxHp;
+      const hp = belowHalf
+        ? Math.floor((maxHp - 1) / 2)
+        : Math.ceil(maxHp / 2);
       state.phase.battle.hpA = hp;
       state.phase.battle.hpB = hp;
 
       state = resolveRound(state);
 
+      const expectedSides = belowHalf ? 7 : 6;
       expect(only(state.lastEvents, "attackRolled").sides).toBe(expectedSides);
       expect(only(state.lastEvents, "defenseRolled").sides).toBe(expectedSides);
     }

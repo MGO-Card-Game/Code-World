@@ -538,6 +538,7 @@ describe("事件流", () => {
   });
 
   it("整局事件流保持数值不变量", () => {
+    const initial = createInitialGame(PLAYTHROUGH_SEED);
     const { state, events } = playThrough(PLAYTHROUGH_SEED);
     expect(state.phase.kind).toBe("gameOver");
 
@@ -569,7 +570,7 @@ describe("事件流", () => {
     // 事件流描述的上限变化，应当与玩家最终持有的护符数量对得上
     for (const player of Object.values(state.players)) {
       const charmCount = player.equipment.filter((item) => item.kind === "charm").length;
-      expect(player.maxHp).toBe(18 + charmCount * 4);
+      expect(player.maxHp).toBe(initial.players[player.id].maxHp + charmCount * 4);
     }
   });
 

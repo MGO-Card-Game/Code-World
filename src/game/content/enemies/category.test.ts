@@ -12,6 +12,7 @@ import {
   enemyDefinition,
   enemyTier,
   hasRegionPool,
+  pickRoamingEnemy,
   type EliteAffixKind,
   type EnemyKind,
   type EnemyTier,
@@ -90,6 +91,18 @@ describe("怪物档位表", () => {
     for (const region of REGIONS) {
       expect(hasRegionPool("roaming", region as MapRegionId)).toBe(true);
     }
+  });
+
+  it("三段路线按声明权重抽取不同的漫游怪组合", () => {
+    const pickAt = (region: MapRegionId, ticket: number) =>
+      pickRoamingEnemy(region, () => ticket);
+
+    expect([0.1, 0.5, 0.7, 0.9].map((ticket) => pickAt("foothill", ticket)))
+      .toEqual(["slime", "wolf", "caveBats", "thornbackBoar"]);
+    expect([0.1, 0.4, 0.58, 0.75, 0.92].map((ticket) => pickAt("mountainside", ticket)))
+      .toEqual(["wolf", "golem", "thornbackBoar", "mistSpider", "thunderEagle"]);
+    expect([0.08, 0.25, 0.58, 0.75, 0.92].map((ticket) => pickAt("summit", ticket)))
+      .toEqual(["wolf", "golem", "mistSpider", "thunderEagle", "iceShellLizard"]);
   });
 
   it("精英词缀都有名字、描述、合法稀有度和 modifiers 数组", () => {

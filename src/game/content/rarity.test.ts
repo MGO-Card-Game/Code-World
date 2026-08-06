@@ -3,6 +3,7 @@ import {
   CARD_RARITY_ORDER,
   CARD_RARITY_WEIGHTS,
   pickByRarity,
+  pickByRarityWithWeights,
   type CardRarity,
 } from "./rarity";
 
@@ -65,5 +66,16 @@ describe("稀有度", () => {
 
   it("空卡池直接报错，不返回 undefined", () => {
     expect(() => pickByRarity([], rarityOf, sequence(0))).toThrow("不能从空卡池抽取内容");
+  });
+
+  it("调用方可以提供独立权重而不改全局卡池", () => {
+    const highQuality = { N: 20, R: 50, SR: 25, PR: 5 } as const;
+    const at = (fraction: number) =>
+      pickByRarityWithWeights(FULL_POOL, rarityOf, highQuality, sequence(fraction, 0)).rarity;
+
+    expect(at(0.19)).toBe("N");
+    expect(at(0.2)).toBe("R");
+    expect(at(0.7)).toBe("SR");
+    expect(at(0.95)).toBe("PR");
   });
 });

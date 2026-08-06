@@ -1,5 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { isRevealed, visualHp, visualMaxHp, visualPosition } from "../anim/visualState";
+import {
+  isRevealed,
+  visualBaseStat,
+  visualHp,
+  visualMaxHp,
+  visualPosition,
+} from "../anim/visualState";
 import { EQUIPMENT, type EquipmentKind } from "../game/content/equipment";
 import { getAttack, getDefense } from "../game/selectors";
 import type { PlayerView } from "../game/types";
@@ -47,6 +53,11 @@ export function PlayerPanel({
   const hp = visualHp(player, playback.pending);
   const maxHp = visualMaxHp(player, playback.pending);
   const position = visualPosition(player, playback.pending);
+  const visualPlayer = {
+    ...player,
+    baseAttack: visualBaseStat(player, "attack", playback.pending),
+    baseDefense: visualBaseStat(player, "defense", playback.pending),
+  };
   const equipment = player.equipment.filter((item) =>
     isRevealed(item.instanceId, playback.pending),
   );
@@ -70,8 +81,8 @@ export function PlayerPanel({
       </div>
       <HealthBar value={hp} max={maxHp} />
       <div className="stat-grid">
-        <div><span>攻击</span><strong>{getAttack(player)}</strong></div>
-        <div><span>防御</span><strong>{getDefense(player)}</strong></div>
+        <div><span>攻击</span><strong>{getAttack(visualPlayer)}</strong></div>
+        <div><span>防御</span><strong>{getDefense(visualPlayer)}</strong></div>
         <div><span>进度</span><strong>{position}/{destination}</strong></div>
       </div>
       {/* 规格 25.2：侧栏只给卷轴数量，完整手牌走资源弹窗 */}

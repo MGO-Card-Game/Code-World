@@ -1,6 +1,7 @@
 import {
   EQUIPMENT,
   EQUIPMENT_SLOT_LIMITS,
+  HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS,
   equipmentCategory,
   equipmentDefinition,
   pickEquipmentKind,
@@ -311,8 +312,12 @@ function hasFreeEquipmentSlot(player: Player, kind: EquipmentKind) {
   return equipmentInCategory(player, kind).length < EQUIPMENT_SLOT_LIMITS[category];
 }
 
-function grantEquipment(state: GameState, player: Player): Reward {
-  const kind = pickEquipmentKind(() => nextRandom(state));
+function grantEquipment(
+  state: GameState,
+  player: Player,
+  selectedKind?: EquipmentKind,
+): Reward {
+  const kind = selectedKind ?? pickEquipmentKind(() => nextRandom(state));
   const item: OwnedEquipment = {
     instanceId: makeInstanceId(state, "equipment"),
     kind,
@@ -401,6 +406,45 @@ function applyMapEventEffect(
     }
     case "grantResource": {
       const reward = grantMapEventResource(state, player, effect.resource);
+      const line = (rewardName: string) => effect.narration({
+        playerName: player.name,
+        rewardName,
+      });
+      addHistory(state, line(reward.name), rewardSecret(player, line, reward));
+      return reward.pendingEquipmentChoice === true;
+    }
+    case "increaseBaseStat": {
+      const key = effect.stat === "attack" ? "baseAttack" : "baseDefense";
+      const from = player[key];
+      player[key] += Math.max(0, effect.amount);
+      const amount = player[key] - from;
+      if (amount > 0) {
+        emit(state, {
+          type: "baseStatChanged",
+          playerId: player.id,
+          stat: effect.stat,
+          from,
+          to: player[key],
+        });
+      }
+      addHistory(state, effect.narration({
+        playerName: player.name,
+        stat: effect.stat,
+        amount,
+      }));
+      return false;
+    }
+    case "grantEquipment": {
+      const kind = pickEquipmentKind(
+        () => nextRandom(state),
+        {
+          category: effect.category,
+          rarityWeights: effect.quality === "high"
+            ? HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS
+            : undefined,
+        },
+      );
+      const reward = grantEquipment(state, player, kind);
       const line = (rewardName: string) => effect.narration({
         playerName: player.name,
         rewardName,

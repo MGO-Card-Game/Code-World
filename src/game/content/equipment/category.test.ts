@@ -5,7 +5,9 @@ import {
   EQUIPMENT_BY_CATEGORY,
   EQUIPMENT_CATEGORY_NAMES,
   EQUIPMENT_SLOT_LIMITS,
+  HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS,
   equipmentCategory,
+  pickEquipmentKind,
   type EquipmentCategory,
   type EquipmentKind,
 } from "./index";
@@ -48,5 +50,19 @@ describe("装备分类表", () => {
       expect(definition.name).toBeTruthy();
       expect(definition.description).toBeTruthy();
     }
+  });
+
+  it("高品质武器池提高稀有档权重，并且只会抽到武器", () => {
+    expect(HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS)
+      .toEqual({ N: 20, R: 50, SR: 25, PR: 5 });
+
+    const rolls = [0.29, 0];
+    const kind = pickEquipmentKind(
+      () => rolls.shift() ?? 0,
+      { category: "weapon", rarityWeights: HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS },
+    );
+    // 当前武器只有 N/R 两档，空档不参与后，R 的实际概率为 50/(20+50)。
+    expect(EQUIPMENT[kind].rarity).toBe("R");
+    expect(equipmentCategory(kind)).toBe("weapon");
   });
 });

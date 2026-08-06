@@ -1,7 +1,9 @@
 import type { MapRegionId } from "../../types";
+import type { EquipmentCategory } from "../equipment/definition";
 
-export type MapEventCategory = "recovery" | "hazard" | "reward";
+export type MapEventCategory = "recovery" | "hazard" | "reward" | "boon";
 export type MapEventResource = "scroll" | "equipment" | "random";
+export type MapEventBaseStat = "attack" | "defense";
 
 export interface AmountNarrationContext {
   playerName: string;
@@ -13,6 +15,13 @@ export interface RewardNarrationContext {
   playerName: string;
   /** 私有旁白传具体牌名，公开旁白传“一张卷轴”等脱敏名称。 */
   rewardName: string;
+}
+
+export interface BaseStatNarrationContext {
+  playerName: string;
+  stat: MapEventBaseStat;
+  /** 实际增加量；引擎会把负数配置折算为 0。 */
+  amount: number;
 }
 
 /**
@@ -37,6 +46,18 @@ export type MapEventEffectDefinition =
   | {
       type: "grantResource";
       resource: MapEventResource;
+      narration: (context: RewardNarrationContext) => string;
+    }
+  | {
+      type: "increaseBaseStat";
+      stat: MapEventBaseStat;
+      amount: number;
+      narration: (context: BaseStatNarrationContext) => string;
+    }
+  | {
+      type: "grantEquipment";
+      category?: EquipmentCategory;
+      quality?: "standard" | "high";
       narration: (context: RewardNarrationContext) => string;
     };
 

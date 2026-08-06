@@ -201,6 +201,13 @@ export type GameEventBody =
       reason: HpChangeReason;
     }
   | { type: "maxHpChanged"; playerId: PlayerId; from: number; to: number }
+  | {
+      type: "baseStatChanged";
+      playerId: PlayerId;
+      stat: "attack" | "defense";
+      from: number;
+      to: number;
+    }
   /** kind 会被 viewFor 对非持有者裁掉，否则对手抽到什么会从动画事件泄露 */
   | {
       type: "scrollGranted";

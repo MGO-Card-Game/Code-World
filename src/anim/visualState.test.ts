@@ -12,6 +12,7 @@ import {
   isBattleEnding,
   isRevealed,
   visualAttacker,
+  visualBaseStat,
   visualBattleHp,
   visualBattleRound,
   visualHp,
@@ -54,6 +55,8 @@ describe("显示数值回拉", () => {
 
     expect(visualHp(subject, [])).toBe(9);
     expect(visualMaxHp(subject, [])).toBe(18);
+    expect(visualBaseStat(subject, "attack", [])).toBe(4);
+    expect(visualBaseStat(subject, "defense", [])).toBe(2);
     expect(visualPosition(subject, [])).toBe(7);
   });
 
@@ -92,6 +95,21 @@ describe("显示数值回拉", () => {
     const grew: GameEvent = { id: 1, type: "maxHpChanged", playerId: "player1", from: 18, to: 22 };
 
     expect(visualMaxHp(subject, [grew])).toBe(18);
+  });
+
+  it("基础攻防成长会分别按住，互不影响", () => {
+    const subject = player({ baseAttack: 5, baseDefense: 3 });
+    const attack: GameEvent = {
+      id: 1,
+      type: "baseStatChanged",
+      playerId: "player1",
+      stat: "attack",
+      from: 4,
+      to: 5,
+    };
+
+    expect(visualBaseStat(subject, "attack", [attack])).toBe(4);
+    expect(visualBaseStat(subject, "defense", [attack])).toBe(3);
   });
 
   it("战斗内临时血量按 targetSide 分别按住", () => {

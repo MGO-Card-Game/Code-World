@@ -33,6 +33,22 @@ export function visualMaxHp(player: PlayerStats, pending: readonly GameEvent[]) 
   return held && held.type === "maxHpChanged" ? held.from : player.maxHp;
 }
 
+/** 玩家基础攻击/防御；永久成长事件播放前保持旧值。 */
+export function visualBaseStat(
+  player: PlayerStats,
+  stat: "attack" | "defense",
+  pending: readonly GameEvent[],
+) {
+  const held = pending.find(
+    (event) =>
+      event.type === "baseStatChanged"
+      && event.playerId === player.id
+      && event.stat === stat,
+  );
+  if (held?.type === "baseStatChanged") return held.from;
+  return stat === "attack" ? player.baseAttack : player.baseDefense;
+}
+
 /** 玩家在棋盘上的位置。移动和战败后退都会改 */
 export function visualPosition(player: PlayerStats, pending: readonly GameEvent[]) {
   const held = pending.find(

@@ -21,6 +21,7 @@ export const DEFAULT_DURATIONS: Record<GameEvent["type"], number> = {
   playerRetreated: 620,
   playerHpChanged: 480,
   maxHpChanged: 380,
+  baseStatChanged: 380,
   scrollGranted: 560,
   scrollConsumed: 440,
   scrollTransferred: 620,

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGame, gameReducer } from "./engine";
 import { canAct, isHiddenScroll, viewFor } from "./multiplayer";
-import { makeBattle, resolveRound } from "./testSupport";
+import { pvpHpTransferAmount } from "./selectors";
+import {
+  makeBattle,
+  PLAYTHROUGH_CAP,
+  PLAYTHROUGH_SEED,
+  resolveRound,
+} from "./testSupport";
 import type { GameState, PlayerId } from "./types";
 
 function withBattle(seed = 20260805): GameState {
@@ -266,10 +272,10 @@ describe("暗牌裁剪 viewFor", () => {
   });
 
   it("整局跑下来，属于对手的机密文案一条都不外泄", () => {
-    let state = createInitialGame(981723);
+    let state = createInitialGame(PLAYTHROUGH_SEED);
     let checkedSecrets = 0;
 
-    for (let step = 0; step < 5000 && state.phase.kind !== "gameOver"; step += 1) {
+    for (let step = 0; step < PLAYTHROUGH_CAP && state.phase.kind !== "gameOver"; step += 1) {
       switch (state.phase.kind) {
         case "awaitingRoll": state = gameReducer(state, { type: "rollMovement" }); break;
         case "turnComplete": state = gameReducer(state, { type: "endTurn" }); break;
@@ -296,7 +302,7 @@ describe("暗牌裁剪 viewFor", () => {
           const { winnerId, loserId } = state.phase.penalty;
           const winner = state.players[winnerId];
           const loser = state.players[loserId];
-          const canPayHp = Math.min(3, winner.maxHp - winner.hp, loser.hp - 1) > 0;
+          const canPayHp = pvpHpTransferAmount(winner, loser) > 0;
           const scroll = loser.scrolls[0];
           const equipment = loser.equipment[0];
           state = canPayHp
@@ -308,12 +314,15 @@ describe("暗牌裁剪 viewFor", () => {
                   resourceType: "scroll",
                   instanceId: scroll.instanceId,
                 })
-              : gameReducer(state, {
-                  type: "choosePvpPenalty",
-                  choice: "resource",
-                  resourceType: "equipment",
-                  instanceId: equipment?.instanceId,
-                });
+              : equipment
+                ? gameReducer(state, {
+                    type: "choosePvpPenalty",
+                    choice: "resource",
+                    resourceType: "equipment",
+                    instanceId: equipment.instanceId,
+                  })
+                // 后退永远付得出，兜底选它，整局才不会卡在代价阶段
+                : gameReducer(state, { type: "choosePvpPenalty", choice: "retreat" });
           break;
         }
         case "equipmentChoice":

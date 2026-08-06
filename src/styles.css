@@ -81,6 +81,7 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .card-rarity.rarity-n { color: #a9a49b; }
 .card-rarity.rarity-r { color: #69b9e8; box-shadow: 0 0 8px #4aaee833; }
 .card-rarity.rarity-sr { color: #d8a8ff; box-shadow: 0 0 9px #ad6fe755; }
+.card-rarity.rarity-pr { color: #ffcf6b; box-shadow: 0 0 12px #ffab3c77; }
 /* 圆圈标的是卡牌类型（攻／守／通），所以配色跟着类型走，不参与卡牌自身的配色 */
 .hand-card-sigil { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font: 700 10px "Noto Serif SC", serif; border: 1px solid currentColor; opacity: .85; }
 .hand-card-sigil.type-attack { color: #f0a47d; background: #f0a47d14; }

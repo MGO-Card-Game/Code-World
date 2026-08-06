@@ -304,9 +304,16 @@ export type GameAction =
    * 两侧都提交后引擎自动结算本回合，取代原来的 resolveBattleRound。
    */
   | { type: "submitScrollChoice"; side: CombatSide; instanceId?: string }
+  /**
+   * 支付相遇战代价（GameRule 13.1）。三选一：
+   * resource 交一张卷轴或装备、hp 转移真实生命、retreat 后退若干格。
+   *
+   * retreat 永远付得出（站在起点也能"退 0 格"），所以代价阶段一定有路可走，
+   * 引擎忽略掉付不出的那一项时不会把玩家卡住。
+   */
   | {
       type: "choosePvpPenalty";
-      choice: "resource" | "hp";
+      choice: "resource" | "hp" | "retreat";
       resourceType?: "scroll" | "equipment";
       instanceId?: string;
     }

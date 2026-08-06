@@ -46,6 +46,23 @@ export function getMaxHpBonus(player: PlayerStats) {
     .reduce((sum, effect) => sum + effect.value, 0);
 }
 
+/**
+ * 相遇战「转移生命」这项代价此刻能转多少（GameRule 7.9）。
+ *
+ * 三处要用同一个数：finishPvp 判断要不要进代价阶段、choosePvpPenalty 执行转移、
+ * 界面决定要不要画那个按钮。各写一份就会错开——界面给出的选项引擎不接受，
+ * 玩家点了没反应，而且是静默的，连报错都没有。
+ *
+ * 返回 0 表示这项代价付不出来：赢家已经满血，或者败方只剩 1 点生命
+ * （代价不能把人打死，所以留 1 点底）。
+ */
+export function pvpHpTransferAmount(
+  winner: Pick<PlayerStats, "hp" | "maxHp">,
+  loser: Pick<PlayerStats, "hp">,
+) {
+  return Math.max(0, Math.min(3, winner.maxHp - winner.hp, loser.hp - 1));
+}
+
 export function describeEquipment(player: PlayerStats) {
   return player.equipment.map((item) => EQUIPMENT[item.kind].name);
 }

@@ -14,6 +14,7 @@ import {
   getDiceCountBonus,
   getDieSidesBonus,
   playableScrolls,
+  pvpHpTransferAmount,
 } from "./selectors";
 import type {
   EquipmentBattleContext,
@@ -500,28 +501,25 @@ function sideMaxHp(state: GameState, battle: BattleState, side: CombatSide) {
   return ENEMIES[battle.enemyId!].maxHp;
 }
 
+/**
+ * 相遇战选择"后退"时退多少格（GameRule 13.8）。
+ *
+ * 这一项存在的意义是让代价永远付得出：卷轴和装备可能一张都没有，
+ * 转移生命可能因为赢家满血而为 0，只有后退在任何局面下都能执行。
+ * 于是"进入代价阶段"与"有可付选项"变成同一件事，不需要再做例外分支。
+ *
+ * 数值上要比交牌更疼一点才有取舍——移动骰均值 3.5，退 5 格约等于一个半回合。
+ * 太便宜的话所有人永远选后退，资源转移这条机制就废了。具体数字仍需实测调整。
+ */
+export const PVP_RETREAT_TILES = 5;
+
 function finishPvp(state: GameState, battle: BattleState, winnerSide: CombatSide) {
   const winnerId = battlePlayerForSide(battle, winnerSide)!;
   const loserId = battlePlayerForSide(battle, winnerSide === "a" ? "b" : "a")!;
   const loser = state.players[loserId];
   const winner = state.players[winnerId];
-  const canTransferHp = Math.min(3, winner.maxHp - winner.hp, loser.hp - 1) > 0;
-  const hasResource = loser.scrolls.length + loser.equipment.length > 0;
 
-  if (!canTransferHp && !hasResource) {
-    const positionBefore = loser.position;
-    loser.position = Math.max(0, loser.position - 3);
-    state.phase = { kind: "turnComplete" };
-    emit(state, {
-      type: "playerRetreated",
-      playerId: loser.id,
-      from: positionBefore,
-      to: loser.position,
-    });
-    addHistory(state, `${loser.name}无法支付惩罚，后退 3 格。`);
-    return;
-  }
-
+  // 后退永远付得出，所以这里没有"付不起"的分支——代价阶段一定有路可走
   state.phase = {
     kind: "pvpPenalty",
     penalty: { winnerId, loserId, tileIndex: state.players[state.activePlayerId].position },
@@ -1023,12 +1021,12 @@ function submitScrollChoice(
   side: CombatSide,
   instanceId?: string,
 ) {
-  if (state.phase.kind !== "battle") return;
+  if (state.phase.kind !== "battle") return false;
   const battle = state.phase.battle;
-  if (choiceFor(battle, side).status !== "pending") return;
+  if (choiceFor(battle, side).status !== "pending") return false;
 
   const playerId = battlePlayerForSide(battle, side);
-  if (!playerId) return;
+  if (!playerId) return false;
 
   if (instanceId) {
     // 校验这张牌确实在手上，且此刻打得出（8.5 每方每回合最多一张）
@@ -1036,7 +1034,7 @@ function submitScrollChoice(
       side === battle.attacker ? "beforeAttackRoll" : "beforeDefenseRoll";
     const owned = playableScrolls(state.players[playerId], timing)
       .some((scroll) => scroll.instanceId === instanceId);
-    if (!owned) return;
+    if (!owned) return false;
     setChoice(battle, side, { status: "chosen", instanceId });
   } else {
     setChoice(battle, side, { status: "declined" });
@@ -1045,6 +1043,7 @@ function submitScrollChoice(
   if (battle.choiceA.status !== "pending" && battle.choiceB.status !== "pending") {
     resolveBattleRound(state);
   }
+  return true;
 }
 
 function finishPenaltyAndResolveTile(state: GameState, tileIndex: number) {
@@ -1067,7 +1066,7 @@ function chooseEquipment(
   state: GameState,
   replaceInstanceId?: string,
 ) {
-  if (state.phase.kind !== "equipmentChoice") return;
+  if (state.phase.kind !== "equipmentChoice") return false;
   const choice = state.phase.choice;
   const player = state.players[choice.playerId];
   const offered = choice.offered;
@@ -1076,7 +1075,7 @@ function chooseEquipment(
   if (!replaceInstanceId) {
     addHistory(state, `${player.name}放弃了${offeredDefinition.name}。`);
     resumeAfterEquipmentChoice(state, choice.resume);
-    return;
+    return true;
   }
 
   const existing = player.equipment.find(
@@ -1086,11 +1085,11 @@ function chooseEquipment(
     !existing ||
     equipmentCategory(existing.kind) !== equipmentCategory(offered.kind)
   ) {
-    return;
+    return false;
   }
 
   const removed = removeEquipmentStats(state, player, existing.instanceId);
-  if (!removed) return;
+  if (!removed) return false;
   if (choice.source === "reward") {
     emit(state, {
       type: "equipmentGranted",
@@ -1105,20 +1104,43 @@ function chooseEquipment(
     `${player.name}用${offeredDefinition.name}替换了${EQUIPMENT[removed.kind].name}。`,
   );
   resumeAfterEquipmentChoice(state, choice.resume);
+  return true;
 }
 
 function choosePvpPenalty(
   state: GameState,
   action: Extract<GameAction, { type: "choosePvpPenalty" }>,
 ) {
-  if (state.phase.kind !== "pvpPenalty") return;
+  if (state.phase.kind !== "pvpPenalty") return false;
   const { winnerId, loserId, tileIndex } = state.phase.penalty;
   const winner = state.players[winnerId];
   const loser = state.players[loserId];
 
+  if (action.choice === "retreat") {
+    const positionBefore = loser.position;
+    loser.position = Math.max(0, loser.position - PVP_RETREAT_TILES);
+    emit(state, {
+      type: "playerRetreated",
+      playerId: loser.id,
+      from: positionBefore,
+      to: loser.position,
+    });
+    addHistory(state, `${loser.name}选择后退 ${positionBefore - loser.position} 格。`);
+    // 退走的人如果正是本回合行动的人，他已经不站在那格上了，格子内容自然不该结算
+    if (loser.id === state.activePlayerId) {
+      state.phase = { kind: "turnComplete" };
+    } else {
+      finishPenaltyAndResolveTile(state, tileIndex);
+    }
+    return true;
+  }
+
   if (action.choice === "hp") {
-    const amount = Math.min(3, winner.maxHp - winner.hp, loser.hp - 1);
-    if (amount <= 0) return;
+    const amount = pvpHpTransferAmount(winner, loser);
+    // 付不出就忽略这次提交，阶段留在原地让他重选。
+    // 界面本来就不会画出这个按钮（同一个函数算的），走到这里说明是客户端越权，
+    // 而后退永远可选，所以忽略不会造成死局。
+    if (amount <= 0) return false;
     const loserBefore = loser.hp;
     const winnerBefore = winner.hp;
     loser.hp -= amount;
@@ -1141,13 +1163,13 @@ function choosePvpPenalty(
     });
     addHistory(state, `${loser.name}转移 ${amount} 点生命给${winner.name}。`);
     finishPenaltyAndResolveTile(state, tileIndex);
-    return;
+    return true;
   }
 
-  if (!action.instanceId || !action.resourceType) return;
+  if (!action.instanceId || !action.resourceType) return false;
   if (action.resourceType === "scroll") {
     const index = loser.scrolls.findIndex((item) => item.instanceId === action.instanceId);
-    if (index < 0) return;
+    if (index < 0) return false;
     const [item] = loser.scrolls.splice(index, 1);
     winner.scrolls.push(item);
     emit(state, {
@@ -1159,7 +1181,7 @@ function choosePvpPenalty(
     });
   } else {
     const item = removeEquipmentStats(state, loser, action.instanceId);
-    if (!item) return;
+    if (!item) return false;
     emit(state, {
       type: "equipmentTransferred",
       fromId: loser.id,
@@ -1181,12 +1203,13 @@ function choosePvpPenalty(
         state,
         `${loser.name}交出${EQUIPMENT[item.kind].name}；${winner.name}需要选择是否替换同类装备。`,
       );
-      return;
+      return true;
     }
     applyEquipmentStats(state, winner, item);
   }
   addHistory(state, `${loser.name}交出一件资源给${winner.name}。`);
   finishPenaltyAndResolveTile(state, tileIndex);
+  return true;
 }
 
 /**
@@ -1204,6 +1227,16 @@ function rebaseEventIds(state: GameState, startId: number): GameState {
   return state;
 }
 
+/**
+ * 应用一个动作。
+ *
+ * **约定：动作没被接受时原样返回传入的 state 对象。** 调用方靠引用相等就能判断
+ * 「这次提交被拒了」——服务器据此回一条错误而不是广播一个没变化的状态，
+ * React 那边则直接跳过重渲染。
+ *
+ * 合法性判断只写在引擎里这一处。联机层的 canAct 只管授权（阶段、归属、是否已提交），
+ * 不重复规则；两者职责分开，规则才不会出现第二份副本。
+ */
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === "restart") {
     return rebaseEventIds(createInitialGame(action.seed), state.nextEventId);
@@ -1252,14 +1285,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return next;
     }
     case "submitScrollChoice":
-      submitScrollChoice(next, action.side, action.instanceId);
-      return next;
+      return submitScrollChoice(next, action.side, action.instanceId) ? next : state;
     case "choosePvpPenalty":
-      choosePvpPenalty(next, action);
-      return next;
+      return choosePvpPenalty(next, action) ? next : state;
     case "chooseEquipment":
-      chooseEquipment(next, action.replaceInstanceId);
-      return next;
+      return chooseEquipment(next, action.replaceInstanceId) ? next : state;
   }
 }
 

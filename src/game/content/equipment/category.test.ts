@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CARD_RARITY_ORDER } from "../rarity";
 import {
   EQUIPMENT,
   EQUIPMENT_BY_CATEGORY,
@@ -42,7 +43,7 @@ describe("装备分类表", () => {
 
   it("每张卡都声明了稀有度和修正列表", () => {
     for (const definition of Object.values(EQUIPMENT)) {
-      expect(["N", "R", "SR"]).toContain(definition.rarity);
+      expect(CARD_RARITY_ORDER).toContain(definition.rarity);
       expect(Array.isArray(definition.modifiers)).toBe(true);
       expect(definition.name).toBeTruthy();
       expect(definition.description).toBeTruthy();

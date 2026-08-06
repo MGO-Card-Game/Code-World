@@ -27,9 +27,19 @@ import {
   scrollDefinition,
 } from "./game/content/scrolls";
 import { TILE_ICON } from "./game/content/tiles";
-import { getBattleParticipants, getSidePlayer, PLAYER_IDS } from "./game/engine";
+import {
+  getBattleParticipants,
+  getSidePlayer,
+  PLAYER_IDS,
+  PVP_RETREAT_TILES,
+} from "./game/engine";
 import { isHiddenScroll } from "./game/multiplayer";
-import { getAttack, getDefense, getDieSidesBonus } from "./game/selectors";
+import {
+  getAttack,
+  getDefense,
+  getDieSidesBonus,
+  pvpHpTransferAmount,
+} from "./game/selectors";
 import type {
   BattleState,
   CombatSide,
@@ -845,7 +855,10 @@ function PenaltyPanel({ state, penalty, dispatch, playing }: {
 }) {
   const winner = state.players[penalty.winnerId];
   const loser = state.players[penalty.loserId];
-  const hpAmount = Math.min(3, winner.maxHp - winner.hp, loser.hp - 1);
+  // 和引擎共用同一个算法，界面画出的选项必然是引擎接受的选项
+  const hpAmount = pvpHpTransferAmount(winner, loser);
+  // 快到起点时退不满，按实际能退的格数显示
+  const retreatTiles = Math.min(PVP_RETREAT_TILES, loser.position);
   return (
     <ModalBackdrop>
       <motion.section
@@ -875,6 +888,10 @@ function PenaltyPanel({ state, penalty, dispatch, playing }: {
               <span>转移生命</span><strong>{hpAmount} 点生命</strong>
             </button>
           )}
+          {/* 后退永远付得出，所以这个按钮无条件存在——代价阶段不会出现无路可走 */}
+          <button disabled={playing} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "retreat" })}>
+            <span>后退</span><strong>{retreatTiles} 格</strong>
+          </button>
         </div>
       </motion.section>
     </ModalBackdrop>

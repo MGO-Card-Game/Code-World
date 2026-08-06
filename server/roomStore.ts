@@ -162,11 +162,19 @@ export class RoomStore {
     const { room, seat } = located;
     if (!room.state) return { ok: false, message: "对局尚未开始" };
 
+    // canAct 只管授权：阶段对不对、是不是他那一侧、是不是已经提交过
     if (!canAct(room.state, action, seat.seat)) {
       return { ok: false, message: "现在还轮不到你做这个操作" };
     }
 
-    room.state = gameReducer(room.state, action);
+    // 合法性由引擎判断。动作没被接受时 gameReducer 原样返回传入的对象，
+    // 这里据此回一条错误，而不是广播一个跟原来一模一样的状态让客户端干等
+    const next = gameReducer(room.state, action);
+    if (next === room.state) {
+      return { ok: false, message: "这个操作现在不合法" };
+    }
+
+    room.state = next;
     room.lastActivity = this.now();
     this.broadcast(room);
     return { ok: true };

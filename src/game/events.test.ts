@@ -8,7 +8,12 @@ import {
 import { createInitialGame, gameReducer } from "./engine";
 import { findPreviousRestTile } from "./map";
 import { playableScrolls } from "./selectors";
-import { makeBattle, resolveRound } from "./testSupport";
+import {
+  makeBattle,
+  PLAYTHROUGH_CAP,
+  PLAYTHROUGH_SEED,
+  resolveRound,
+} from "./testSupport";
 import type { GameEvent, GameState } from "./types";
 
 /** 按事件种类筛选并收窄类型，避免每个断言都写一遍类型守卫 */
@@ -63,7 +68,7 @@ function step(state: GameState): GameState {
           instanceId: equipment.instanceId,
         });
       }
-      return gameReducer(state, { type: "choosePvpPenalty", choice: "hp" });
+      return gameReducer(state, { type: "choosePvpPenalty", choice: "retreat" });
     }
     case "equipmentChoice":
       return gameReducer(state, { type: "chooseEquipment" });
@@ -72,12 +77,15 @@ function step(state: GameState): GameState {
   }
 }
 
-function playThrough(seed: number, maxSteps = 5000) {
+function playThrough(seed: number, maxSteps = PLAYTHROUGH_CAP) {
   let state = createInitialGame(seed);
   const events: GameEvent[] = [...state.lastEvents];
   for (let index = 0; index < maxSteps && state.phase.kind !== "gameOver"; index += 1) {
-    state = step(state);
-    events.push(...state.lastEvents);
+    const next = step(state);
+    // 动作被拒时 gameReducer 原样返回旧 state，里面还挂着上一次的 lastEvents。
+    // 不判一下就会把同一批事件收第二遍，看起来像是 id 不递增了。
+    if (next !== state) events.push(...next.lastEvents);
+    state = next;
   }
   return { state, events };
 }
@@ -119,18 +127,19 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     }
   });
 
-  it("按 N/R/SR 权重先抽稀有度，再从同稀有度卡池抽牌", () => {
-    expect(SCROLL_RARITY_WEIGHTS).toEqual({ N: 70, R: 25, SR: 5 });
+  it("按 N/R/SR/PR 权重先抽稀有度，再从同稀有度卡池抽牌", () => {
+    expect(SCROLL_RARITY_WEIGHTS).toEqual({ N: 50, R: 30, SR: 15, PR: 5 });
     expect(SCROLLS.might.rarity).toBe("N");
     expect(SCROLLS.guard.rarity).toBe("N");
     expect(SCROLLS.dragonStrike.rarity).toBe("R");
     expect(SCROLLS.fate.rarity).toBe("SR");
 
+    // 卷轴池目前没有 PR，PR 的 5 点权重由前三档按比例分掉，总权重是 95
     const commonRolls = [0, 0];
     expect(pickScrollKind(() => commonRolls.shift() ?? 0)).toBe("might");
-    const rareRolls = [0.8, 0];
+    const rareRolls = [0.6, 0];
     expect(pickScrollKind(() => rareRolls.shift() ?? 0)).toBe("dragonStrike");
-    const superRareRolls = [0.99, 0];
+    const superRareRolls = [0.95, 0];
     expect(pickScrollKind(() => superRareRolls.shift() ?? 0)).toBe("fate");
   });
 
@@ -487,7 +496,7 @@ describe("事件流", () => {
   });
 
   it("整局事件流保持数值不变量", () => {
-    const { state, events } = playThrough(981723);
+    const { state, events } = playThrough(PLAYTHROUGH_SEED);
     expect(state.phase.kind).toBe("gameOver");
 
     for (const event of pick(events, "battleDamage")) {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createInitialGame, gameReducer } from "./engine";
-import { makeBattle, resolveRound } from "./testSupport";
+import {
+  makeBattle,
+  PLAYTHROUGH_CAP,
+  PLAYTHROUGH_SEED,
+  resolveRound,
+} from "./testSupport";
 import { EQUIPMENT_SLOT_LIMITS, equipmentCategory } from "./content/equipment";
 import type { GameState } from "./types";
 
@@ -42,7 +47,7 @@ function advanceAutomatically(state: GameState) {
           instanceId: equipment.instanceId,
         });
       }
-      return gameReducer(state, { type: "choosePvpPenalty", choice: "hp" });
+      return gameReducer(state, { type: "choosePvpPenalty", choice: "retreat" });
     }
     case "equipmentChoice":
       return gameReducer(state, { type: "chooseEquipment" });
@@ -65,9 +70,9 @@ describe("game engine", () => {
   });
 
   it("keeps core state inside valid bounds during a full automated game", () => {
-    let state = createInitialGame(981723);
+    let state = createInitialGame(PLAYTHROUGH_SEED);
 
-    for (let step = 0; step < 5000 && state.phase.kind !== "gameOver"; step += 1) {
+    for (let step = 0; step < PLAYTHROUGH_CAP && state.phase.kind !== "gameOver"; step += 1) {
       state = advanceAutomatically(state);
       for (const player of Object.values(state.players)) {
         expect(player.position).toBeGreaterThanOrEqual(0);

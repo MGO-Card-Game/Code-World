@@ -6,7 +6,7 @@
 
 ```
 src/game/content/
-  rarity.ts                 N/R/SR 权重与抽取
+  rarity.ts                 N/R/SR/PR 权重与抽取
   equipment/
     definition.ts           EquipmentBody / 分类元数据 / defineEquipment
     weapons.ts   armor.ts   shoes.ts   accessories.ts
@@ -119,7 +119,13 @@ oldKnightSword: {
 
 ## 稀有度与抽取
 
-卷轴和装备共用 `src/game/content/rarity.ts` 的 N/R/SR 权重（70/25/5）：先抽稀有度，再在该稀有度的内容中等概率抽取。增加同稀有度卡牌不会改变其他稀有度的总概率。
+卷轴和装备共用 `src/game/content/rarity.ts` 的四档权重：**N 50 / R 30 / SR 15 / PR 5**。先抽稀有度，再在该稀有度的内容中等概率抽取。增加同稀有度卡牌不会改变其他稀有度的总概率。
+
+`CARD_RARITY_WEIGHTS` 的**键序就是由低到高的档位顺序**，抽取按这个顺序走票，`CARD_RARITY_ORDER` 导出同一份顺序供展示排序使用。
+
+空档不参加抽取，其权重由剩下的档位按比例承接——所以上面四个数字只有在每一档都至少有一张卡时才等于实际概率。当前 PR 尚无卡牌，实际是 N 52.6% / R 31.6% / SR 15.8%。
+
+> 改权重会打乱整个随机流。「整局跑通」类测试（`engine.test.ts`、`events.test.ts`、`multiplayer.test.ts`）用的是 `testSupport.ts` 里的 `PLAYTHROUGH_SEED` / `PLAYTHROUGH_CAP`，同一颗种子的对局长度可能从一千多步跳到一万六。跑挂了先确认是不是这个原因，再决定是换种子还是抬上限。
 
 ## 验证
 

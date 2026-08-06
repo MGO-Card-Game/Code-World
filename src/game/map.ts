@@ -1,3 +1,4 @@
+import { pickEliteAffix, pickRoamingEnemy } from "./content/enemies";
 import type {
   GameMap,
   MapRegion,
@@ -5,6 +6,7 @@ import type {
   MapTile,
   TileType,
 } from "./types";
+import { isCombatTile } from "./types";
 
 export const MAP_COLUMNS = 36;
 export const MAP_REGION_SIZE = 36;
@@ -19,9 +21,14 @@ export type RandomTileType = Exclude<TileType, "start" | "boss">;
 /**
  * 每个区域独立满足这组上下限，避免某一类格子全部挤在同一段路上。
  * 起点和 Boss 占用的格子不计入这些数量。
+ *
+ * 加类型时要连带核对可行性：min 合计必须 ≤ 区域容量 ≤ max 合计，
+ * 否则 chooseCounts 会抛「地图格数量规则无法填满」。
+ * 现在是 min 28、max 39，容量 35～36。
  */
 export const MAP_TILE_LIMITS: Record<RandomTileType, TileCountRange> = {
-  battle: { min: 10, max: 13 },
+  battle: { min: 8, max: 11 },
+  elite: { min: 2, max: 3 },
   event: { min: 8, max: 11 },
   treasure: { min: 6, max: 8 },
   spring: { min: 4, max: 6 },
@@ -38,28 +45,25 @@ const RANDOM_TYPES = Object.keys(MAP_TILE_LIMITS) as RandomTileType[];
 const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
   foothill: {
     battle: ["林间伏击", "岩坡兽影", "荒径阻敌", "旧道守卫"],
+    elite: ["荒径凶兽", "岩坡异种", "林深咆哮", "旧道恶徒"],
     event: ["岔路奇遇", "风蚀石门", "旅人营火", "迷雾路标"],
     treasure: ["旧木宝箱", "遗落行囊", "石缝秘藏", "猎人补给"],
     spring: ["微光泉水", "林间清泉", "苔石水潭", "山脚驿泉"],
   },
   mountainside: {
     battle: ["峭壁伏击", "古道守卫", "云中兽影", "断桥强敌"],
+    elite: ["峭壁凶兽", "云中异种", "断桥恶客", "古道悍匪"],
     event: ["悬崖栈道", "回声洞窟", "失落祭坛", "云海幻景"],
     treasure: ["旅者遗物", "封印宝匣", "古道秘藏", "商队遗物"],
     spring: ["半山泉眼", "雾隐清潭", "石壁灵泉", "云杉水涧"],
   },
   summit: {
     battle: ["雷脊伏击", "峰顶守卫", "龙巢爪牙", "风暴强敌"],
+    elite: ["雷脊凶兽", "龙巢异种", "风暴悍将", "峰顶恶灵"],
     event: ["雷鸣山口", "断裂天梯", "先民石碑", "风暴之眼"],
     treasure: ["古代秘藏", "登顶补给", "龙裔宝匣", "云巅遗物"],
     spring: ["云上清泉", "雷霆圣泉", "峰顶雪池", "龙眠水潭"],
   },
-};
-
-const ENEMY_POOLS: Record<MapRegionId, string[]> = {
-  foothill: ["slime", "slime", "wolf"],
-  mountainside: ["wolf", "wolf", "golem"],
-  summit: ["wolf", "golem", "golem"],
 };
 
 function normalizeSeed(seed: number) {
@@ -110,9 +114,17 @@ function chooseCounts(capacity: number, random: () => number) {
   return counts;
 }
 
+/**
+ * 按「战斗类」判定，精英格也算。
+ * 连打三场，对手是不是精英对手感没有区别。
+ */
 function hasThreeBattlesInARow(types: TileType[]) {
   return types.some(
-    (type, index) => type === "battle" && types[index - 1] === "battle" && types[index - 2] === "battle",
+    (type, index) =>
+      isCombatTile(type)
+      && index >= 2
+      && isCombatTile(types[index - 1])
+      && isCombatTile(types[index - 2]),
   );
 }
 
@@ -128,10 +140,12 @@ function makeTypePool(capacity: number, random: () => number, preceding: TileTyp
   const arranged: TileType[] = [];
   while (remaining.length > 0) {
     const context = [...preceding, ...arranged];
-    const lastTwoAreBattles = context.at(-1) === "battle" && context.at(-2) === "battle";
+    const lastTwoAreBattles = context.length >= 2
+      && isCombatTile(context.at(-1)!)
+      && isCombatTile(context.at(-2)!);
     const candidates = remaining
       .map((type, index) => ({ type, index }))
-      .filter(({ type }) => !lastTwoAreBattles || type !== "battle");
+      .filter(({ type }) => !lastTwoAreBattles || !isCombatTile(type));
     const chosen = candidates[randomIndex(random, candidates.length)];
     arranged.push(chosen.type);
     remaining.splice(chosen.index, 1);
@@ -152,9 +166,16 @@ function makeRandomTile(
     type,
     label: labels[randomIndex(random, labels.length)],
   };
-  if (type === "battle") {
-    const pool = ENEMY_POOLS[region];
-    tile.enemyId = pool[randomIndex(random, pool.length)];
+  if (isCombatTile(type)) {
+    tile.enemyId = pickRoamingEnemy(region, random);
+  }
+  /*
+    词缀在地图生成时就定死并随 GameState 广播，而不是等进战斗时再抽。
+    交给战斗现抽的话，同种子重放和联机双端都会对不上——地图只生成一次，
+    战斗却在各自的随机流里发生。
+  */
+  if (type === "elite") {
+    tile.eliteAffix = pickEliteAffix(random);
   }
   return tile;
 }

@@ -1,9 +1,67 @@
+import {
+  ELITE_BASE_MODIFIERS,
+  eliteAffixDefinition,
+  enemyDefinition,
+} from "./content/enemies";
 import { EQUIPMENT, equipmentDefinition } from "./content/equipment";
 import { scrollDefinition } from "./content/scrolls";
-import type { DiceKind, EquipmentModifier } from "./effects/cardEffects";
-import type { Player, PlayerStats, ScrollTiming } from "./types";
+import type {
+  DiceKind,
+  EnemyEffects,
+  StatModifier,
+} from "./effects/battleHooks";
+import type {
+  EliteAffixKind,
+  EnemyKind,
+  Player,
+  PlayerStats,
+  ScrollTiming,
+} from "./types";
 
-export function equipmentModifiers(player: PlayerStats): EquipmentModifier[] {
+/**
+ * 把一组修正折算成一个数。
+ *
+ * 玩家的五个查询和怪物那几个是同一个 filter + reduce 形状，抄五遍不如收在一处：
+ * 加一种 StatModifier 时只有这里需要知道怎么求和。
+ */
+function foldModifiers(
+  modifiers: readonly StatModifier[],
+  matches: (modifier: StatModifier) => boolean,
+) {
+  return modifiers
+    .filter(matches)
+    .reduce((sum, modifier) => sum + modifier.value, 0);
+}
+
+function statBonus(modifiers: readonly StatModifier[], stat: "attack" | "defense") {
+  return foldModifiers(
+    modifiers,
+    (modifier) => modifier.type === "statBonus" && modifier.stat === stat,
+  );
+}
+
+function dieSidesBonus(modifiers: readonly StatModifier[], die: DiceKind) {
+  return foldModifiers(
+    modifiers,
+    (modifier) => modifier.type === "dieSides" && modifier.die === die,
+  );
+}
+
+function diceCountBonus(
+  modifiers: readonly StatModifier[],
+  die: Exclude<DiceKind, "movement">,
+) {
+  return foldModifiers(
+    modifiers,
+    (modifier) => modifier.type === "diceCount" && modifier.die === die,
+  );
+}
+
+function maxHpBonus(modifiers: readonly StatModifier[]) {
+  return foldModifiers(modifiers, (modifier) => modifier.type === "maxHp");
+}
+
+export function equipmentModifiers(player: PlayerStats): StatModifier[] {
   return player.equipment.flatMap((item) => {
     const definition = equipmentDefinition(item.kind);
     return [
@@ -14,36 +72,86 @@ export function equipmentModifiers(player: PlayerStats): EquipmentModifier[] {
 }
 
 export function getAttack(player: PlayerStats) {
-  return player.baseAttack + equipmentModifiers(player)
-    .filter((effect) => effect.type === "statBonus" && effect.stat === "attack")
-    .reduce((sum, effect) => sum + effect.value, 0);
+  return player.baseAttack + statBonus(equipmentModifiers(player), "attack");
 }
 
 export function getDefense(player: PlayerStats) {
-  return player.baseDefense + equipmentModifiers(player)
-    .filter((effect) => effect.type === "statBonus" && effect.stat === "defense")
-    .reduce((sum, effect) => sum + effect.value, 0);
+  return player.baseDefense + statBonus(equipmentModifiers(player), "defense");
 }
 
 export function getDieSidesBonus(player: PlayerStats, die: DiceKind) {
-  return equipmentModifiers(player)
-    .filter((effect) => effect.type === "dieSides" && effect.die === die)
-    .reduce((sum, effect) => sum + effect.value, 0);
+  return dieSidesBonus(equipmentModifiers(player), die);
 }
 
 export function getDiceCountBonus(
   player: PlayerStats,
   die: Exclude<DiceKind, "movement">,
 ) {
-  return equipmentModifiers(player)
-    .filter((effect) => effect.type === "diceCount" && effect.die === die)
-    .reduce((sum, effect) => sum + effect.value, 0);
+  return diceCountBonus(equipmentModifiers(player), die);
 }
 
 export function getMaxHpBonus(player: PlayerStats) {
-  return equipmentModifiers(player)
-    .filter((effect) => effect.type === "maxHp")
-    .reduce((sum, effect) => sum + effect.value, 0);
+  return maxHpBonus(equipmentModifiers(player));
+}
+
+/**
+ * 一只怪身上的全部修正：本体的，加上精英词缀的（含所有精英共享的基础强化）。
+ *
+ * 顺序是本体先、词缀后。累加类修正与顺序无关，这里只是让读起来和结算一致。
+ */
+export function enemyModifiers(
+  kind: EnemyKind,
+  affix?: EliteAffixKind,
+): StatModifier[] {
+  const base = [...(enemyDefinition(kind).modifiers ?? [])];
+  if (!affix) return base;
+  return [...base, ...ELITE_BASE_MODIFIERS, ...eliteAffixDefinition(affix).modifiers];
+}
+
+/**
+ * 折算后的怪物属性。名字带上词缀前缀，血量含词缀加成。
+ *
+ * 战斗里凡是要「这只怪多少攻/防/血、叫什么」的地方都走这里，
+ * 免得某一处忘了折算词缀，精英怪在那一处退化成普通怪。
+ */
+export function enemyStats(kind: EnemyKind, affix?: EliteAffixKind) {
+  const definition = enemyDefinition(kind);
+  const modifiers = enemyModifiers(kind, affix);
+  return {
+    name: affix ? `${eliteAffixDefinition(affix).name}${definition.name}` : definition.name,
+    maxHp: definition.maxHp + maxHpBonus(modifiers),
+    attack: definition.attack + statBonus(modifiers, "attack"),
+    defense: definition.defense + statBonus(modifiers, "defense"),
+  };
+}
+
+export function enemyDieSidesBonus(
+  kind: EnemyKind,
+  affix: EliteAffixKind | undefined,
+  die: DiceKind,
+) {
+  return dieSidesBonus(enemyModifiers(kind, affix), die);
+}
+
+export function enemyDiceCountBonus(
+  kind: EnemyKind,
+  affix: EliteAffixKind | undefined,
+  die: Exclude<DiceKind, "movement">,
+) {
+  return diceCountBonus(enemyModifiers(kind, affix), die);
+}
+
+/** 本体先、词缀后，与 enemyModifiers 同序。 */
+export function enemyEffects(
+  kind: EnemyKind,
+  affix?: EliteAffixKind,
+): readonly EnemyEffects[] {
+  const effects: EnemyEffects[] = [];
+  const base = enemyDefinition(kind).effects;
+  if (base) effects.push(base);
+  const affixEffects = affix ? eliteAffixDefinition(affix).effects : undefined;
+  if (affixEffects) effects.push(affixEffects);
+  return effects;
 }
 
 /**

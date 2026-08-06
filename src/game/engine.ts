@@ -1,4 +1,4 @@
-import { ENEMIES } from "./content/enemies";
+import { enemyDefinition } from "./content/enemies";
 import {
   EQUIPMENT,
   EQUIPMENT_SLOT_LIMITS,
@@ -9,6 +9,10 @@ import {
 import { pickScrollKind, SCROLLS } from "./content/scrolls";
 import { findPreviousRestTile, generateMap } from "./map";
 import {
+  enemyDiceCountBonus,
+  enemyDieSidesBonus,
+  enemyEffects,
+  enemyStats,
   getAttack,
   getDefense,
   getDiceCountBonus,
@@ -17,15 +21,21 @@ import {
   pvpHpTransferAmount,
 } from "./selectors";
 import type {
+  BattleHookContext,
+  EnemyEffects,
+  RollModifiers,
+  RollResult,
+} from "./effects/battleHooks";
+import type {
   EquipmentBattleContext,
   EquipmentEffects,
-  EquipmentRollResult,
-  RollModifiers,
   ScrollEffectDefinition,
 } from "./effects/cardEffects";
 import type {
   BattleState,
   CombatSide,
+  EliteAffixKind,
+  EnemyKind,
   EquipmentKind,
   GameAction,
   GameEvent,
@@ -315,18 +325,24 @@ function grantEquipment(state: GameState, player: Player): Reward {
   return { name, publicName: name };
 }
 
+/** 折算过词缀的敌方属性。b 侧是玩家时不该调用。 */
+function battleEnemyStats(battle: BattleState) {
+  return enemyStats(battle.enemyId!, battle.enemyAffix);
+}
+
 function combatantName(state: GameState, battle: BattleState, side: CombatSide) {
   if (side === "a") return state.players[battle.aPlayerId].name;
   if (battle.bPlayerId) return state.players[battle.bPlayerId].name;
-  return ENEMIES[battle.enemyId!].name;
+  return battleEnemyStats(battle).name;
 }
 
 function startBattle(
   state: GameState,
   kind: BattleState["kind"],
   aPlayerId: PlayerId,
-  enemyId?: string,
+  enemyId?: EnemyKind,
   bPlayerId?: PlayerId,
+  enemyAffix?: EliteAffixKind,
 ) {
   emit(state, {
     type: "battleStarted",
@@ -334,6 +350,7 @@ function startBattle(
     aPlayerId,
     bPlayerId,
     enemyId,
+    enemyAffix,
   });
   let initiativeA = rollDie(state);
   let initiativeB = rollDie(state);
@@ -346,8 +363,10 @@ function startBattle(
     aPlayerId,
     bPlayerId,
     enemyId,
+    enemyAffix,
     hpA: state.players[aPlayerId].hp,
-    hpB: bPlayerId ? state.players[bPlayerId].hp : ENEMIES[enemyId!].maxHp,
+    // 精英词缀会抬高血量上限，所以这里必须走折算，不能直接读定义
+    hpB: bPlayerId ? state.players[bPlayerId].hp : enemyStats(enemyId!, enemyAffix).maxHp,
     attacker: initiativeA > initiativeB ? "a" : "b",
     initiativeA,
     initiativeB,
@@ -382,7 +401,9 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
 
   switch (tile.type) {
     case "battle":
-      startBattle(state, "pve", player.id, tile.enemyId);
+    case "elite":
+      // 精英格和普通战斗格走同一条 PvE 结算，差别只在那只怪身上贴了词缀
+      startBattle(state, "pve", player.id, tile.enemyId, undefined, tile.eliteAffix);
       return;
     case "boss":
       startBattle(state, "boss", player.id, tile.enemyId);
@@ -508,7 +529,7 @@ function sideStats(state: GameState, battle: BattleState, side: CombatSide) {
     const player = state.players[playerId];
     return { attack: getAttack(player), defense: getDefense(player) };
   }
-  const enemy = ENEMIES[battle.enemyId!];
+  const enemy = battleEnemyStats(battle);
   return { attack: enemy.attack, defense: enemy.defense };
 }
 
@@ -519,7 +540,7 @@ function sideHp(battle: BattleState, side: CombatSide) {
 function sideMaxHp(state: GameState, battle: BattleState, side: CombatSide) {
   const playerId = battlePlayerForSide(battle, side);
   if (playerId) return state.players[playerId].maxHp;
-  return ENEMIES[battle.enemyId!].maxHp;
+  return battleEnemyStats(battle).maxHp;
 }
 
 /**
@@ -606,14 +627,15 @@ function finishBattle(state: GameState, battle: BattleState, winnerSide: CombatS
       emit(state, { type: "gameOver", winnerId: player.id });
       addHistory(state, `${player.name}击败峰顶巨龙，夺得登峰之冠！`);
     } else {
-      const enemy = ENEMIES[battle.enemyId!];
-      const reward = enemy.reward === "equipment"
+      const reward = enemyDefinition(battle.enemyId!).reward === "equipment"
         ? grantEquipment(state, player)
         : grantScroll(state, player);
       if (!reward.pendingEquipmentChoice) {
         state.phase = { kind: "turnComplete" };
       }
-      const line = (what: string) => `${player.name}击败${enemy.name}，获得${what}。`;
+      // 战报里用折算后的名字，精英怪才不会在这一句退回成普通怪
+      const enemyName = battleEnemyStats(battle).name;
+      const line = (what: string) => `${player.name}击败${enemyName}，获得${what}。`;
       addHistory(state, line(reward.name), rewardSecret(player, line, reward));
     }
     return;
@@ -806,14 +828,19 @@ function rollForSide(
 ) {
   const playerId = battlePlayerForSide(battle, side);
   const player = playerId ? state.players[playerId] : undefined;
-  const sides = Math.max(
-    2,
-    (modifiers.sidesOverride ?? 6) + (player ? getDieSidesBonus(player, dieKind) : 0),
-  );
-  const count = Math.max(
-    1,
-    1 + modifiers.extraDice + (player ? getDiceCountBonus(player, dieKind) : 0),
-  );
+  /*
+    玩家的修正来自装备，敌人的来自本体与精英词缀。这里以前只有玩家分支，
+    "没有玩家"直接等同于"没有任何修正"——那样「迅捷的」这类词缀会静默失效，
+    不报错也不掉日志，只是骰子少投一颗。enemyBattleHooks.test.ts 盯着这一点。
+  */
+  const sidesBonus = player
+    ? getDieSidesBonus(player, dieKind)
+    : enemyDieSidesBonus(battle.enemyId!, battle.enemyAffix, dieKind);
+  const countBonus = player
+    ? getDiceCountBonus(player, dieKind)
+    : enemyDiceCountBonus(battle.enemyId!, battle.enemyAffix, dieKind);
+  const sides = Math.max(2, (modifiers.sidesOverride ?? 6) + sidesBonus);
+  const count = Math.max(1, 1 + modifiers.extraDice + countBonus);
   /*
     每颗骰子都照常掷一次再决定要不要覆盖，而不是"视为最高面就跳过投骰"。
     这样消耗的随机数个数只取决于骰子数量，与本次生效了哪些效果无关，
@@ -850,6 +877,33 @@ function forEachEquipmentEffects(
   }
 }
 
+/** 装备与怪物共用的那半份上下文。 */
+function battleHookContext(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  opponentSide: CombatSide,
+  dieKind: "attack" | "defense",
+  modifiers: RollModifiers,
+): BattleHookContext {
+  return {
+    state,
+    battle,
+    side,
+    opponentSide,
+    dieKind,
+    modifiers,
+    ownHp: sideHp(battle, side),
+    ownMaxHp: sideMaxHp(state, battle, side),
+    opponentHp: sideHp(battle, opponentSide),
+    opponentMaxHp: sideMaxHp(state, battle, opponentSide),
+    addBattleLog(text) {
+      battle.log.unshift(text);
+      battle.log = battle.log.slice(0, 8);
+    },
+  };
+}
+
 function equipmentBattleContext(
   state: GameState,
   battle: BattleState,
@@ -861,23 +915,25 @@ function equipmentBattleContext(
   item: OwnedEquipment,
 ): EquipmentBattleContext {
   return {
-    state,
-    battle,
-    side,
-    opponentSide,
-    dieKind,
+    ...battleHookContext(state, battle, side, opponentSide, dieKind, modifiers),
     player,
     item,
-    modifiers,
-    ownHp: sideHp(battle, side),
-    ownMaxHp: sideMaxHp(state, battle, side),
-    opponentHp: sideHp(battle, opponentSide),
-    opponentMaxHp: sideMaxHp(state, battle, opponentSide),
-    addBattleLog(text) {
-      battle.log.unshift(text);
-      battle.log = battle.log.slice(0, 8);
-    },
   };
+}
+
+/**
+ * 遍历该侧敌人的效果：本体的，加上精英词缀的。
+ * 该侧是玩家时没有敌人，直接跳过——正好和 forEachEquipmentEffects 互补。
+ */
+function forEachEnemyEffects(
+  battle: BattleState,
+  side: CombatSide,
+  visit: (effects: EnemyEffects) => void,
+) {
+  if (battlePlayerForSide(battle, side)) return;
+  for (const effects of enemyEffects(battle.enemyId!, battle.enemyAffix)) {
+    visit(effects);
+  }
 }
 
 /**
@@ -953,13 +1009,47 @@ function applyEquipmentAfterRoll(
   opponentSide: CombatSide,
   dieKind: "attack" | "defense",
   modifiers: RollModifiers,
-  roll: EquipmentRollResult,
+  roll: RollResult,
 ) {
   forEachEquipmentEffects(state, battle, side, (effects, item, player) => {
     effects.afterRoll?.({
       ...equipmentBattleContext(
         state, battle, side, opponentSide, dieKind, modifiers, player, item,
       ),
+      roll,
+    });
+  });
+}
+
+/** 掷骰前的怪物钩子，与装备钩子在流程里同一位置。 */
+function applyEnemyBeforeRoll(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  opponentSide: CombatSide,
+  dieKind: "attack" | "defense",
+  modifiers: RollModifiers,
+) {
+  forEachEnemyEffects(battle, side, (effects) => {
+    effects.beforeRoll?.(
+      battleHookContext(state, battle, side, opponentSide, dieKind, modifiers),
+    );
+  });
+}
+
+/** 掷骰后的怪物钩子，能读到骰面结果。 */
+function applyEnemyAfterRoll(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  opponentSide: CombatSide,
+  dieKind: "attack" | "defense",
+  modifiers: RollModifiers,
+  roll: RollResult,
+) {
+  forEachEnemyEffects(battle, side, (effects) => {
+    effects.afterRoll?.({
+      ...battleHookContext(state, battle, side, opponentSide, dieKind, modifiers),
       roll,
     });
   });
@@ -1012,6 +1102,12 @@ function resolveBattleRound(state: GameState) {
   applyEquipmentBeforeRoll(
     state, battle, defenderSide, attackerSide, "defense", defenseModifiers,
   );
+  applyEnemyBeforeRoll(
+    state, battle, attackerSide, defenderSide, "attack", attackModifiers,
+  );
+  applyEnemyBeforeRoll(
+    state, battle, defenderSide, attackerSide, "defense", defenseModifiers,
+  );
 
   const attackRoll = rollForSide(
     state,
@@ -1033,6 +1129,12 @@ function resolveBattleRound(state: GameState) {
     state, battle, attackerSide, defenderSide, "attack", attackModifiers, attackRoll,
   );
   applyEquipmentAfterRoll(
+    state, battle, defenderSide, attackerSide, "defense", defenseModifiers, defenseRoll,
+  );
+  applyEnemyAfterRoll(
+    state, battle, attackerSide, defenderSide, "attack", attackModifiers, attackRoll,
+  );
+  applyEnemyAfterRoll(
     state, battle, defenderSide, attackerSide, "defense", defenseModifiers, defenseRoll,
   );
 
@@ -1403,7 +1505,11 @@ export function getBattleParticipants<P extends PlayerStats>(
   battle: BattleState,
 ) {
   const a = state.players[battle.aPlayerId];
-  const b = battle.bPlayerId ? state.players[battle.bPlayerId] : ENEMIES[battle.enemyId!];
+  // 敌人一侧交出折算后的属性而不是原始定义，界面才会显示「狂暴的山狼」
+  // 和它真正的血量上限，不必自己再折一遍词缀。
+  const b = battle.bPlayerId
+    ? state.players[battle.bPlayerId]
+    : battleEnemyStats(battle);
   return { a, b };
 }
 

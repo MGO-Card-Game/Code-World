@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { ELITE_AFFIXES, ENEMIES } from "./content/enemies";
 import { generateMap, MAP_REGION_SIZE, MAP_TILE_LIMITS } from "./map";
 import type { RandomTileType } from "./map";
+import { isCombatTile } from "./types";
 
 const RANDOM_TYPES = Object.keys(MAP_TILE_LIMITS) as RandomTileType[];
 
@@ -36,12 +38,44 @@ describe("受约束随机地图", () => {
     }
   });
 
-  it("不会产生连续三个战斗格", () => {
+  it("不会产生连续三个战斗类格子——精英格也算", () => {
     for (let seed = 1; seed <= 100; seed += 1) {
       const types = generateMap(seed).tiles.map((tile) => tile.type);
       expect(types.some(
-        (type, index) => type === "battle" && types[index - 1] === "battle" && types[index - 2] === "battle",
+        (type, index) =>
+          index >= 2
+          && isCombatTile(type)
+          && isCombatTile(types[index - 1])
+          && isCombatTile(types[index - 2]),
       )).toBe(false);
     }
+  });
+
+  it("战斗类格子都绑定了怪物，精英格还带词缀", () => {
+    for (const seed of [1, 7, 42, 4242, 20260805]) {
+      for (const tile of generateMap(seed).tiles) {
+        // Boss 格也绑定了怪物，只是它不算"战斗类"——那个判定管的是三连约束
+        if (!isCombatTile(tile.type) && tile.type !== "boss") {
+          expect(tile.enemyId).toBeUndefined();
+          expect(tile.eliteAffix).toBeUndefined();
+          continue;
+        }
+        expect(Object.keys(ENEMIES)).toContain(tile.enemyId);
+        if (tile.type === "elite") {
+          expect(Object.keys(ELITE_AFFIXES)).toContain(tile.eliteAffix);
+        } else {
+          // 词缀只贴在精英格上，普通战斗格和 Boss 格都不该有
+          expect(tile.eliteAffix).toBeUndefined();
+        }
+      }
+    }
+  });
+
+  it("同一种子的精英词缀完全一致——词缀是地图的一部分，不是开战时现抽的", () => {
+    const affixesOf = (seed: number) =>
+      generateMap(seed).tiles.map((tile) => tile.eliteAffix ?? null);
+
+    expect(affixesOf(20260805)).toEqual(affixesOf(20260805));
+    expect(affixesOf(20260805)).not.toEqual(affixesOf(20260806));
   });
 });

@@ -1,7 +1,8 @@
+import type { EliteAffixKind, EnemyKind } from "./content/enemies";
 import type { EquipmentKind } from "./content/equipment";
 import type { ScrollKind } from "./content/scrolls";
 
-export type { EquipmentKind, ScrollKind };
+export type { EliteAffixKind, EnemyKind, EquipmentKind, ScrollKind };
 
 export type PlayerId = "player1" | "player2";
 
@@ -14,7 +15,21 @@ export type PlayerId = "player1" | "player2";
  * 第一阶段只开放这两个时机。
  */
 export type ScrollTiming = "beforeAttackRoll" | "beforeDefenseRoll";
-export type TileType = "start" | "battle" | "treasure" | "spring" | "event" | "boss";
+export type TileType =
+  | "start"
+  | "battle"
+  | "elite"
+  | "treasure"
+  | "spring"
+  | "event"
+  | "boss";
+
+/** 会打起来的格子。三处判定（结算、地图约束、界面）共用，免得各写一份对不上。 */
+export const COMBAT_TILE_TYPES = ["battle", "elite"] as const satisfies readonly TileType[];
+
+export function isCombatTile(type: TileType) {
+  return (COMBAT_TILE_TYPES as readonly TileType[]).includes(type);
+}
 export type MapRegionId = "foothill" | "mountainside" | "summit";
 
 export interface OwnedScroll {
@@ -47,21 +62,17 @@ export interface Player {
   equipment: OwnedEquipment[];
 }
 
-export interface EnemyDefinition {
-  id: string;
-  name: string;
-  maxHp: number;
-  attack: number;
-  defense: number;
-  reward: "scroll" | "equipment" | "boss";
-}
-
 export interface MapTile {
   id: number;
   region: MapRegionId;
   type: TileType;
   label: string;
-  enemyId?: string;
+  enemyId?: EnemyKind;
+  /**
+   * 精英格上贴的词缀。地图生成时就定死并随 GameState 广播——
+   * 交给战斗开始时再抽的话，同种子重放和联机双端就对不上了。
+   */
+  eliteAffix?: EliteAffixKind;
   safeZone?: boolean;
 }
 
@@ -103,7 +114,8 @@ export interface BattleState {
   kind: "pve" | "boss" | "pvp";
   aPlayerId: PlayerId;
   bPlayerId?: PlayerId;
-  enemyId?: string;
+  enemyId?: EnemyKind;
+  enemyAffix?: EliteAffixKind;
   hpA: number;
   hpB: number;
   attacker: CombatSide;
@@ -222,7 +234,8 @@ export type GameEventBody =
       battleKind: BattleState["kind"];
       aPlayerId: PlayerId;
       bPlayerId?: PlayerId;
-      enemyId?: string;
+      enemyId?: EnemyKind;
+      enemyAffix?: EliteAffixKind;
     }
   | {
       type: "initiativeRolled";

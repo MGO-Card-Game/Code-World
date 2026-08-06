@@ -3,12 +3,17 @@ import { motion } from "framer-motion";
 import { visualPosition } from "../anim/visualState";
 import { TILE_ICON } from "../game/content/tiles";
 import { PLAYER_IDS } from "../game/engine";
-import type { GameStateView } from "../game/types";
+import type { GameStateView, MapTile } from "../game/types";
 import type { Playback } from "./shared";
 
-const tileClassNames = {
+/*
+  标注成 Record 而不是留裸对象字面量：加一种格子类型时，漏了这里只会静默掉样式，
+  格子照常渲染但看不出是什么。有了标注就变成一条编译错误。
+*/
+const tileClassNames: Record<MapTile["type"], string> = {
   start: "start",
   battle: "battle",
+  elite: "elite",
   treasure: "treasure",
   spring: "spring",
   event: "event",

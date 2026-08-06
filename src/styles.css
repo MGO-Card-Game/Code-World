@@ -147,6 +147,8 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .tile-number { position: absolute; left: 7px; top: 5px; font: 9px Georgia, serif; color: #665e53; }
 .tile-icon { font: 22px Georgia, serif; color: #9b8a72; }
 .tile.battle .tile-icon { color: #bb6651; }
+.tile.elite { border-color: #8d5a4a; background: linear-gradient(145deg, #2e1d18, #1e1614); }
+.tile.elite .tile-icon { color: #e0705a; text-shadow: 0 0 8px #e0705a66; }
 .tile.treasure .tile-icon { color: #d2a64e; }
 .tile.spring .tile-icon { color: #62b6c5; }
 .tile.event .tile-icon { color: #9b79bd; }

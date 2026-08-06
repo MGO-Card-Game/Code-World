@@ -1,4 +1,5 @@
-import type { EquipmentEffects, EquipmentModifier } from "../../effects/cardEffects";
+import type { StatModifier } from "../../effects/battleHooks";
+import type { EquipmentEffects } from "../../effects/cardEffects";
 import type { CardRarity } from "../rarity";
 
 export type EquipmentCategory = "weapon" | "armor" | "shoes" | "accessory";
@@ -26,7 +27,7 @@ export interface EquipmentBody {
   name: string;
   description: string;
   rarity: CardRarity;
-  modifiers: readonly EquipmentModifier[];
+  modifiers: readonly StatModifier[];
   /**
    * 通用 modifier 表达不了的逻辑直接写在这里。
    *

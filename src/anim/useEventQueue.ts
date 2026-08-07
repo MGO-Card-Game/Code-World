@@ -37,14 +37,40 @@ export function useEventQueue(events: readonly GameEvent[], speed = 1) {
   const synced = enqueue(queue, events, speed);
   if (synced !== queue) setQueue(synced);
 
+  /*
+    依赖的是"当前事件"，不是整个队列对象。
+
+    队列每追加一批事件都会产生新对象。依赖整个队列时 effect 会跟着重跑，cleanup 清掉
+    在飞的定时器，再按整段时长重排一次——当前事件的倒计时就被推回了起点。联机时对手
+    每做一个动作就是一批新事件，正在播的骰子动画会被反复顶回去，看起来就是卡着不动。
+    current 没换人时本来就不需要重排，所以这里只盯它。
+
+    effect 不重跑意味着闭包里的 `synced` 可能是旧的，这没问题：用到的
+    `remainingMs(synced)` 只依赖 current 和 elapsed，而 setQueue 走的是更新函数形式，
+    拿到的永远是最新队列。
+  */
   useEffect(() => {
     const wait = remainingMs(synced);
     if (wait === null) return;
+    const startedAt = performance.now();
     const timer = window.setTimeout(() => {
-      setQueue((current) => advance(current, wait));
+      /*
+        按真实流逝时间推进，而不是按排定的 wait。
+
+        定时器只保证"不早于"：后台标签页会被节流到秒级甚至分钟级，主线程卡顿也会迟到。
+        按 wait 推进的话每次迟到都是永久欠账，积压只会越积越多，切回页面时看到的就是
+        一条卡住的队列；按真实时间推进，advance 会一次跨过多条积压事件把进度追回来
+        （它本身就是循环消费的）。
+
+        下限取 wait：setTimeout 与 performance.now 的取整口径不一致时，实测值可能比
+        wait 小零点几毫秒。那会让 advance 走进"只累加 elapsed、不切换事件"的分支，
+        current 不变、effect 不重跑，队列就真的永久停住了。
+      */
+      const elapsed = Math.max(wait, performance.now() - startedAt);
+      setQueue((current) => advance(current, elapsed));
     }, wait);
     return () => window.clearTimeout(timer);
-  }, [synced]);
+  }, [synced.current]);
 
   const skip = useCallback(() => setQueue(drain), []);
 

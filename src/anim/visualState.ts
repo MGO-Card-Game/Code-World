@@ -96,6 +96,48 @@ export function visualAttacker(battle: BattleState, pending: readonly GameEvent[
   return heldRoundAdvance(pending)?.fromAttacker ?? battle.attacker;
 }
 
+type RollEvent = Extract<GameEvent, { type: "attackRolled" | "defenseRolled" }>;
+
+function isRollEvent(event: GameEvent): event is RollEvent {
+  return event.type === "attackRolled" || event.type === "defenseRolled";
+}
+
+/**
+ * 此刻该显示的攻防骰点。
+ *
+ * 骰点只存在于事件里——引擎的 BattleState 不记上一次投骰，所以这里要从
+ * 「最近一批事件 + 还没播到的事件」算出当下该显示什么。
+ *
+ * 关键是**不要**让界面在事件恰好成为"当前"的那一帧把骰点抄进局部 state：抄的那一帧
+ * 一旦错过（按了跳过演出、两次广播被合进同一次渲染、弹层重新挂载），那一轮的骰子就
+ * 永久空着，而引擎状态早已是最终值。派生出来的值没有这个窗口——错过动画只意味着
+ * 直接显示终值。
+ *
+ * 两条边界，都用 pending 判断：
+ * - 投骰事件还在 pending 里 = 动画没播到，按住不显示；
+ * - 它后面那条 battleRoundAdvanced 已经播完 = 已经交接到下一轮，清空。
+ *   最后一轮不会有交接事件（finishBattle 提前返回），所以骰点会留到弹层退场。
+ */
+export function visualRoll(
+  role: "attack" | "defense",
+  events: readonly GameEvent[],
+  pending: readonly GameEvent[],
+): RollEvent | undefined {
+  const wanted = role === "attack" ? "attackRolled" : "defenseRolled";
+  // 取最后一条：一批事件里同一种投骰只会有一条，倒着取是为了容忍将来一批含多轮
+  const roll = events.filter(isRollEvent).filter((event) => event.type === wanted).at(-1);
+  if (!roll) return undefined;
+
+  const played = (id: number) => !pending.some((event) => event.id === id);
+  if (!played(roll.id)) return undefined;
+
+  const advanced = events.find(
+    (event) => event.type === "battleRoundAdvanced" && event.id > roll.id,
+  );
+  if (advanced && played(advanced.id)) return undefined;
+  return roll;
+}
+
 /**
  * 战斗弹层是否还要留在屏幕上。
  *

@@ -8,6 +8,7 @@ import {
   visualAttacker,
   visualBattleHp,
   visualBattleRound,
+  visualRoll,
 } from "../anim/visualState";
 import { SCROLLS, scrollCategory } from "../game/content/scrolls";
 import { getBattleParticipants, getSidePlayer } from "../game/engine";
@@ -185,10 +186,6 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
         : [...current, instanceId]
     ));
   }, []);
-  const [rolls, setRolls] = useState<{
-    attackDice?: number[]; attackSides?: number; attackTotal?: number;
-    defenseDice?: number[]; defenseSides?: number; defenseTotal?: number;
-  }>({});
   const { a, b } = getBattleParticipants(state, battle);
   const attackerSide = battle.attacker;
 
@@ -219,37 +216,20 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
     setPendingChoiceIds([]);
   }, [battle.round]);
 
-  // 骰面跟着展示轮次走：上一轮的骰点留到交接动画播到时才清，
-  // 否则本轮骰点会被下一轮的引擎状态提前抹掉，或者反过来挂到新攻击方名下
-  useEffect(() => {
-    setRolls({});
-  }, [shownRound]);
-
   // 换一方选牌时清空选择，免得把上一方的选中态带过去
   useEffect(() => {
     setPendingChoiceIds([]);
   }, [choosingSide]);
 
-  // 攻防骰事件播到时才亮出骰面，让数字跟动画同步出现
-  const playing = playback.event;
-  useEffect(() => {
-    if (playing?.type === "attackRolled") {
-      setRolls((current) => ({
-        ...current,
-        attackDice: playing.dice,
-        attackSides: playing.sides,
-        attackTotal: playing.total,
-      }));
-    }
-    if (playing?.type === "defenseRolled") {
-      setRolls((current) => ({
-        ...current,
-        defenseDice: playing.dice,
-        defenseSides: playing.sides,
-        defenseTotal: playing.total,
-      }));
-    }
-  }, [playing]);
+  /*
+    骰点从事件流派生，不再由"事件恰好成为当前"的那一帧抄进局部 state。
+
+    抄写模型有个致命窗口：那一帧被跳过（跳过演出）、被合批吃掉（两次广播落进同一次
+    渲染）或者弹层重挂时，这一轮的骰子就永久空着。派生之后没有窗口——错过动画只意味着
+    直接显示终值。按住与清空的时机跟以前完全一致，都由 pending 决定，见 visualRoll。
+  */
+  const attackRoll = visualRoll("attack", state.lastEvents, playback.pending);
+  const defenseRoll = visualRoll("defense", state.lastEvents, playback.pending);
 
   const nameOf = (side: CombatSide) => (side === "a" ? a.name : b.name);
   const hpMaxB = "maxHp" in b ? b.maxHp : 1;
@@ -259,19 +239,15 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
   const healing = activeHealing(playback.event);
   const displayedRollFor = (side: CombatSide) => {
     const attacking = side === shownAttacker;
-    return attacking
-      ? {
-          role: "attack" as const,
-          dice: rolls.attackDice,
-          sides: rolls.attackSides,
-          total: rolls.attackTotal,
-        }
-      : {
-          role: "defense" as const,
-          dice: rolls.defenseDice,
-          sides: rolls.defenseSides,
-          total: rolls.defenseTotal,
-        };
+    const roll = attacking ? attackRoll : defenseRoll;
+    // 事件自带 side。跟展示归属对不上就宁可空着，也不要把骰点挂到错的人头上
+    const shown = roll?.side === side ? roll : undefined;
+    return {
+      role: attacking ? ("attack" as const) : ("defense" as const),
+      dice: shown?.dice,
+      sides: shown?.sides,
+      total: shown?.total,
+    };
   };
   const aRoll = displayedRollFor("a");
   const bRoll = displayedRollFor("b");

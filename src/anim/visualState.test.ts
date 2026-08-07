@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   advance,
   createEventQueue,
+  drain,
   enqueue,
   isPlaying,
   pendingEvents,
@@ -18,6 +19,7 @@ import {
   visualHp,
   visualMaxHp,
   visualPosition,
+  visualRoll,
 } from "./visualState";
 import { createInitialGame, gameReducer } from "../game/engine";
 import { makeBattle, resolveRound } from "../game/testSupport";
@@ -194,6 +196,111 @@ describe("显示数值回拉", () => {
     // 队列放空后跟上引擎的真实状态
     expect(visualAttacker(battle, pendingEvents(queue))).toBe("b");
     expect(visualBattleRound(battle, pendingEvents(queue))).toBe(2);
+  });
+
+  it("骰点按住到投骰动画播到，交接动画播完后清空", () => {
+    let state = createInitialGame(1234);
+    state.players.player1.scrolls = [{ instanceId: "fate-a", kind: "fate" }];
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pvp", aPlayerId: "player1", bPlayerId: "player2" }),
+    };
+
+    state = resolveRound(state, { attack: "fate-a" });
+    if (state.phase.kind !== "battle") throw new Error("战斗提前结束，请换个种子");
+    const events = state.lastEvents;
+
+    let queue = enqueue(createEventQueue(), events);
+    // 一条都没播：骰点按住不显示
+    expect(visualRoll("attack", events, pendingEvents(queue))).toBeUndefined();
+    expect(visualRoll("defense", events, pendingEvents(queue))).toBeUndefined();
+
+    let shownWhilePlaying = false;
+    while (isPlaying(queue)) {
+      const playing = queue.current?.event;
+      queue = advance(queue, remainingMs(queue)!);
+      if (playing?.type !== "attackRolled") continue;
+      shownWhilePlaying = true;
+      // 播到的那一刻就该亮出来，且是 a 侧那颗 D20
+      const shown = visualRoll("attack", events, pendingEvents(queue));
+      expect(shown?.sides).toBe(20);
+      expect(shown?.side).toBe("a");
+    }
+    expect(shownWhilePlaying).toBe(true);
+
+    // 交接动画也播完了，展示已经进入下一轮，骰点清空
+    expect(visualRoll("attack", events, pendingEvents(queue))).toBeUndefined();
+    expect(visualRoll("defense", events, pendingEvents(queue))).toBeUndefined();
+  });
+
+  it("跳过演出后末击的骰点仍然显示，不会留下空格", () => {
+    /*
+      这正是骰点必须派生、不能在"事件成为当前"的那一帧抄进局部 state 的原因：
+      抄写模型下跳过会把没播到的 attackRolled 一起丢掉，那一轮的骰子永久空着。
+
+      攻击拉满保证这一击必定终结战斗，于是这批事件里没有交接事件——
+      骰点应当一直留到弹层退场。
+      */
+    let state = createInitialGame(1234);
+    state.players.player1.baseAttack = 99;
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId: "slime", hpB: 1 }),
+    };
+    state = resolveRound(state);
+    expect(state.phase.kind).not.toBe("battle");
+    const events = state.lastEvents;
+    expect(events.some((event) => event.type === "battleRoundAdvanced")).toBe(false);
+
+    const queue = drain(enqueue(createEventQueue(), events));
+    expect(isPlaying(queue)).toBe(false);
+
+    const rolled = events.filter((event) => event.type === "attackRolled").at(-1);
+    expect(visualRoll("attack", events, pendingEvents(queue))?.total).toBe(rolled?.total);
+    expect(visualRoll("defense", events, pendingEvents(queue))).toBeDefined();
+  });
+
+  it("整批事件从未入队时直接显示终值", () => {
+    // 联机漏批（两次广播落进同一次渲染）后，这批事件永远不会成为"当前"，
+    // 抄写模型下骰子会一直空着；派生模型只当作"动画已经过去了"。
+    let state = createInitialGame(1234);
+    state.players.player1.baseAttack = 99;
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId: "slime", hpB: 1 }),
+    };
+    state = resolveRound(state);
+    const events = state.lastEvents;
+
+    expect(visualRoll("attack", events, [])?.dice).toEqual(
+      events.filter((event) => event.type === "attackRolled").at(-1)?.dice,
+    );
+  });
+
+  it("跳过演出跨过整轮时，骰点跟着交接一起清空", () => {
+    // 与上一条对照：这一批里有交接事件，跳过等于连交接一起播完，
+    // 展示已经进入下一轮，上一轮的骰点就该清掉而不是赖在格子里
+    let state = createInitialGame(1234);
+    // 双方防御拉满，伤害恒为 0，这一轮必定不会终结战斗
+    state.players.player1.baseDefense = 99;
+    state.players.player2.baseDefense = 99;
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pvp", aPlayerId: "player1", bPlayerId: "player2" }),
+    };
+    state = resolveRound(state);
+    expect(state.phase.kind).toBe("battle");
+    const events = state.lastEvents;
+    expect(events.some((event) => event.type === "battleRoundAdvanced")).toBe(true);
+
+    const queue = drain(enqueue(createEventQueue(), events));
+    expect(visualRoll("attack", events, pendingEvents(queue))).toBeUndefined();
+    expect(visualRoll("defense", events, pendingEvents(queue))).toBeUndefined();
+  });
+
+  it("这一批没有投骰事件时不显示骰点", () => {
+    // 战斗中的提交动作不产出任何事件，上一轮的骰点不该被它带回来
+    expect(visualRoll("attack", [], [])).toBeUndefined();
   });
 
   it("决出胜负的那一批事件里，骰点和 phase 离开 battle 是同时发生的", () => {

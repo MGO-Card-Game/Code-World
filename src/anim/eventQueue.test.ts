@@ -91,6 +91,27 @@ describe("事件播放队列", () => {
     expect(progress(queue)).toBeCloseTo(10 / NARRATION);
   });
 
+  it("按整段剩余时长推进时，当前事件一定会被换掉", () => {
+    /*
+      useEventQueue 的 effect 只在"当前事件换人"时重排定时器。若按整段 remainingMs
+      推进之后 current 还是同一条，就再没有人给它排下一个定时器，队列会永久停住。
+      钩子里那个 Math.max(wait, 真实耗时) 的下限守的就是这条性质。
+    */
+    let queue = enqueue(createEventQueue(), [narration(1), moved(2)]);
+    const first = queue.current;
+    queue = advance(queue, remainingMs(queue)!);
+    expect(queue.current).not.toBe(first);
+    queue = advance(queue, remainingMs(queue)!);
+    expect(queue.current).toBeNull();
+
+    // 中途被推进过（elapsed 非 0）时同样成立
+    let partial = enqueue(createEventQueue(), [narration(1), moved(2)]);
+    partial = advance(partial, NARRATION / 3);
+    const midway = partial.current;
+    partial = advance(partial, remainingMs(partial)!);
+    expect(partial.current).not.toBe(midway);
+  });
+
   it("推进完全部事件后队列停止播放", () => {
     let queue = enqueue(createEventQueue(), [narration(1), moved(2)]);
 

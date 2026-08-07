@@ -315,6 +315,18 @@ describe("暗牌裁剪 viewFor", () => {
       switch (state.phase.kind) {
         case "awaitingRoll": state = gameReducer(state, { type: "rollMovement" }); break;
         case "turnComplete": state = gameReducer(state, { type: "endTurn" }); break;
+        case "encounterChoice":
+          state = gameReducer(state, {
+            type: "chooseEncounterOpponent",
+            opponentId: state.phase.choice.opponentIds[0],
+          });
+          break;
+        case "encounterDecision": {
+          const encounter = state.phase.encounter;
+          const side = encounter.choiceA.status === "pending" ? "a" : "b";
+          state = gameReducer(state, { type: "chooseEncounterIntent", side, intent: "greet" });
+          break;
+        }
         case "blessingChoice":
           state = gameReducer(state, { type: "chooseBlessing", replace: false });
           break;

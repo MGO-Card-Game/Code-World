@@ -8,9 +8,9 @@ import type {
 } from "./types";
 import { isCombatTile } from "./types";
 
-/** 9×5 矩形外框恰好有 24 个格子，三个阶段各占一圈。 */
-export const MAP_COLUMNS = 9;
-export const MAP_REGION_SIZE = 24;
+/** 10×6 矩形外框恰好有 28 个格子，三个阶段各占一圈。 */
+export const MAP_COLUMNS = 10;
+export const MAP_REGION_SIZE = 28;
 
 export interface TileCountRange {
   min: number;
@@ -25,31 +25,32 @@ export type RandomTileType = Exclude<TileType, "start" | "boss" | "gate">;
  *
  * 加类型时要连带核对可行性：min 合计必须 ≤ 区域容量 ≤ max 合计，
  * 否则 chooseCounts 会抛「地图格数量规则无法填满」。
- * 现在是 min 19、max 25，每圈扣除守关门与营地后容量为 22。
+ * 现在是 min 22、max 28，每圈扣除守关门与营地后容量为 26。
+ * 泉水维持 3～4 个；将来加入商店格时，从其余弹性范围中让出容量即可。
  */
 export const MAP_TILE_LIMITS: Record<RandomTileType, TileCountRange> = {
-  battle: { min: 5, max: 7 },
+  battle: { min: 6, max: 8 },
   elite: { min: 2, max: 3 },
-  event: { min: 5, max: 6 },
-  treasure: { min: 3, max: 4 },
+  event: { min: 6, max: 7 },
+  treasure: { min: 4, max: 5 },
   blessing: { min: 1, max: 1 },
   spring: { min: 3, max: 4 },
 };
 
 export const MAP_REGIONS: MapRegion[] = [
   {
-    id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 23,
+    id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 27,
     gateIndex: 0, entryIndex: 1, bossEnemyId: "banditChief",
     requirements: [{ type: "uniqueEliteVictories", target: 1, label: "击败 1 个精英格敌人" }],
   },
   {
-    id: "mountainside", name: "云雾山腰", startIndex: 24, endIndex: 47,
-    gateIndex: 24, entryIndex: 25, bossEnemyId: "frostFang",
+    id: "mountainside", name: "云雾山腰", startIndex: 28, endIndex: 55,
+    gateIndex: 28, entryIndex: 29, bossEnemyId: "frostFang",
     requirements: [{ type: "uniqueEliteVictories", target: 2, label: "击败 2 个不同精英格敌人" }],
   },
   {
-    id: "summit", name: "雷鸣峰顶", startIndex: 48, endIndex: 71,
-    gateIndex: 48, entryIndex: 49, bossEnemyId: "dragon",
+    id: "summit", name: "雷鸣峰顶", startIndex: 56, endIndex: 83,
+    gateIndex: 56, entryIndex: 57, bossEnemyId: "dragon",
     // 龙巢正式条件尚未确定，暂用两个不同山顶精英作为可完整通关的占位规则。
     requirements: [{ type: "uniqueEliteVictories", target: 2, label: "击败 2 个不同山顶精英" }],
   },

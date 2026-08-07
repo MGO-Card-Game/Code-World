@@ -33,12 +33,15 @@ interface BoardTransform {
   scale: number;
 }
 
-/** 9×5 外框的顺时针坐标：顶 9、右 3、底 9、左 3，共 24 格。 */
-function ringGridPosition(index: number) {
-  if (index < 9) return { gridColumn: index + 1, gridRow: 1 };
-  if (index < 12) return { gridColumn: 9, gridRow: index - 7 };
-  if (index < 21) return { gridColumn: 21 - index, gridRow: 5 };
-  return { gridColumn: 1, gridRow: 25 - index };
+/** 任意矩形外框的顺时针坐标：顶边、右边、反向底边、反向左边。 */
+function ringGridPosition(index: number, columns: number, rows: number) {
+  const rightStart = columns;
+  const bottomStart = rightStart + rows - 2;
+  const leftStart = bottomStart + columns;
+  if (index < rightStart) return { gridColumn: index + 1, gridRow: 1 };
+  if (index < bottomStart) return { gridColumn: columns, gridRow: index - rightStart + 2 };
+  if (index < leftStart) return { gridColumn: columns - (index - bottomStart), gridRow: rows };
+  return { gridColumn: 1, gridRow: rows - 1 - (index - leftStart) };
 }
 
 /**
@@ -69,6 +72,7 @@ export function Board({ state, playback, onInspectBoss }: {
   const [selectedRegionId, setSelectedRegionId] = useState<MapRegionId>(activeRegionId);
   const selectedRegion = state.map.regions.find((region) => region.id === selectedRegionId)!;
   const selectedTiles = state.map.tiles.slice(selectedRegion.startIndex, selectedRegion.endIndex + 1);
+  const ringRows = (selectedTiles.length + 4 - state.map.columns * 2) / 2;
   const selectedPlayers = players.filter(
     (player) => state.map.tiles[positions[player.id]].region === selectedRegionId,
   );
@@ -266,13 +270,19 @@ export function Board({ state, playback, onInspectBoss }: {
               <span>{selectedRegion.name}</span>
               <strong>{selectedPlayers.length} 名玩家在此阶段</strong>
             </div>
-            <div className="stage-ring">
+            <div
+              className="stage-ring"
+              style={{
+                gridTemplateColumns: `repeat(${state.map.columns}, var(--tile-width))`,
+                gridTemplateRows: `repeat(${ringRows}, var(--tile-height))`,
+              }}
+            >
               {selectedTiles.map((tile, index) => {
                 const playersHere = players.filter((player) => positions[player.id] === tile.id);
                 return (
                   <article
                     className={`tile region-${tile.region} ${tileClassNames[tile.type]} ${activePosition === tile.id ? "current" : ""}`}
-                    style={ringGridPosition(index)}
+                    style={ringGridPosition(index, state.map.columns, ringRows)}
                     data-tile-id={tile.id}
                     key={tile.id}
                   >

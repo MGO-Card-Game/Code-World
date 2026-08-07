@@ -4,6 +4,7 @@ import {
   findPreviousRestTile,
   findRestTileAtOrBefore,
   generateMap,
+  MAP_COLUMNS,
   MAP_REGION_SIZE,
   MAP_TILE_LIMITS,
 } from "../map";
@@ -26,9 +27,12 @@ describe("受约束随机地图", () => {
     expect(generateMap(20260805)).not.toEqual(generateMap(20260806));
   });
 
-  it("每个区域固定 24 格，守关门与营地占据环路开头", () => {
+  it("每个区域固定 28 格，守关门与营地占据环路开头", () => {
     const map = generateMap(4242);
 
+    expect(map.columns).toBe(MAP_COLUMNS);
+    expect(MAP_COLUMNS).toBe(10);
+    expect(MAP_REGION_SIZE).toBe(28);
     expect(map.regions).toHaveLength(3);
     expect(map.tiles).toHaveLength(MAP_REGION_SIZE * 3);
     for (const region of map.regions) {
@@ -41,6 +45,7 @@ describe("受约束随机地图", () => {
   });
 
   it("每一区域都满足各类格子的最小值和最大值", () => {
+    expect(MAP_TILE_LIMITS.spring).toEqual({ min: 3, max: 4 });
     for (const seed of [1, 7, 42, 4242, 20260805]) {
       const map = generateMap(seed);
       for (const region of map.regions) {

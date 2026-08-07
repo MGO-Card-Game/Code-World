@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGame, gameReducer } from "./engine";
-import { makeBattle } from "./testSupport";
-import type { GameState } from "./types";
+import { createInitialGame, gameReducer } from "../engine";
+import { makeBattle } from "../testSupport";
+import type { GameState } from "../types";
 
 /**
  * gameReducer 的约定：动作没被接受时，原样返回传入的那个 state 对象。

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGame, gameReducer, PVP_RETREAT_TILES } from "./engine";
-import { pvpHpTransferAmount } from "./selectors";
-import { makeBattle, resolveRound } from "./testSupport";
-import type { GameState } from "./types";
+import { createInitialGame, gameReducer, PVP_RETREAT_TILES } from "../engine";
+import { pvpHpTransferAmount } from "../selectors";
+import { makeBattle, resolveRound } from "../testSupport";
+import type { GameState } from "../types";
 
 /**
  * 造一场 a 侧稳赢的相遇战：b 侧只剩 1 点战斗生命，a 侧攻击拉满。

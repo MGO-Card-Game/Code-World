@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { equipmentCategory } from "./content/equipment";
-import { createInitialGame, gameReducer } from "./engine";
-import type { GameEvent, GameState } from "./types";
+import { equipmentCategory } from "../content/equipment";
+import { createInitialGame, gameReducer } from "../engine";
+import type { GameEvent, GameState } from "../types";
 
 function landOnEvent(seed: number) {
   const state = createInitialGame(seed);

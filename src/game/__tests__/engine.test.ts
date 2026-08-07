@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGame, gameReducer } from "./engine";
+import { createInitialGame, gameReducer } from "../engine";
 import {
   makeBattle,
   PLAYTHROUGH_CAP,
   PLAYTHROUGH_SEED,
   resolveRound,
-} from "./testSupport";
-import { EQUIPMENT_SLOT_LIMITS, equipmentCategory } from "./content/equipment";
-import type { GameState } from "./types";
+} from "../testSupport";
+import { EQUIPMENT_SLOT_LIMITS, equipmentCategory } from "../content/equipment";
+import type { GameState } from "../types";
 
 function advanceAutomatically(state: GameState) {
   switch (state.phase.kind) {

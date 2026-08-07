@@ -4,17 +4,17 @@ import {
   SCROLL_RARITY_WEIGHTS,
   SCROLLS,
   type ScrollDefinition,
-} from "./content/scrolls";
-import { createInitialGame, gameReducer } from "./engine";
-import { findPreviousRestTile } from "./map";
-import { playableScrolls } from "./selectors";
+} from "../content/scrolls";
+import { createInitialGame, gameReducer } from "../engine";
+import { findPreviousRestTile } from "../map";
+import { playableScrolls } from "../selectors";
 import {
   makeBattle,
   PLAYTHROUGH_CAP,
   PLAYTHROUGH_SEED,
   resolveRound,
-} from "./testSupport";
-import type { GameEvent, GameState } from "./types";
+} from "../testSupport";
+import type { GameEvent, GameState } from "../types";
 
 /** 按事件种类筛选并收窄类型，避免每个断言都写一遍类型守卫 */
 function pick<T extends GameEvent["type"]>(events: GameEvent[], type: T) {

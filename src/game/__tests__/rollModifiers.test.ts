@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { SCROLLS, type ScrollKind } from "./content/scrolls";
-import { createInitialGame, gameReducer } from "./engine";
-import { makeBattle, resolveRound } from "./testSupport";
-import type { GameEvent, GameState } from "./types";
+import { SCROLLS, type ScrollKind } from "../content/scrolls";
+import { createInitialGame, gameReducer } from "../engine";
+import { makeBattle, resolveRound } from "../testSupport";
+import type { GameEvent, GameState } from "../types";
 
 function only<T extends GameEvent["type"]>(events: GameEvent[], type: T) {
   const found = events.filter(

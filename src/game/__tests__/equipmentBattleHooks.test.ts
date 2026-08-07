@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { EQUIPMENT, type EquipmentDefinition } from "./content/equipment";
-import { createInitialGame } from "./engine";
-import { getDieSidesBonus } from "./selectors";
-import { makeBattle, resolveRound } from "./testSupport";
-import type { GameEvent, GameState } from "./types";
+import { EQUIPMENT, type EquipmentDefinition } from "../content/equipment";
+import { createInitialGame } from "../engine";
+import { getDieSidesBonus } from "../selectors";
+import { makeBattle, resolveRound } from "../testSupport";
+import type { GameEvent, GameState } from "../types";
 
 function only<T extends GameEvent["type"]>(events: GameEvent[], type: T) {
   const found = events.filter(

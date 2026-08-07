@@ -2,18 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   ELITE_AFFIXES,
   type EliteAffixDefinition,
-} from "./content/enemies";
-import type { BattleHookContext, RollModifiers } from "./effects/battleHooks";
-import { enemyEffects, enemyStats } from "./selectors";
-import { createInitialGame, gameReducer } from "./engine";
-import { makeBattle, resolveRound } from "./testSupport";
+} from "../content/enemies";
+import type { BattleHookContext, RollModifiers } from "../effects/battleHooks";
+import { enemyEffects, enemyStats } from "../selectors";
+import { createInitialGame, gameReducer } from "../engine";
+import { makeBattle, resolveRound } from "../testSupport";
 import type {
   BattleState,
   EliteAffixKind,
   EnemyKind,
   GameEvent,
   GameState,
-} from "./types";
+} from "../types";
 
 function only<T extends GameEvent["type"]>(events: GameEvent[], type: T) {
   const found = events.filter(

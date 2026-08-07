@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { EQUIPMENT } from "./content/equipment";
-import { drawableScrollKinds, SCROLLS, scrollCategory } from "./content/scrolls";
-import { createInitialGame, gameReducer } from "./engine";
-import { makeBattle, resolveRound } from "./testSupport";
-import type { GameEvent, GameState, OwnedScroll } from "./types";
+import { EQUIPMENT } from "../content/equipment";
+import { drawableScrollKinds, SCROLLS, scrollCategory } from "../content/scrolls";
+import { createInitialGame, gameReducer } from "../engine";
+import { makeBattle, resolveRound } from "../testSupport";
+import type { GameEvent, GameState, OwnedScroll } from "../types";
 
 function only<T extends GameEvent["type"]>(events: GameEvent[], type: T) {
   const found = events.filter(

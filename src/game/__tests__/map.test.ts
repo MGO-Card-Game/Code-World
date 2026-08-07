@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { ELITE_AFFIXES, ENEMIES } from "./content/enemies";
+import { ELITE_AFFIXES, ENEMIES } from "../content/enemies";
 import {
   findPreviousRestTile,
   findRestTileAtOrBefore,
   generateMap,
   MAP_REGION_SIZE,
   MAP_TILE_LIMITS,
-} from "./map";
-import type { RandomTileType } from "./map";
-import { isCombatTile } from "./types";
+} from "../map";
+import type { RandomTileType } from "../map";
+import { isCombatTile } from "../types";
 
 const RANDOM_TYPES = Object.keys(MAP_TILE_LIMITS) as RandomTileType[];
 

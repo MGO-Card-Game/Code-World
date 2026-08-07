@@ -211,4 +211,6 @@ fateCrownDecree: {
 
 改完跑 `npm run build`（它会依次做两份 tsconfig 的类型检查再构建）和 `npm test`。注意光跑 `tsc --noEmit` 不带 `-p` 是**无效的**——根 tsconfig 是 `files: []` 的引用壳，什么都不会检查。
 
+测试放哪里按一条判据分：**测单张表自身形状的**跟着那张表放（`content/*/category.test.ts`），**跨模块的行为规格**放 `src/game/__tests__/`。后者没有单一归属模块——比如卷轴时机同时牵动 engine、battleRound 和 resources——散在模块旁边只会让 `src/game/` 的模块划分被测试文件埋掉。`testSupport.ts` 不是测试文件，留在 `src/game/`。
+
 新增效果后应至少覆盖：使用时机、骰面/骰数、结算顺序、伤害下限、槽位约束、同种子重放，以及联机动作归属。

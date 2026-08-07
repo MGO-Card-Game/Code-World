@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGame, gameReducer } from "./engine";
-import { canAct, isHiddenScroll, viewFor } from "./multiplayer";
-import { pvpHpTransferAmount } from "./selectors";
+import { createInitialGame, gameReducer } from "../engine";
+import { canAct, isHiddenScroll, viewFor } from "../multiplayer";
+import { pvpHpTransferAmount } from "../selectors";
 import {
   makeBattle,
   PLAYTHROUGH_CAP,
   PLAYTHROUGH_SEED,
   resolveRound,
-} from "./testSupport";
-import type { GameState, PlayerId } from "./types";
+} from "../testSupport";
+import type { GameState, PlayerId } from "../types";
 
 function withBattle(seed = 20260805): GameState {
   const state = createInitialGame(seed);

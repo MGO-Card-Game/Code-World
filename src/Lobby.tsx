@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ROOM_CODE_LENGTH } from "./net/protocol";
 import type { ConnectionStatus } from "./net/client";
-import type { RoomView } from "./net/protocol";
+import type { PlayerCount, RoomView } from "./net/protocol";
 
 const STATUS_TEXT: Record<ConnectionStatus, string> = {
   idle: "未连接",
@@ -12,9 +12,10 @@ const STATUS_TEXT: Record<ConnectionStatus, string> = {
 };
 
 export function ModePicker({ onLocal, onOnline }: {
-  onLocal: () => void;
+  onLocal: (count: PlayerCount) => void;
   onOnline: () => void;
 }) {
+  const [localCount, setLocalCount] = useState<PlayerCount>(2);
   return (
     <main className="app-shell lobby-shell">
       <motion.section
@@ -27,13 +28,24 @@ export function ModePicker({ onLocal, onOnline }: {
           <span className="brand-mark">D/S</span>
           <div><span>Dicebound Summit</span><h1>骰境登峰</h1></div>
         </div>
-        <p className="lobby-lead">两人登山竞速，先击败峰顶巨龙者获胜。</p>
+        <p className="lobby-lead">2–4 人登山竞速，先击败峰顶巨龙者获胜。</p>
         <div className="lobby-modes">
           <button className="primary-button" onClick={onOnline}>联机对战</button>
-          <button className="primary-button secondary" onClick={onLocal}>本地双人</button>
+          <div className="local-mode-row">
+            <select
+              aria-label="本地游戏人数"
+              value={localCount}
+              onChange={(event) => setLocalCount(Number(event.target.value) as PlayerCount)}
+            >
+              <option value={2}>2 人</option>
+              <option value={3}>3 人</option>
+              <option value={4}>4 人</option>
+            </select>
+            <button className="primary-button secondary" onClick={() => onLocal(localCount)}>本地热座</button>
+          </div>
         </div>
         <p className="lobby-foot">
-          本地双人为同屏热座，卷轴为暗牌，轮到谁操作就只显示谁的手牌。
+          本地模式为同屏热座，卷轴为暗牌，轮到谁操作就只显示谁的手牌。
         </p>
       </motion.section>
     </main>
@@ -49,6 +61,7 @@ export function RoomLobby({
   onNameChange,
   onCreate,
   onJoin,
+  onStart,
   onBack,
 }: {
   status: ConnectionStatus;
@@ -57,11 +70,13 @@ export function RoomLobby({
   notice: string;
   playerName: string;
   onNameChange: (name: string) => void;
-  onCreate: (name: string) => void;
+  onCreate: (name: string, capacity: PlayerCount) => void;
   onJoin: (code: string, name: string) => void;
+  onStart: () => void;
   onBack: () => void;
 }) {
   const [code, setCode] = useState("");
+  const [capacity, setCapacity] = useState<PlayerCount>(4);
   const name = playerName.trim();
   const waiting = room?.status === "waiting";
 
@@ -86,15 +101,28 @@ export function RoomLobby({
           <div className="lobby-waiting">
             <span className="eyebrow">房间码</span>
             <strong className="room-code">{room.code}</strong>
-            <p>把这个码发给对手，等对方加入即可开始。</p>
+            <p>把房间码发给其他玩家；2–{room.capacity} 人均可由房主开始。</p>
             <div className="lobby-members">
               {room.members.map((member) => (
                 <span key={member.seat} className={member.connected ? "online" : ""}>
-                  {member.name}
+                  {member.name}{member.seat === room.hostSeat ? " · 房主" : ""}
                 </span>
               ))}
-              {room.members.length < 2 && <span className="pending-seat">等待对手…</span>}
+              {Array.from({ length: room.capacity - room.members.length }, (_, index) => (
+                <span className="pending-seat" key={`pending-${index}`}>等待玩家…</span>
+              ))}
             </div>
+            {room.seat === room.hostSeat ? (
+              <button
+                className="primary-button"
+                disabled={room.members.length < 2 || room.members.some((member) => !member.connected)}
+                onClick={onStart}
+              >
+                开始 {room.members.length} 人游戏
+              </button>
+            ) : (
+              <p className="waiting-notice">等待房主开始游戏…</p>
+            )}
             <button className="ghost-button" onClick={onBack}>离开房间</button>
           </div>
         ) : (
@@ -109,10 +137,22 @@ export function RoomLobby({
               />
             </label>
 
+            <label className="lobby-field">
+              房间上限
+              <select
+                value={capacity}
+                onChange={(event) => setCapacity(Number(event.target.value) as PlayerCount)}
+              >
+                <option value={2}>2 人</option>
+                <option value={3}>3 人</option>
+                <option value={4}>4 人</option>
+              </select>
+            </label>
+
             <button
               className="primary-button"
               disabled={name.length === 0}
-              onClick={() => onCreate(name)}
+              onClick={() => onCreate(name, capacity)}
             >
               创建房间
             </button>

@@ -38,6 +38,8 @@ function seatedRoom() {
   if (!created.ok) throw new Error(created.message);
   const joined = store.joinRoom(guest, created.roomCode, "苍潮", "token-guest");
   if (!joined.ok) throw new Error(joined.message);
+  const started = store.startGame(host);
+  if (!started.ok) throw new Error(started.message);
   return { store, host, guest, code: created.roomCode };
 }
 
@@ -94,7 +96,7 @@ describe("入座与开局", () => {
     expect(host.lastRoom()?.state).toBeNull();
   });
 
-  it("两人到齐即开局，双方都收到状态", () => {
+  it("两人到齐后由房主开局，双方都收到状态", () => {
     const { host, guest } = seatedRoom();
 
     expect(host.lastRoom()?.status).toBe("playing");
@@ -118,7 +120,44 @@ describe("入座与开局", () => {
     const { store, code } = seatedRoom();
     const third = store.joinRoom(new FakeConnection(), code, "第三者", "token-third");
 
-    expect(third).toEqual({ ok: false, message: "房间已满" });
+    expect(third).toEqual({ ok: false, message: "对局已经开始" });
+  });
+
+  it("四人房依次分配席位，并按实际人数开局", () => {
+    const store = new RoomStore();
+    const connections = Array.from({ length: 4 }, () => new FakeConnection());
+    const created = store.createRoom(connections[0], "一号", "token-1", 4);
+    if (!created.ok) throw new Error(created.message);
+    for (let index = 1; index < 4; index += 1) {
+      const joined = store.joinRoom(
+        connections[index],
+        created.roomCode,
+        `${index + 1}号`,
+        `token-${index + 1}`,
+      );
+      expect(joined.ok && joined.seat).toBe(`player${index + 1}`);
+    }
+
+    expect(connections[0].lastRoom()?.capacity).toBe(4);
+    expect(store.startGame(connections[1])).toEqual({ ok: false, message: "只有房主可以开始游戏" });
+    expect(store.startGame(connections[0])).toEqual({ ok: true });
+    const state = store.peek(created.roomCode)?.state;
+    expect(state?.turnOrder).toHaveLength(4);
+    expect(Object.keys(state?.players ?? {})).toEqual(["player1", "player2", "player3", "player4"]);
+  });
+
+  it("房主可在四人房有两人时提前开始，开局后不再允许加入", () => {
+    const store = new RoomStore();
+    const host = new FakeConnection();
+    const guest = new FakeConnection();
+    const created = store.createRoom(host, "一号", "token-1", 4);
+    if (!created.ok) throw new Error(created.message);
+    store.joinRoom(guest, created.roomCode, "二号", "token-2");
+
+    expect(store.startGame(host)).toEqual({ ok: true });
+    expect(store.peek(created.roomCode)?.state?.turnOrder).toHaveLength(2);
+    expect(store.joinRoom(new FakeConnection(), created.roomCode, "三号", "token-3"))
+      .toEqual({ ok: false, message: "对局已经开始" });
   });
 
   it("房间不存在时给出明确错误", () => {
@@ -156,6 +195,16 @@ describe("按座位裁剪广播", () => {
 });
 
 describe("动作授权", () => {
+  it("联机重新开局只允许房主，且要求所有玩家在线", () => {
+    const { store, host, guest } = seatedRoom();
+
+    expect(store.applyAction(guest, { type: "restart" }))
+      .toEqual({ ok: false, message: "只有房主可以重新开局" });
+    store.disconnect(guest);
+    expect(store.applyAction(host, { type: "restart" }))
+      .toEqual({ ok: false, message: "请等待所有玩家重新连接" });
+  });
+
   it("轮不到的人操作会被拒绝，且不改变状态", () => {
     const { store, host, guest, code } = seatedRoom();
     const state = store.peek(code)?.state;
@@ -224,7 +273,7 @@ describe("掉线与重连", () => {
     store.disconnect(guest);
 
     const impostor = store.joinRoom(new FakeConnection(), code, "冒充者", "token-other");
-    expect(impostor).toEqual({ ok: false, message: "房间已满" });
+    expect(impostor).toEqual({ ok: false, message: "对局已经开始" });
   });
 
   it("同一 token 二次连接时，旧连接被关掉", () => {
@@ -239,6 +288,27 @@ describe("掉线与重连", () => {
 });
 
 describe("离开与回收", () => {
+  it("等待阶段的非房主离开只腾出自己的席位", () => {
+    const store = new RoomStore();
+    const host = new FakeConnection();
+    const guest = new FakeConnection();
+    const created = store.createRoom(host, "房主", "token-host", 4);
+    if (!created.ok) throw new Error(created.message);
+    store.joinRoom(guest, created.roomCode, "访客", "token-guest");
+
+    store.leave(guest);
+
+    expect(store.peek(created.roomCode)).toBeDefined();
+    expect(host.lastRoom()?.members.map((member) => member.seat)).toEqual(["player1"]);
+    const replacement = store.joinRoom(
+      new FakeConnection(),
+      created.roomCode,
+      "后来者",
+      "token-replacement",
+    );
+    expect(replacement.ok && replacement.seat).toBe("player2");
+  });
+
   it("主动离开会关闭整个房间并通知对手", () => {
     const { store, host, guest, code } = seatedRoom();
     store.leave(guest);
@@ -246,7 +316,7 @@ describe("离开与回收", () => {
     expect(store.peek(code)).toBeUndefined();
     expect(host.lastOf("roomClosed")).toEqual({
       type: "roomClosed",
-      reason: "对手已离开房间",
+      reason: "有玩家主动离开，对局已结束",
     });
   });
 

@@ -49,6 +49,12 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
     case "endTurn":
       return state.phase.kind === "turnComplete" && state.activePlayerId === actor;
 
+    case "chooseEncounterOpponent":
+      return (
+        state.phase.kind === "encounterChoice" &&
+        state.phase.choice.challengerId === actor
+      );
+
     case "choosePvpPenalty":
       return state.phase.kind === "pvpPenalty" && state.phase.penalty.loserId === actor;
 
@@ -135,8 +141,8 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
  * 「打开宝箱，获得力量卷轴」这一句会直接把牌名送出去。
  */
 export function viewFor(state: GameState, viewer: PlayerId): GameStateView {
-  const players = {} as Record<PlayerId, PlayerView>;
-  for (const id of Object.keys(state.players) as PlayerId[]) {
+  const players: Record<string, PlayerView> = {};
+  for (const id of state.turnOrder) {
     const player = state.players[id];
     players[id] = {
       ...player,
@@ -164,6 +170,8 @@ export function viewFor(state: GameState, viewer: PlayerId): GameStateView {
  */
 export function currentActor(state: GameState): PlayerId {
   switch (state.phase.kind) {
+    case "encounterChoice":
+      return state.phase.choice.challengerId;
     case "pvpPenalty":
       return state.phase.penalty.loserId;
     case "equipmentChoice":

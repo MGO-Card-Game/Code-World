@@ -1,7 +1,7 @@
 import { EQUIPMENT, equipmentCategory, equipmentDefinition } from "./content/equipment";
 import { scrollDefinition } from "./content/scrolls";
 import { getDieSidesBonus, pvpHpTransferAmount } from "./selectors";
-import { PVP_RETREAT_TILES, startBattle } from "./battle";
+import { finishBattle, PVP_RETREAT_TILES, startBattle } from "./battle";
 import { submitScrollChoice } from "./battleRound";
 import { resolveRandomMapEvent } from "./mapEvents";
 import {
@@ -12,7 +12,7 @@ import {
   removeEquipmentStats,
   rewardSecret,
 } from "./resources";
-import { addHistory, createInitialGame, emit, otherPlayer, rollDie } from "./state";
+import { addHistory, createInitialGame, emit, nextPlayerId, rollDie } from "./state";
 import type { GameAction, GameState, MapTile, OwnedScroll, Player } from "./types";
 
 /**
@@ -25,10 +25,27 @@ import type { GameAction, GameState, MapTile, OwnedScroll, Player } from "./type
 
 function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
   const player = state.players[state.activePlayerId];
-  const opponent = state.players[otherPlayer(state.activePlayerId)];
+  const opponents = Object.values(state.players).filter(
+    (candidate) =>
+      candidate.id !== player.id &&
+      candidate.position === player.position &&
+      !state.unavailablePlayerIds.includes(candidate.id),
+  );
 
-  if (checkEncounter && !tile.safeZone && opponent.position === player.position) {
-    startBattle(state, "pvp", player.id, undefined, opponent.id);
+  if (checkEncounter && !tile.safeZone && opponents.length > 0) {
+    if (opponents.length === 1) {
+      startBattle(state, "pvp", player.id, undefined, opponents[0].id);
+    } else {
+      state.phase = {
+        kind: "encounterChoice",
+        choice: {
+          challengerId: player.id,
+          opponentIds: opponents.map((opponent) => opponent.id),
+          tileIndex: tile.id,
+        },
+      };
+      addHistory(state, `${player.name}遇到多名旅者，需要选择一名对手。`);
+    }
     return;
   }
 
@@ -169,6 +186,29 @@ function useMapScroll(state: GameState, instanceId: string) {
   // 代价排在效果之后，和战斗里那条路径对齐（battleRound 的 applyEquipmentScrollUse）：
   // 反过来的话，残血时打疗牌会因为扣血下限白嫖掉代价
   applyEquipmentMapScrollUse(state, player, owned.kind);
+  return true;
+}
+
+/** 选择同格相遇战目标；候选名单由移动结算时锁定，不能由客户端自行指定。 */
+function chooseEncounterOpponent(state: GameState, opponentId: Player["id"]) {
+  if (state.phase.kind !== "encounterChoice") return false;
+  const { challengerId, opponentIds, tileIndex } = state.phase.choice;
+  if (!opponentIds.includes(opponentId) || opponentId === challengerId) return false;
+
+  const challenger = state.players[challengerId];
+  const opponent = state.players[opponentId];
+  if (
+    !challenger ||
+    !opponent ||
+    state.unavailablePlayerIds.includes(opponentId) ||
+    challenger.position !== tileIndex ||
+    opponent.position !== tileIndex ||
+    state.map.tiles[tileIndex]?.safeZone
+  ) {
+    return false;
+  }
+
+  startBattle(state, "pvp", challengerId, undefined, opponentId);
   return true;
 }
 
@@ -353,6 +393,113 @@ function rebaseEventIds(state: GameState, startId: number): GameState {
   return state;
 }
 
+function advanceCompletedTurn(state: GameState) {
+  state.activePlayerId = nextPlayerId(state);
+  state.turn += 1;
+  state.lastMovementRoll = undefined;
+  state.movementOrigin = undefined;
+  const incoming = state.players[state.activePlayerId];
+  if (incoming.skipNextMovement) {
+    delete incoming.skipNextMovement;
+    state.phase = { kind: "turnComplete" };
+  } else {
+    state.phase = { kind: "awaitingRoll" };
+  }
+  emit(state, {
+    type: "turnStarted",
+    playerId: state.activePlayerId,
+    turn: state.turn,
+  });
+  addHistory(
+    state,
+    state.phase.kind === "turnComplete"
+      ? `${incoming.name}受战地药剂影响，本回合无法移动。`
+      : `轮到${incoming.name}行动。`,
+  );
+}
+
+/**
+ * 联机玩家掉线超过宽限期后的保底结算。只处理此刻必须由该玩家响应的阶段，
+ * 防止三、四人局被一个永久离线席位锁死；短暂掉线由服务器宽限期吸收。
+ */
+export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]): GameState {
+  if (
+    !state.unavailablePlayerIds.includes(playerId) ||
+    !state.players[playerId]
+  ) {
+    return state;
+  }
+
+  const next = structuredClone(state);
+  next.lastEvents = [];
+  const timedOut = next.players[playerId];
+
+  switch (next.phase.kind) {
+    case "awaitingRoll":
+      if (next.activePlayerId !== playerId) return state;
+      next.phase = { kind: "turnComplete" };
+      addHistory(next, `${timedOut.name}掉线超时，本回合跳过。`);
+      advanceCompletedTurn(next);
+      return next;
+    case "turnComplete":
+      if (next.activePlayerId !== playerId) return state;
+      addHistory(next, `${timedOut.name}掉线超时，自动结束回合。`);
+      advanceCompletedTurn(next);
+      return next;
+    case "encounterChoice":
+      if (next.phase.choice.challengerId === playerId) {
+        next.phase = { kind: "turnComplete" };
+        addHistory(next, `${timedOut.name}掉线超时，放弃本次相遇战与格子结算。`);
+        advanceCompletedTurn(next);
+        return next;
+      }
+      if (!next.phase.choice.opponentIds.includes(playerId)) return state;
+      next.phase.choice.opponentIds = next.phase.choice.opponentIds.filter(
+        (id) => !next.unavailablePlayerIds.includes(id),
+      );
+      if (next.phase.choice.opponentIds.length === 0) {
+        const tileIndex = next.phase.choice.tileIndex;
+        addHistory(next, "同格对手均已掉线，跳过相遇战。");
+        resolveTile(next, next.map.tiles[tileIndex], false);
+      }
+      return next;
+    case "battle": {
+      const battle = next.phase.battle;
+      const loserSide = battle.aPlayerId === playerId
+        ? "a"
+        : battle.bPlayerId === playerId
+          ? "b"
+          : undefined;
+      if (!loserSide) return state;
+      finishBattle(next, battle, loserSide === "a" ? "b" : "a");
+      const phaseAfterBattle = next.phase as GameState["phase"];
+      if (phaseAfterBattle.kind === "pvpPenalty" && phaseAfterBattle.penalty.loserId === playerId) {
+        choosePvpPenalty(next, { type: "choosePvpPenalty", choice: "retreat" });
+      }
+      if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
+        advanceCompletedTurn(next);
+      }
+      return next;
+    }
+    case "pvpPenalty":
+      if (next.phase.penalty.loserId !== playerId) return state;
+      choosePvpPenalty(next, { type: "choosePvpPenalty", choice: "retreat" });
+      if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
+        advanceCompletedTurn(next);
+      }
+      return next;
+    case "equipmentChoice":
+      if (next.phase.choice.playerId !== playerId) return state;
+      chooseEquipment(next);
+      if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
+        advanceCompletedTurn(next);
+      }
+      return next;
+    case "gameOver":
+      return state;
+  }
+}
+
 /**
  * 应用一个动作。
  *
@@ -365,10 +512,14 @@ function rebaseEventIds(state: GameState, startId: number): GameState {
  */
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === "restart") {
-    return rebaseEventIds(createInitialGame(action.seed, {
-      player1: state.players.player1.name,
-      player2: state.players.player2.name,
-    }), state.nextEventId);
+    const playerIds = Object.keys(state.players) as Player["id"][];
+    const playerNames = Object.fromEntries(
+      playerIds.map((id) => [id, state.players[id].name]),
+    );
+    return rebaseEventIds(
+      createInitialGame(action.seed, playerNames, playerIds),
+      state.nextEventId,
+    );
   }
   const next = structuredClone(state);
   next.lastEvents = [];
@@ -404,30 +555,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return useMapScroll(next, action.instanceId) ? next : state;
     case "endTurn": {
       if (next.phase.kind !== "turnComplete") return state;
-      next.activePlayerId = otherPlayer(next.activePlayerId);
-      next.turn += 1;
-      next.lastMovementRoll = undefined;
-      next.movementOrigin = undefined;
-      const incoming = next.players[next.activePlayerId];
-      if (incoming.skipNextMovement) {
-        delete incoming.skipNextMovement;
-        next.phase = { kind: "turnComplete" };
-      } else {
-        next.phase = { kind: "awaitingRoll" };
-      }
-      emit(next, {
-        type: "turnStarted",
-        playerId: next.activePlayerId,
-        turn: next.turn,
-      });
-      addHistory(
-        next,
-        next.phase.kind === "turnComplete"
-          ? `${incoming.name}受战地药剂影响，本回合无法移动。`
-          : `轮到${incoming.name}行动。`,
-      );
+      advanceCompletedTurn(next);
       return next;
     }
+    case "chooseEncounterOpponent":
+      return chooseEncounterOpponent(next, action.opponentId) ? next : state;
     case "submitScrollChoice":
       return submitScrollChoice(next, action.side, action.instanceIds) ? next : state;
     case "choosePvpPenalty":

@@ -4,7 +4,7 @@ import type { ScrollKind } from "./content/scrolls";
 
 export type { EliteAffixKind, EnemyKind, EquipmentKind, ScrollKind };
 
-export type PlayerId = "player1" | "player2";
+export type PlayerId = "player1" | "player2" | "player3" | "player4";
 
 /**
  * 卷轴的使用时机（GameRule 8.9）。
@@ -150,6 +150,13 @@ export interface PvpPenaltyState {
   tileIndex: number;
 }
 
+/** 移动结束时同格有多名对手，由本回合行动者选择本次只挑战其中一人。 */
+export interface EncounterChoiceState {
+  challengerId: PlayerId;
+  opponentIds: PlayerId[];
+  tileIndex: number;
+}
+
 export interface EquipmentChoiceState {
   playerId: PlayerId;
   offered: OwnedEquipment;
@@ -162,6 +169,7 @@ export interface EquipmentChoiceState {
 export type GamePhase =
   | { kind: "awaitingRoll" }
   | { kind: "turnComplete" }
+  | { kind: "encounterChoice"; choice: EncounterChoiceState }
   | { kind: "battle"; battle: BattleState }
   | { kind: "pvpPenalty"; penalty: PvpPenaltyState }
   | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
@@ -198,7 +206,12 @@ export interface LogEntry {
 export type GameEventBody =
   /** 与 addHistory 同步产生，用于把旁白文字对齐到动画节点上 */
   | { type: "narration"; text: string; secret?: { owner: PlayerId; publicText: string } }
-  | { type: "gameStarted"; starterId: PlayerId; rollP1: number; rollP2: number }
+  | {
+      type: "gameStarted";
+      starterId: PlayerId;
+      rolls: Partial<Record<PlayerId, number>>;
+      turnOrder: PlayerId[];
+    }
   | { type: "turnStarted"; playerId: PlayerId; turn: number }
   | { type: "movementRolled"; playerId: PlayerId; value: number; sides: number }
   | { type: "playerMoved"; playerId: PlayerId; from: number; to: number }
@@ -332,7 +345,11 @@ type WithEventId<T> = T extends unknown ? T & { id: number } : never;
 export type GameEvent = WithEventId<GameEventBody>;
 
 export interface GameState {
-  players: Record<PlayerId, Player>;
+  /** 只包含本局实际入座的玩家；顺序由 turnOrder 定义。 */
+  players: Record<string, Player>;
+  turnOrder: PlayerId[];
+  /** 联机掉线席位；本地模式恒为空。不会成为新的相遇战目标或后续回合行动者。 */
+  unavailablePlayerIds: PlayerId[];
   map: GameMap;
   activePlayerId: PlayerId;
   startingPlayerId: PlayerId;
@@ -355,6 +372,7 @@ export type GameAction =
   | { type: "rollMovement" }
   | { type: "useMapScroll"; instanceId: string }
   | { type: "endTurn" }
+  | { type: "chooseEncounterOpponent"; opponentId: PlayerId }
   /**
    * 提交本侧本回合要打的全部卷轴（GameRule 8.5，张数不限）。
    * 省略或传空数组表示不使用。两侧都提交后引擎自动结算本回合。
@@ -405,5 +423,5 @@ export type PlayerView = PlayerStats & { scrolls: ScrollView[] };
 
 /** 发给某一名玩家的状态视图 */
 export type GameStateView = Omit<GameState, "players"> & {
-  players: Record<PlayerId, PlayerView>;
+  players: Record<string, PlayerView>;
 };

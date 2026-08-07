@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GameAction } from "../game/types";
 import { NetClient, loadPlayerName, type ConnectionStatus } from "./client";
 import type { RoomView } from "./protocol";
+import type { PlayerCount } from "./protocol";
 
 /**
  * 把 NetClient 接到 React 上。
@@ -40,10 +41,10 @@ export function useOnlineGame() {
   useEffect(() => () => client.disconnect(), [client]);
 
   const createRoom = useCallback(
-    (name: string) => {
+    (name: string, capacity: PlayerCount) => {
       setNotice("");
       setPlayerName(name);
-      client.createRoom(name);
+      client.createRoom(name, capacity);
     },
     [client],
   );
@@ -58,6 +59,7 @@ export function useOnlineGame() {
   );
 
   const dispatch = useCallback((action: GameAction) => client.dispatch(action), [client]);
+  const startGame = useCallback(() => client.startGame(), [client]);
 
   const leave = useCallback(() => {
     client.leave();
@@ -75,6 +77,7 @@ export function useOnlineGame() {
     createRoom,
     joinRoom,
     dispatch,
+    startGame,
     leave,
   };
 }

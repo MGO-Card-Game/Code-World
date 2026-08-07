@@ -6,9 +6,10 @@ import {
 } from "../game/content/equipment";
 import { SCROLLS } from "../game/content/scrolls";
 import { PVP_RETREAT_TILES } from "../game/engine";
-import { pvpHpTransferAmount } from "../game/selectors";
+import { getAttack, getDefense, pvpHpTransferAmount } from "../game/selectors";
 import type {
   EquipmentChoiceState,
+  EncounterChoiceState,
   GameStateView,
   PlayerId,
   PlayerView,
@@ -21,11 +22,12 @@ import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
  * 它们共享同一个 AnimatePresence，都要等战斗演出播完才登场。
  */
 
-export function PenaltyPanel({ state, penalty, dispatch, playing }: {
+export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: {
   state: GameStateView;
   penalty: PvpPenaltyState;
   dispatch: Dispatch;
   playing: boolean;
+  viewerSeat: PlayerId;
 }) {
   const winner = state.players[penalty.winnerId];
   const loser = state.players[penalty.loserId];
@@ -33,6 +35,7 @@ export function PenaltyPanel({ state, penalty, dispatch, playing }: {
   const hpAmount = pvpHpTransferAmount(winner, loser);
   // 快到起点时退不满，按实际能退的格数显示
   const retreatTiles = Math.min(PVP_RETREAT_TILES, loser.position);
+  const canChoose = viewerSeat === penalty.loserId;
   return (
     <ModalBackdrop>
       <motion.section
@@ -45,7 +48,7 @@ export function PenaltyPanel({ state, penalty, dispatch, playing }: {
         <div className="modal-kicker">相遇战代价</div>
         <h2>{loser.name}选择交付</h2>
         <p>胜者是{winner.name}。生命已经回溯，战斗中消耗的卷轴不会返还。</p>
-        <div className="penalty-options">
+        {canChoose ? <div className="penalty-options">
           {/* 代价由败方来付，视图里正是他自己的手牌，所以牌面可见 */}
           {visibleScrolls(loser.scrolls).map((item) => (
             <button key={item.instanceId} disabled={playing} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "resource", resourceType: "scroll", instanceId: item.instanceId })}>
@@ -66,7 +69,57 @@ export function PenaltyPanel({ state, penalty, dispatch, playing }: {
           <button disabled={playing} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "retreat" })}>
             <span>后退</span><strong>{retreatTiles} 格</strong>
           </button>
-        </div>
+        </div> : <p className="waiting-notice">等待{loser.name}选择代价……</p>}
+      </motion.section>
+    </ModalBackdrop>
+  );
+}
+
+export function EncounterChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: EncounterChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const challenger = state.players[choice.challengerId];
+  const canChoose = viewerSeat === choice.challengerId;
+
+  return (
+    <ModalBackdrop>
+      <motion.section
+        className="encounter-choice-modal"
+        initial={{ opacity: 0, scale: 0.94, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={SPRING}
+      >
+        <div className="modal-kicker">旅者相遇</div>
+        <h2>{challenger.name}选择对手</h2>
+        <p>本次移动只会触发一场相遇战，战斗结束后不会继续挑战同格的其他玩家。</p>
+        {canChoose ? (
+          <div className="encounter-options">
+            {choice.opponentIds.map((opponentId) => {
+              const opponent = state.players[opponentId];
+              const unavailable = state.unavailablePlayerIds.includes(opponentId);
+              return (
+                <button
+                  type="button"
+                  key={opponentId}
+                  disabled={playing || unavailable}
+                  style={{ "--player-color": opponent.color } as React.CSSProperties}
+                  onClick={() => dispatch({ type: "chooseEncounterOpponent", opponentId })}
+                >
+                  <span>{opponent.name}</span>
+                  <strong>生命 {opponent.hp}/{opponent.maxHp}</strong>
+                  <small>{unavailable ? "暂时离线" : `攻击 ${getAttack(opponent)} · 防御 ${getDefense(opponent)}`}</small>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="waiting-notice">等待{challenger.name}选择对手……</p>
+        )}
       </motion.section>
     </ModalBackdrop>
   );
@@ -139,7 +192,11 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
   );
 }
 
-export function GameOverPanel({ winner, dispatch }: { winner: PlayerView; dispatch: Dispatch }) {
+export function GameOverPanel({ winner, dispatch, canRestart = true }: {
+  winner: PlayerView;
+  dispatch: Dispatch;
+  canRestart?: boolean;
+}) {
   return (
     <ModalBackdrop className="victory-backdrop">
       <motion.section
@@ -158,7 +215,11 @@ export function GameOverPanel({ winner, dispatch }: { winner: PlayerView; dispat
         <div className="modal-kicker">登峰之冠</div>
         <h2>{winner.name}获胜</h2>
         <p>巨龙已经倒下，山巅见证了新的冠军。</p>
-        <button className="primary-button" onClick={() => dispatch({ type: "restart" })}>再来一局</button>
+        {canRestart ? (
+          <button className="primary-button" onClick={() => dispatch({ type: "restart" })}>再来一局</button>
+        ) : (
+          <p className="waiting-notice">等待房主重新开局……</p>
+        )}
       </motion.section>
     </ModalBackdrop>
   );

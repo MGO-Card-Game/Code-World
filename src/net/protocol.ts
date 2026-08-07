@@ -13,6 +13,7 @@ export const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const ROOM_CODE_LENGTH = 5;
 
 export type RoomStatus = "waiting" | "playing";
+export type PlayerCount = 2 | 3 | 4;
 
 export interface RoomMember {
   seat: PlayerId;
@@ -26,13 +27,21 @@ export interface RoomView {
   status: RoomStatus;
   /** 你坐在哪个位置 */
   seat: PlayerId;
+  hostSeat: PlayerId;
+  capacity: PlayerCount;
   members: RoomMember[];
-  /** 已按接收方裁剪过的对局状态；两人到齐前为 null */
+  /** 已按接收方裁剪过的对局状态；房主开始游戏前为 null */
   state: GameStateView | null;
 }
 
 export type ClientMessage =
-  | { type: "createRoom"; requestId: string; playerName: string; playerToken: string }
+  | {
+      type: "createRoom";
+      requestId: string;
+      playerName: string;
+      playerToken: string;
+      capacity: PlayerCount;
+    }
   | {
       type: "joinRoom";
       requestId: string;
@@ -41,6 +50,7 @@ export type ClientMessage =
       playerToken: string;
     }
   | { type: "leaveRoom"; requestId: string }
+  | { type: "startGame"; requestId: string }
   | { type: "action"; requestId: string; action: GameAction };
 
 export type ServerMessage =

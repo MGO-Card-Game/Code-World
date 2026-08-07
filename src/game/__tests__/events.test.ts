@@ -35,6 +35,11 @@ function step(state: GameState): GameState {
       return gameReducer(state, { type: "rollMovement" });
     case "turnComplete":
       return gameReducer(state, { type: "endTurn" });
+    case "encounterChoice":
+      return gameReducer(state, {
+        type: "chooseEncounterOpponent",
+        opponentId: state.phase.choice.opponentIds[0],
+      });
     case "battle": {
       const battle = state.phase.battle;
       const attackerId = battle.attacker === "a" ? battle.aPlayerId : battle.bPlayerId;
@@ -339,8 +344,10 @@ describe("事件流", () => {
     const state = createInitialGame(20260805);
     const started = only(state.lastEvents, "gameStarted");
 
-    expect(started.rollP1).not.toBe(started.rollP2);
-    expect(started.starterId).toBe(started.rollP1 > started.rollP2 ? "player1" : "player2");
+    expect(started.rolls.player1).not.toBe(started.rolls.player2);
+    expect(started.starterId).toBe(
+      started.rolls.player1! > started.rolls.player2! ? "player1" : "player2",
+    );
     expect(state.activePlayerId).toBe(started.starterId);
   });
 

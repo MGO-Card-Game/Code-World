@@ -39,7 +39,7 @@ export function DebugPanel({ state, onChange }: {
       <div className="debug-row">
         <span>目标</span>
         <div className="debug-seg">
-          {(["player1", "player2"] as PlayerId[]).map((id) => (
+          {state.turnOrder.map((id) => (
             <button
               key={id}
               className={target === id ? "active" : ""}

@@ -32,7 +32,25 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .ghost-button { border: 1px solid #6f604c; background: transparent; color: #cfc1ad; padding: 9px 15px; border-radius: 3px; }
 .ghost-button:hover { border-color: #d4af69; color: #fff1cb; }
 
-.game-layout { max-width: 1500px; margin: 0 auto; display: grid; grid-template-columns: minmax(205px, .72fr) minmax(610px, 2.6fr) minmax(205px, .72fr); gap: 20px; align-items: stretch; }
+.game-layout { max-width: 1500px; margin: 0 auto; display: grid; grid-template-columns: minmax(168px, .58fr) minmax(590px, 2.6fr) minmax(225px, .82fr); gap: 20px; align-items: stretch; }
+.player-roster { min-height: 485px; border: 1px solid #4d4439; background: linear-gradient(160deg, #201d19cf, #141210e8); padding: 12px; overflow: hidden; }
+.player-roster-heading { min-height: 35px; display: flex; align-items: center; justify-content: space-between; padding: 0 3px 10px; border-bottom: 1px solid #433b32; color: #948570; font-size: 9px; letter-spacing: .13em; }
+.player-roster-heading strong { color: #d8b66c; font-size: 10px; }
+.player-roster-list { display: grid; gap: 8px; margin-top: 10px; }
+.player-summary { --player-color: #fff; width: 100%; min-width: 0; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 9px; padding: 10px 9px; border: 1px solid #413a32; border-radius: 3px; background: #11100e9c; color: #cfc1ad; text-align: left; opacity: .72; transition: border-color .18s ease, background .18s ease, opacity .18s ease, transform .18s ease; }
+.player-summary:hover { opacity: 1; border-color: color-mix(in srgb, var(--player-color) 55%, #544b40); transform: translateX(2px); }
+.player-summary.active { opacity: .9; }
+.player-summary.unavailable { opacity: .42; filter: saturate(.35); }
+.player-summary.unavailable:hover { opacity: .62; }
+.player-summary.selected { opacity: 1; border-color: color-mix(in srgb, var(--player-color) 72%, #544b40); background: color-mix(in srgb, var(--player-color) 8%, #171411); box-shadow: inset 3px 0 var(--player-color), 0 0 16px color-mix(in srgb, var(--player-color) 10%, transparent); }
+.player-summary-sigil { width: 34px; height: 34px; font-size: 13px; }
+.player-summary-body { min-width: 0; display: grid; gap: 6px; }
+.player-summary-name { min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 5px; }
+.player-summary-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e4d7c4; font: 700 11px "Noto Serif SC", serif; }
+.player-summary-name em { flex: 0 0 auto; color: var(--player-color); font-size: 7px; font-style: normal; }
+.player-summary-meta { display: flex; justify-content: space-between; gap: 5px; color: #887b69; font-size: 7px; }
+.player-summary-health { height: 3px; border-radius: 2px; overflow: hidden; background: #080807; }
+.player-summary-health i { display: block; height: 100%; background: linear-gradient(90deg, #9e3c31, #e66c50); }
 .player-panel { --player-color: #fff; border: 1px solid #4d4439; background: linear-gradient(160deg, #24201bcf, #171513e8); padding: 18px; min-height: 485px; opacity: .78; transition: .25s ease; box-shadow: inset 0 1px #ffffff08; }
 .player-panel.active { opacity: 1; border-color: color-mix(in srgb, var(--player-color) 60%, #544b40); box-shadow: 0 0 30px color-mix(in srgb, var(--player-color) 12%, transparent), inset 0 1px #ffffff12; transform: translateY(-2px); }
 .player-heading { display: flex; align-items: center; gap: 12px; padding-bottom: 15px; border-bottom: 1px solid #4c4237; }
@@ -171,7 +189,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .tile.region-mountainside { box-shadow: inset 0 2px #54798a22, 0 8px 20px #0004; }
 .tile.region-summit { box-shadow: inset 0 2px #9a684c2b, 0 8px 20px #0004; }
 .pieces { position: absolute; right: 5px; bottom: 5px; display: flex; }
-.piece { --piece-color: #fff; margin-left: -3px; width: 25px; height: 25px; border-radius: 50%; background: #151413; color: var(--piece-color); border: 2px solid var(--piece-color); display: grid; place-items: center; font: 700 9px "Noto Serif SC", serif; box-shadow: 0 2px 8px #000; }
+.piece { --piece-color: #fff; margin-left: -4px; width: 22px; height: 22px; border-radius: 50%; background: #151413; color: var(--piece-color); border: 2px solid var(--piece-color); display: grid; place-items: center; font: 700 8px "Noto Serif SC", serif; box-shadow: 0 2px 8px #000; }
 .piece.active { box-shadow: 0 0 12px var(--piece-color), 0 2px 8px #000; z-index: 2; }
 .board-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 18px; margin-top: 18px; color: #817667; font-size: 9px; letter-spacing: .08em; }
 .board-legend span { display: flex; align-items: center; gap: 5px; }
@@ -180,6 +198,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 
 .action-dock { max-width: 960px; margin: 20px auto 0; min-height: 83px; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 22px; padding: 14px 17px 14px 23px; background: #211d18; border: 1px solid #5b4c3a; box-shadow: 0 15px 40px #0006; }
 .action-dock p { margin: 5px 0 0; color: #d0c2ad; font-size: 13px; }
+.turn-waiting { color: #8f8372; font-size: 11px; white-space: nowrap; }
 /* 同上：等高数字才能在骰面上真正居中。旋转由 Framer 内联设置，这里不再重复挂 transform */
 .die-result { width: 49px; height: 49px; display: grid; place-items: center; border-radius: 7px; color: #2b2115; background: #e3c787; font: 900 24px/1 "Noto Serif SC", Georgia, serif; font-variant-numeric: lining-nums tabular-nums; box-shadow: inset 0 0 0 3px #0002, 0 5px 15px #0007; }
 .primary-button { border: 1px solid #e1bc70; background: linear-gradient(#d8b05f, #aa7733); color: #1d160d; padding: 13px 21px; min-width: 146px; font-weight: 800; letter-spacing: .04em; box-shadow: inset 0 1px #fff6, 0 5px 18px #0005; }
@@ -194,8 +213,11 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .lobby-modes .primary-button { width: 100%; }
 .lobby-foot { margin: 4px 0 0; text-align: center; color: #7d7263; font-size: 10px; line-height: 1.6; }
 .lobby-field { display: grid; gap: 5px; color: #9d8d78; font-size: 10px; letter-spacing: .08em; }
-.lobby-field input { background: #12100e; color: #e9dcc6; border: 1px solid #504538; padding: 11px 12px; font: 600 15px "Noto Serif SC", serif; letter-spacing: .12em; text-align: center; }
-.lobby-field input:focus { outline: none; border-color: #d2a85c; }
+.lobby-field input, .lobby-field select { background: #12100e; color: #e9dcc6; border: 1px solid #504538; padding: 11px 12px; font: 600 15px "Noto Serif SC", serif; letter-spacing: .12em; text-align: center; }
+.lobby-field input:focus, .lobby-field select:focus { outline: none; border-color: #d2a85c; }
+.local-mode-row { display: grid; grid-template-columns: 90px 1fr; gap: 8px; }
+.local-mode-row select { min-width: 0; border: 1px solid #aaa095; background: #171411; color: #d8c9b3; padding: 0 10px; text-align: center; }
+.local-mode-row .primary-button { min-width: 0; }
 .lobby-divider { display: flex; align-items: center; gap: 10px; color: #6b6154; font-size: 10px; }
 .lobby-divider::before, .lobby-divider::after { content: ""; flex: 1; height: 1px; background: #463d33; }
 .lobby-status { justify-self: center; font-size: 10px; letter-spacing: .1em; color: #8a7c68; }
@@ -245,9 +267,9 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 
 /* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
-.battle-modal, .penalty-modal, .equipment-choice-modal, .equipment-detail-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
+.battle-modal, .penalty-modal, .encounter-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
 .modal-kicker { color: #caa45f; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; }
-.battle-modal > h2, .penalty-modal h2, .equipment-choice-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
+.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .equipment-choice-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
 .battle-modal > h2 span { color: #a45a43; font: 900 14px Georgia, serif; padding: 0 12px; }
 .initiative-line { color: #887a68; font-size: 10px; }
 .combatants { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: center; gap: 13px; margin: 21px 0 17px; }
@@ -291,6 +313,14 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .penalty-options button { background: #171411; border: 1px solid #5c4b38; color: #d5c0a1; padding: 14px 8px; }
 .penalty-options button:hover { border-color: #d2a85c; background: #2b2117; }
 .penalty-options span { display: block; color: #887966; font-size: 8px; }.penalty-options strong { display: block; margin-top: 4px; font-size: 11px; }
+.encounter-choice-modal { width: min(600px, 100%); }
+.encounter-choice-modal > p { color: #a99b87; font-size: 12px; }
+.encounter-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 21px; }
+.encounter-options button { --player-color: #d2a85c; min-height: 92px; display: grid; gap: 6px; padding: 14px 10px; border: 1px solid color-mix(in srgb, var(--player-color) 55%, #5c4b38); background: color-mix(in srgb, var(--player-color) 7%, #171411); color: #d5c0a1; }
+.encounter-options button:hover { border-color: var(--player-color); background: color-mix(in srgb, var(--player-color) 13%, #171411); transform: translateY(-1px); }
+.encounter-options span { color: var(--player-color); font: 700 15px "Noto Serif SC", serif; }
+.encounter-options strong { font-size: 10px; }
+.encounter-options small { color: #8f806b; font-size: 9px; }
 .equipment-choice-modal { width: min(620px, 100%); }
 .equipment-choice-modal > p { color: #a99b87; font-size: 12px; }
 .offered-equipment { margin: 20px auto; padding: 17px; border: 1px solid #80683f; background: #191510; display: grid; gap: 5px; }
@@ -322,9 +352,10 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .crown { display: block; color: #e1b95e; font-size: 64px; filter: drop-shadow(0 0 20px #d6923c66); }
 .victory-modal .primary-button { margin-top: 16px; }
 
-@media (max-width: 1050px) {
+@media (max-width: 1100px) {
   .game-layout { grid-template-columns: 1fr 1fr; }
   .board-shell { grid-column: 1 / -1; grid-row: 1; }
+  .player-roster { min-height: auto; }
   .player-panel { min-height: auto; }
 }
 @media (max-width: 700px) {
@@ -335,7 +366,9 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   .board-viewport { height: 390px; }
   .board-toolbar { right: 10px; }
   .board-toolbar > span { display: none; }
-  .player-panel { order: 2; }.board-shell { order: 1; }
+  .player-roster { order: 2; }
+  .player-roster-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .player-panel { order: 3; }.board-shell { order: 1; }
   .action-dock { grid-template-columns: 1fr auto; }.action-dock .primary-button { grid-column: 1 / -1; }
   .hand-rail { justify-content: flex-start; overflow-x: auto; padding-bottom: 6px; }
   .hand-card { width: 84px; height: 116px; }

@@ -15,6 +15,11 @@ function advanceAutomatically(state: GameState) {
       return gameReducer(state, { type: "rollMovement" });
     case "turnComplete":
       return gameReducer(state, { type: "endTurn" });
+    case "encounterChoice":
+      return gameReducer(state, {
+        type: "chooseEncounterOpponent",
+        opponentId: state.phase.choice.opponentIds[0],
+      });
     case "battle": {
       const battle = state.phase.battle;
       const attackerId = battle.attacker === "a" ? battle.aPlayerId : battle.bPlayerId;

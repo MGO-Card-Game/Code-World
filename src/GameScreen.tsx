@@ -8,11 +8,12 @@ import { BattlePanel, useLingeringBattle } from "./ui/BattlePanel";
 import { Board } from "./ui/Board";
 import { EquipmentDetailModal } from "./ui/EquipmentDetailModal";
 import {
+  EncounterChoicePanel,
   EquipmentChoicePanel,
   GameOverPanel,
   PenaltyPanel,
 } from "./ui/outcomePanels";
-import { PlayerPanel } from "./ui/PlayerPanel";
+import { PlayerPanel, PlayerSummary } from "./ui/PlayerPanel";
 import { ResourceModal } from "./ui/ResourceModal";
 import type { Dispatch } from "./ui/shared";
 
@@ -25,18 +26,22 @@ import type { Dispatch } from "./ui/shared";
  *
  * 这个文件只做布局与组装，各区域的实现在 src/ui/ 下。
  */
-export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
+export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = true }: {
   state: GameStateView;
   viewerSeat: PlayerId;
   dispatch: Dispatch;
   toolbar?: React.ReactNode;
+  canRestart?: boolean;
 }) {
   const playback = useEventQueue(state.lastEvents);
   const [caption, setCaption] = useState("");
+  const [selectedPlayerId, setSelectedPlayerId] = useState<PlayerId>(viewerSeat);
   const [inspecting, setInspecting] = useState<PlayerId | null>(null);
   const [inspectingEquipment, setInspectingEquipment] = useState<EquipmentKind | null>(null);
   const activeName = state.players[state.activePlayerId].name;
   const lingeringBattle = useLingeringBattle(state, playback);
+  const players = state.turnOrder.map((id) => state.players[id]);
+  const selectedPlayer = state.players[selectedPlayerId];
   const mapUsePhase =
     inspecting === viewerSeat &&
     inspecting === state.activePlayerId &&
@@ -49,6 +54,11 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
   useEffect(() => {
     if (playback.event?.type === "narration") setCaption(playback.event.text);
   }, [playback.event]);
+
+  // 联机席位固定；本地热座的 viewerSeat 会换人，因此详情也随当前操作者回到自己。
+  useEffect(() => {
+    setSelectedPlayerId(viewerSeat);
+  }, [viewerSeat]);
   const dockMessage = playback.playing ? caption || state.message.text : state.message.text;
 
   return (
@@ -66,26 +76,39 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
       </header>
 
       <div className="game-layout">
-        <PlayerPanel
-          player={state.players.player1}
-          active={state.activePlayerId === "player1"}
-          destination={state.map.tiles.length - 1}
-          playback={playback}
-          onInspect={() => setInspecting("player1")}
-          onInspectEquipment={setInspectingEquipment}
-        />
+        <aside className="player-roster" aria-label="玩家列表">
+          <div className="player-roster-heading">
+            <span>冒险家们：</span>
+            <strong>{players.length} 人</strong>
+          </div>
+          <div className="player-roster-list">
+            {players.map((player) => (
+              <PlayerSummary
+                key={player.id}
+                player={player}
+                active={state.activePlayerId === player.id}
+                unavailable={state.unavailablePlayerIds.includes(player.id)}
+                selected={selectedPlayerId === player.id}
+                destination={state.map.tiles.length - 1}
+                playback={playback}
+                onSelect={() => setSelectedPlayerId(player.id)}
+              />
+            ))}
+          </div>
+        </aside>
         <Board state={state} playback={playback} />
         <PlayerPanel
-          player={state.players.player2}
-          active={state.activePlayerId === "player2"}
+          key={selectedPlayer.id}
+          player={selectedPlayer}
+          active={state.activePlayerId === selectedPlayer.id}
           destination={state.map.tiles.length - 1}
           playback={playback}
-          onInspect={() => setInspecting("player2")}
+          onInspect={() => setInspecting(selectedPlayer.id)}
           onInspectEquipment={setInspectingEquipment}
         />
       </div>
 
-      <ActionDock state={state} dispatch={dispatch} message={dockMessage} playback={playback} />
+      <ActionDock state={state} dispatch={dispatch} message={dockMessage} playback={playback} viewerSeat={viewerSeat} />
       <details className="history-panel">
         <summary>冒险记录</summary>
         {state.history.map((entry, index) => <p key={`${index}-${entry.text}`}>{entry.text}</p>)}
@@ -109,7 +132,17 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
           />
         )}
         {!lingeringBattle && state.phase.kind === "pvpPenalty" && (
-          <PenaltyPanel key="penalty" state={state} penalty={state.phase.penalty} dispatch={dispatch} playing={playback.playing} />
+          <PenaltyPanel key="penalty" state={state} penalty={state.phase.penalty} dispatch={dispatch} playing={playback.playing} viewerSeat={viewerSeat} />
+        )}
+        {!lingeringBattle && !playback.playing && state.phase.kind === "encounterChoice" && (
+          <EncounterChoicePanel
+            key="encounter-choice"
+            state={state}
+            choice={state.phase.choice}
+            dispatch={dispatch}
+            playing={playback.playing}
+            viewerSeat={viewerSeat}
+          />
         )}
         {!lingeringBattle && state.phase.kind === "equipmentChoice" && (
           <EquipmentChoicePanel
@@ -122,7 +155,12 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar }: {
           />
         )}
         {!lingeringBattle && state.phase.kind === "gameOver" && (
-          <GameOverPanel key="over" winner={state.players[state.phase.winnerId]} dispatch={dispatch} />
+          <GameOverPanel
+            key="over"
+            winner={state.players[state.phase.winnerId]}
+            dispatch={dispatch}
+            canRestart={canRestart}
+          />
         )}
       </AnimatePresence>
 

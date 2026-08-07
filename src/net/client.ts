@@ -3,6 +3,7 @@ import {
   decode,
   encode,
   type ClientMessage,
+  type PlayerCount,
   type RoomView,
   type ServerMessage,
 } from "./protocol";
@@ -153,7 +154,7 @@ export class NetClient {
     }, 2000);
   }
 
-  createRoom(playerName: string) {
+  createRoom(playerName: string, capacity: PlayerCount) {
     savePlayerName(playerName);
     this.lastJoin = null;
     this.connect(() => {
@@ -162,6 +163,7 @@ export class NetClient {
         requestId: this.nextRequestId(),
         playerName,
         playerToken: loadPlayerToken(),
+        capacity,
       });
     });
   }
@@ -182,6 +184,10 @@ export class NetClient {
 
   dispatch(action: GameAction) {
     this.send({ type: "action", requestId: this.nextRequestId(), action });
+  }
+
+  startGame() {
+    this.send({ type: "startGame", requestId: this.nextRequestId() });
   }
 
   leave() {

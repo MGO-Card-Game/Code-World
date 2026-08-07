@@ -1,10 +1,11 @@
 import { randomInt } from "node:crypto";
-import { createInitialGame, gameReducer } from "../src/game/engine";
+import { createInitialGame, gameReducer, handleDisconnectTimeout } from "../src/game/engine";
 import { canAct, viewFor } from "../src/game/multiplayer";
 import type { GameAction, GameState, PlayerId } from "../src/game/types";
 import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
+  type PlayerCount,
   type RoomView,
   type ServerMessage,
 } from "../src/net/protocol";
@@ -32,7 +33,9 @@ interface Seat {
 interface Room {
   code: string;
   seats: Seat[];
-  /** 两人到齐后才创建，此前为 null（status: waiting） */
+  capacity: PlayerCount;
+  hostToken: string;
+  /** 房主开始游戏后才创建，此前为 null（status: waiting） */
   state: GameState | null;
   lastActivity: number;
 }
@@ -50,10 +53,11 @@ export interface FailResult {
 
 export type ActionOutcome = { ok: true } | FailResult;
 
-const SEATS: PlayerId[] = ["player1", "player2"];
+const SEATS: PlayerId[] = ["player1", "player2", "player3", "player4"];
 const MAX_NAME_LENGTH = 16;
 /** 全员掉线超过这个时长的房间会被回收 */
 export const ROOM_TTL_MS = 10 * 60 * 1000;
+export const DISCONNECT_GRACE_MS = 30_000;
 
 function sanitizeName(raw: string, fallback: string) {
   const trimmed = raw.trim().slice(0, MAX_NAME_LENGTH);
@@ -64,6 +68,7 @@ export class RoomStore {
   private rooms = new Map<string, Room>();
   /** 反查：一条连接坐在哪个房间的哪个位子 */
   private bySocket = new Map<Connection, { code: string; token: string }>();
+  private disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(private now: () => number = Date.now) {}
 
@@ -83,13 +88,17 @@ export class RoomStore {
     connection: Connection,
     playerName: string,
     playerToken: string,
+    capacity: PlayerCount = 2,
   ): JoinResult | FailResult {
     if (!playerToken) return { ok: false, message: "缺少身份凭证" };
+    if (![2, 3, 4].includes(capacity)) return { ok: false, message: "房间人数必须为 2–4 人" };
     this.detach(connection);
 
     const code = this.generateCode();
     const room: Room = {
       code,
+      capacity,
+      hostToken: playerToken,
       seats: [
         {
           seat: "player1",
@@ -125,9 +134,15 @@ export class RoomStore {
     // 先按 token 找老位子——这是重连，不是新玩家
     const existing = room.seats.find((seat) => seat.token === playerToken);
     if (existing) {
+      this.clearDisconnectTimer(room.code, existing.token);
       existing.connection?.close();
       existing.connection = connection;
       existing.connected = true;
+      if (room.state) {
+        room.state.unavailablePlayerIds = room.state.unavailablePlayerIds.filter(
+          (id) => id !== existing.seat,
+        );
+      }
       existing.name = sanitizeName(playerName, existing.name);
       if (room.state) room.state.players[existing.seat].name = existing.name;
       this.bySocket.set(connection, { code, token: playerToken });
@@ -135,11 +150,13 @@ export class RoomStore {
       return { ok: true, roomCode: code, seat: existing.seat };
     }
 
-    if (room.seats.length >= SEATS.length) {
+    if (room.state) return { ok: false, message: "对局已经开始" };
+
+    if (room.seats.length >= room.capacity) {
       return { ok: false, message: "房间已满" };
     }
 
-    const seat = SEATS[room.seats.length];
+    const seat = SEATS.find((candidate) => !room.seats.some((item) => item.seat === candidate))!;
     room.seats.push({
       seat,
       name: sanitizeName(playerName, "苍潮旅者"),
@@ -149,16 +166,28 @@ export class RoomStore {
     });
     this.bySocket.set(connection, { code, token: playerToken });
 
-    // 两人到齐即开局。种子由服务器定，客户端无法反复重开挑开局
-    if (room.seats.length === SEATS.length && !room.state) {
-      const playerNames: Partial<Record<PlayerId, string>> = {};
-      for (const roomSeat of room.seats) {
-        playerNames[roomSeat.seat] = roomSeat.name;
-      }
-      room.state = createInitialGame(undefined, playerNames);
-    }
     this.broadcast(room);
     return { ok: true, roomCode: code, seat };
+  }
+
+  startGame(connection: Connection): ActionOutcome {
+    const located = this.locate(connection);
+    if (!located) return { ok: false, message: "尚未加入房间" };
+    const { room, seat } = located;
+    if (seat.token !== room.hostToken) return { ok: false, message: "只有房主可以开始游戏" };
+    if (room.state) return { ok: false, message: "对局已经开始" };
+    if (room.seats.length < 2) return { ok: false, message: "至少需要两名玩家" };
+    if (room.seats.some((item) => !item.connected)) {
+      return { ok: false, message: "请等待所有玩家重新连接" };
+    }
+
+    const playerNames: Partial<Record<PlayerId, string>> = {};
+    const playerIds = room.seats.map((item) => item.seat);
+    for (const roomSeat of room.seats) playerNames[roomSeat.seat] = roomSeat.name;
+    room.state = createInitialGame(undefined, playerNames, playerIds);
+    room.lastActivity = this.now();
+    this.broadcast(room);
+    return { ok: true };
   }
 
   applyAction(connection: Connection, action: GameAction): ActionOutcome {
@@ -166,6 +195,13 @@ export class RoomStore {
     if (!located) return { ok: false, message: "尚未加入房间" };
     const { room, seat } = located;
     if (!room.state) return { ok: false, message: "对局尚未开始" };
+
+    if (action.type === "restart" && seat.token !== room.hostToken) {
+      return { ok: false, message: "只有房主可以重新开局" };
+    }
+    if (action.type === "restart" && room.seats.some((item) => !item.connected)) {
+      return { ok: false, message: "请等待所有玩家重新连接" };
+    }
 
     // canAct 只管授权：阶段对不对、是不是他那一侧、是不是已经提交过
     if (!canAct(room.state, action, seat.seat)) {
@@ -185,16 +221,21 @@ export class RoomStore {
     return { ok: true };
   }
 
-  /**
-   * 主动离开：房间对双方一起关闭。
-   *
-   * 与「掉线」区别对待——掉线只标记离线并保留位子等重连，
-   * 主动退出则说明这局不打了，留着半个房间没有意义。
-   */
+  /** 等待阶段访客可单独离席；房主离开或进行中的玩家退出会结束整局。 */
   leave(connection: Connection) {
     const located = this.locate(connection);
     if (!located) return;
-    this.closeRoom(located.room, "对手已离开房间");
+    if (!located.room.state && located.seat.token !== located.room.hostToken) {
+      this.clearDisconnectTimer(located.room.code, located.seat.token);
+      located.room.seats = located.room.seats.filter(
+        (seat) => seat.token !== located.seat.token,
+      );
+      this.bySocket.delete(connection);
+      located.room.lastActivity = this.now();
+      this.broadcast(located.room);
+      return;
+    }
+    this.closeRoom(located.room, "有玩家主动离开，对局已结束");
   }
 
   /** 网络断开：保留位子，等待带同一 token 重连 */
@@ -206,8 +247,12 @@ export class RoomStore {
     if (seat.connection !== connection) return;
     seat.connection = null;
     seat.connected = false;
+    if (room.state && !room.state.unavailablePlayerIds.includes(seat.seat)) {
+      room.state.unavailablePlayerIds.push(seat.seat);
+    }
     room.lastActivity = this.now();
     this.broadcast(room);
+    if (room.state) this.scheduleDisconnectTimeout(room, seat);
   }
 
   /** 回收全员掉线且超时的房间。由服务器定时调用 */
@@ -232,6 +277,7 @@ export class RoomStore {
 
   private closeRoom(room: Room, reason: string) {
     for (const seat of room.seats) {
+      this.clearDisconnectTimer(room.code, seat.token);
       if (seat.connection) {
         seat.connection.send({ type: "roomClosed", reason });
         this.bySocket.delete(seat.connection);
@@ -241,13 +287,36 @@ export class RoomStore {
   }
 
   private detach(connection: Connection) {
-    const located = this.locate(connection);
-    if (!located) return;
-    if (located.seat.connection === connection) {
-      located.seat.connection = null;
-      located.seat.connected = false;
-    }
-    this.bySocket.delete(connection);
+    this.disconnect(connection);
+  }
+
+  private disconnectTimerKey(code: string, token: string) {
+    return `${code}:${token}`;
+  }
+
+  private clearDisconnectTimer(code: string, token: string) {
+    const key = this.disconnectTimerKey(code, token);
+    const timer = this.disconnectTimers.get(key);
+    if (timer) clearTimeout(timer);
+    this.disconnectTimers.delete(key);
+  }
+
+  private scheduleDisconnectTimeout(room: Room, seat: Seat) {
+    this.clearDisconnectTimer(room.code, seat.token);
+    const key = this.disconnectTimerKey(room.code, seat.token);
+    const timer = setTimeout(() => {
+      this.disconnectTimers.delete(key);
+      const currentRoom = this.rooms.get(room.code);
+      const currentSeat = currentRoom?.seats.find((item) => item.token === seat.token);
+      if (!currentRoom?.state || !currentSeat || currentSeat.connected) return;
+      const next = handleDisconnectTimeout(currentRoom.state, currentSeat.seat);
+      if (next === currentRoom.state) return;
+      currentRoom.state = next;
+      currentRoom.lastActivity = this.now();
+      this.broadcast(currentRoom);
+    }, DISCONNECT_GRACE_MS);
+    timer.unref?.();
+    this.disconnectTimers.set(key, timer);
   }
 
   private locate(connection: Connection) {
@@ -265,6 +334,8 @@ export class RoomStore {
       code: room.code,
       status: room.state ? "playing" : "waiting",
       seat: seat.seat,
+      hostSeat: room.seats.find((item) => item.token === room.hostToken)?.seat ?? "player1",
+      capacity: room.capacity,
       members: room.seats.map((item) => ({
         seat: item.seat,
         name: item.name,

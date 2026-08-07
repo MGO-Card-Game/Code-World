@@ -15,10 +15,20 @@ import type {
  * 规则层怎么长都不会绕回来。
  */
 
-export const PLAYER_IDS: PlayerId[] = ["player1", "player2"];
+export const PLAYER_IDS: PlayerId[] = ["player1", "player2", "player3", "player4"];
+export const DEFAULT_PLAYER_IDS: PlayerId[] = PLAYER_IDS.slice(0, 2);
 
-export function otherPlayer(id: PlayerId): PlayerId {
-  return id === "player1" ? "player2" : "player1";
+export function nextPlayerId(
+  state: Pick<GameState, "activePlayerId" | "turnOrder"> &
+    Partial<Pick<GameState, "unavailablePlayerIds">>,
+) {
+  const currentIndex = state.turnOrder.indexOf(state.activePlayerId);
+  const unavailable = state.unavailablePlayerIds ?? [];
+  for (let offset = 1; offset <= state.turnOrder.length; offset += 1) {
+    const candidate = state.turnOrder[(currentIndex + offset) % state.turnOrder.length];
+    if (!unavailable.includes(candidate)) return candidate;
+  }
+  return state.activePlayerId;
 }
 
 function normalizedSeed(seed: number) {
@@ -86,16 +96,31 @@ function newPlayer(id: PlayerId, name: string, color: string): Player {
 export function createInitialGame(
   seed = Date.now(),
   playerNames: Partial<Record<PlayerId, string>> = {},
+  playerIds: readonly PlayerId[] = DEFAULT_PLAYER_IDS,
 ): GameState {
+  if (playerIds.length < 2 || playerIds.length > PLAYER_IDS.length) {
+    throw new Error("游戏人数必须为 2–4 人");
+  }
+  const uniquePlayerIds = [...new Set(playerIds)];
+  if (uniquePlayerIds.length !== playerIds.length) throw new Error("玩家席位不能重复");
   const normalized = normalizedSeed(seed);
+  const defaults: Record<PlayerId, { name: string; color: string }> = {
+    player1: { name: "赤焰旅者", color: "#ff7a4d" },
+    player2: { name: "苍潮旅者", color: "#55bde8" },
+    player3: { name: "岚风旅者", color: "#8fc58a" },
+    player4: { name: "星辉旅者", color: "#c89bff" },
+  };
+  const players = Object.fromEntries(uniquePlayerIds.map((id) => [
+    id,
+    newPlayer(id, playerNames[id] ?? defaults[id].name, defaults[id].color),
+  ])) as Record<string, Player>;
   const state: GameState = {
-    players: {
-      player1: newPlayer("player1", playerNames.player1 ?? "赤焰旅者", "#ff7a4d"),
-      player2: newPlayer("player2", playerNames.player2 ?? "苍潮旅者", "#55bde8"),
-    },
+    players,
+    turnOrder: [...uniquePlayerIds],
+    unavailablePlayerIds: [],
     map: generateMap(normalized),
-    activePlayerId: "player1",
-    startingPlayerId: "player1",
+    activePlayerId: uniquePlayerIds[0],
+    startingPlayerId: uniquePlayerIds[0],
     turn: 1,
     phase: { kind: "awaitingRoll" },
     rngSeed: normalized,
@@ -106,24 +131,26 @@ export function createInitialGame(
     nextEventId: 1,
   };
 
-  let first = rollDie(state);
-  let second = rollDie(state);
-  while (first === second) {
-    first = rollDie(state);
-    second = rollDie(state);
-  }
-  const starter: PlayerId = first > second ? "player1" : "player2";
+  let rolls: Partial<Record<PlayerId, number>>;
+  do {
+    rolls = Object.fromEntries(
+      uniquePlayerIds.map((id) => [id, rollDie(state)]),
+    ) as Partial<Record<PlayerId, number>>;
+  } while (new Set(uniquePlayerIds.map((id) => rolls[id])).size !== uniquePlayerIds.length);
+
+  state.turnOrder = [...uniquePlayerIds].sort((a, b) => rolls[b]! - rolls[a]!);
+  const starter = state.turnOrder[0];
   state.activePlayerId = starter;
   state.startingPlayerId = starter;
   emit(state, {
     type: "gameStarted",
     starterId: starter,
-    rollP1: first,
-    rollP2: second,
+    rolls,
+    turnOrder: [...state.turnOrder],
   });
   addHistory(
     state,
-    `先攻投骰 ${first} : ${second}，${state.players[starter].name}先行动。`,
+    `先攻投骰 ${state.turnOrder.map((id) => `${state.players[id].name} ${rolls[id]}`).join("、")}；${state.players[starter].name}先行动。`,
   );
   return state;
 }

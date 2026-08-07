@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { visualPosition } from "../anim/visualState";
 import { TILE_ICON } from "../game/content/tiles";
-import { PLAYER_IDS } from "../game/engine";
 import type { GameStateView, MapTile } from "../game/types";
 import type { Playback } from "./shared";
+import { playerSigil } from "./PlayerPanel";
 
 /*
   标注成 Record 而不是留裸对象字面量：加一种格子类型时，漏了这里只会静默掉样式，
@@ -44,10 +44,10 @@ export function Board({ state, playback }: { state: GameStateView; playback: Pla
   } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [transform, setTransform] = useState<BoardTransform>({ x: 0, y: 0, scale: 0.85 });
-  const positions = {
-    player1: visualPosition(state.players.player1, playback.pending),
-    player2: visualPosition(state.players.player2, playback.pending),
-  };
+  const players = Object.values(state.players);
+  const positions = Object.fromEntries(
+    players.map((player) => [player.id, visualPosition(player, playback.pending)]),
+  ) as Record<keyof typeof state.players, number>;
 
   const constrain = useCallback((candidate: BoardTransform): BoardTransform => {
     const viewport = viewportRef.current;
@@ -192,7 +192,7 @@ export function Board({ state, playback }: { state: GameStateView; playback: Pla
             const isRegionEnd = indexInRegion === state.map.columns - 1;
             const routeClass = tileRegionIndex % 2 === 0 ? "route-forward" : "route-reverse";
             const turnClass = isRegionEnd && tile.id < state.map.tiles.length - 1 ? "route-turn" : "";
-            const playersHere = PLAYER_IDS.filter((id) => positions[id] === tile.id);
+            const playersHere = players.filter((player) => positions[player.id] === tile.id);
             return (
               <article
                 className={`tile region-${tile.region} ${routeClass} ${turnClass} ${tileClassNames[tile.type]} ${positions[state.activePlayerId] === tile.id ? "current" : ""}`}
@@ -204,17 +204,17 @@ export function Board({ state, playback }: { state: GameStateView; playback: Pla
                 <span className="tile-icon">{TILE_ICON[tile.type]}</span>
                 <strong>{tile.label}</strong>
                 <div className="pieces">
-                  {playersHere.map((id) => (
+                  {playersHere.map((player) => (
                     // layoutId 让棋子在换格子时做共享元素过渡，而不是瞬移
                     <motion.span
-                      layoutId={`piece-${id}`}
-                      className={`piece ${id === state.activePlayerId ? "active" : ""}`}
-                      style={{ "--piece-color": state.players[id].color } as React.CSSProperties}
-                      title={state.players[id].name}
-                      key={id}
+                      layoutId={`piece-${player.id}`}
+                      className={`piece ${player.id === state.activePlayerId ? "active" : ""}`}
+                      style={{ "--piece-color": player.color } as React.CSSProperties}
+                      title={player.name}
+                      key={player.id}
                       transition={{ type: "spring", stiffness: 260, damping: 26 }}
                     >
-                      {id === "player1" ? "焰" : "潮"}
+                      {playerSigil(player)}
                     </motion.span>
                   ))}
                 </div>

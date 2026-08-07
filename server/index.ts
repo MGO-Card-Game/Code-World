@@ -89,7 +89,12 @@ wss.on("connection", (socket) => {
 
     switch (message.type) {
       case "createRoom": {
-        const result = rooms.createRoom(connection, message.playerName, message.playerToken);
+        const result = rooms.createRoom(
+          connection,
+          message.playerName,
+          message.playerToken,
+          message.capacity,
+        );
         connection.send(
           result.ok
             ? { type: "ack", requestId: message.requestId, roomCode: result.roomCode, seat: result.seat }
@@ -113,6 +118,13 @@ wss.on("connection", (socket) => {
       }
       case "leaveRoom": {
         rooms.leave(connection);
+        return;
+      }
+      case "startGame": {
+        const result = rooms.startGame(connection);
+        if (!result.ok) {
+          connection.send({ type: "error", requestId: message.requestId, message: result.message });
+        }
         return;
       }
       case "action": {

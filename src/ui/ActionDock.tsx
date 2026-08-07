@@ -1,20 +1,22 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { getDieSidesBonus } from "../game/selectors";
-import type { GameStateView } from "../game/types";
+import type { GameStateView, PlayerId } from "../game/types";
 import type { Dispatch, Playback } from "./shared";
 
 /** 底部操作条：行动提示、移动骰结果，以及当前阶段唯一可点的那颗按钮。 */
-export function ActionDock({ state, dispatch, message, playback }: {
+export function ActionDock({ state, dispatch, message, playback, viewerSeat }: {
   state: GameStateView;
   dispatch: Dispatch;
   message: string;
   playback: Playback;
+  viewerSeat: PlayerId;
 }) {
   const active = state.players[state.activePlayerId];
   // 投骰事件播到之前先不亮骰面，免得数字比动画早一步出现
   const rollPending = playback.pending.some((event) => event.type === "movementRolled");
   const die = rollPending ? undefined : state.lastMovementRoll;
   const movementSides = Math.max(2, 6 + getDieSidesBonus(active, "movement"));
+  const canControlTurn = viewerSeat === state.activePlayerId;
 
   return (
     <section className="action-dock">
@@ -51,11 +53,14 @@ export function ActionDock({ state, dispatch, message, playback }: {
         <button className="ghost-button" onClick={playback.skip}>跳过演出（{playback.remaining}）</button>
       ) : (
         <>
-          {state.phase.kind === "awaitingRoll" && (
+          {state.phase.kind === "awaitingRoll" && canControlTurn && (
             <button className="primary-button" onClick={() => dispatch({ type: "rollMovement" })}>为{active.name}投 D{movementSides}</button>
           )}
-          {state.phase.kind === "turnComplete" && (
+          {state.phase.kind === "turnComplete" && canControlTurn && (
             <button className="primary-button secondary" onClick={() => dispatch({ type: "endTurn" })}>结束回合</button>
+          )}
+          {(state.phase.kind === "awaitingRoll" || state.phase.kind === "turnComplete") && !canControlTurn && (
+            <span className="turn-waiting">等待{active.name}操作…</span>
           )}
         </>
       )}

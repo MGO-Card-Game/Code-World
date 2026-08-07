@@ -137,6 +137,31 @@ export interface EquipmentDamageContext {
 }
 
 /**
+ * 刚打出一张卷轴。每张牌各调用一次，牌已经离手了。
+ *
+ * 这是唯一一个战斗和地图**都会**触发的钩子——卷轴两个地方都能用，
+ * 而「每次使用道具后……」这类代价不该只在战斗里收。两处的血账本不一样
+ * （战斗读 battle.hpA / hpB，地图读 player.hp），所以扣血由调用方接好的
+ * loseHp 负责，卡牌不必自己分辨自己在哪。
+ */
+export interface EquipmentScrollUseContext {
+  state: GameState;
+  player: Player;
+  item: OwnedEquipment;
+  /** 刚打出的那张牌 */
+  scroll: OwnedScroll["kind"];
+  /** 在战斗里打出时是这一场；地图上使用时没有 */
+  battle?: BattleState;
+  /**
+   * 扣血，并把 logLine 写进当前场合的记录。
+   *
+   * 战斗里可以把人扣倒，引擎会接着判负；地图上至少保留 1 点——
+   * 那边根本没有"倒下"这个状态，山路落石也是同一个约定。
+   */
+  loseHp: (amount: number, logLine: string) => void;
+}
+
+/**
  * 通用 modifier 表达不了的装备逻辑，直接写在卡牌定义的 effects 上。
  * 和卷轴的 custom 同理：定义不进 GameState，放函数是安全的。
  */
@@ -166,6 +191,8 @@ export interface EquipmentEffects {
    * 这里站在结果上，看得到最终伤害和自己的剩余血量，但只能把伤害改小。
    */
   beforeDamage?: (context: EquipmentDamageContext) => void;
+  /** 打出一张卷轴之后，战斗与地图两处都会触发。 */
+  onScrollUsed?: (context: EquipmentScrollUseContext) => void;
   onEquip?: (context: EquipmentLifecycleContext) => void;
   onUnequip?: (context: EquipmentLifecycleContext) => void;
 }

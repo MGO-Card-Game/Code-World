@@ -1,4 +1,4 @@
-import { EQUIPMENT, equipmentCategory } from "./content/equipment";
+import { EQUIPMENT, equipmentCategory, equipmentDefinition } from "./content/equipment";
 import { scrollDefinition } from "./content/scrolls";
 import { getDieSidesBonus, pvpHpTransferAmount } from "./selectors";
 import { PVP_RETREAT_TILES, startBattle } from "./battle";
@@ -13,7 +13,7 @@ import {
   rewardSecret,
 } from "./resources";
 import { addHistory, createInitialGame, emit, otherPlayer, rollDie } from "./state";
-import type { GameAction, GameState, MapTile, Player } from "./types";
+import type { GameAction, GameState, MapTile, OwnedScroll, Player } from "./types";
 
 /**
  * 回合与格子流程、动作分发，以及规则层的对外门面。
@@ -95,6 +95,43 @@ function applyMapHealing(state: GameState, player: Player, amount: number) {
   return healed;
 }
 
+/**
+ * 地图上打完一张牌之后的装备钩子，对标战斗里的 applyEquipmentScrollUse。
+ *
+ * 地图上没有"倒下"这个状态，所以扣血至少保留 1 点——山路落石那类地图伤害
+ * 用的是同一个约定（见 hazards.ts 的 minimumHp）。真要让代价致命，得先给
+ * 地图阶段定一套战败规则，那是另一件事。
+ */
+function applyEquipmentMapScrollUse(
+  state: GameState,
+  player: Player,
+  scroll: OwnedScroll["kind"],
+) {
+  // 复制一份：钩子理论上可以改动装备列表，遍历时被改会漏掉后面的装备
+  for (const item of [...player.equipment]) {
+    equipmentDefinition(item.kind).effects?.onScrollUsed?.({
+      state,
+      player,
+      item,
+      scroll,
+      loseHp(amount, logLine) {
+        const hpBefore = player.hp;
+        player.hp = Math.max(1, player.hp - Math.max(0, amount));
+        if (player.hp === hpBefore) return;
+        emit(state, {
+          type: "playerHpChanged",
+          playerId: player.id,
+          from: hpBefore,
+          to: player.hp,
+          maxHp: player.maxHp,
+          reason: "equipment",
+        });
+        addHistory(state, logLine);
+      },
+    });
+  }
+}
+
 /** 地图阶段使用疗牌；返回 false 时保持“非法动作不产生新状态”的约定。 */
 function useMapScroll(state: GameState, instanceId: string) {
   if (state.phase.kind !== "awaitingRoll" && state.phase.kind !== "turnComplete") {
@@ -129,6 +166,9 @@ function useMapScroll(state: GameState, instanceId: string) {
     state,
     `${player.name}使用${definition.name}，恢复 ${healed} 点生命${forfeitsMovement ? "，本回合不再移动" : ""}。`,
   );
+  // 代价排在效果之后，和战斗里那条路径对齐（battleRound 的 applyEquipmentScrollUse）：
+  // 反过来的话，残血时打疗牌会因为扣血下限白嫖掉代价
+  applyEquipmentMapScrollUse(state, player, owned.kind);
   return true;
 }
 

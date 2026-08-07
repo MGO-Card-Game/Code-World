@@ -1,6 +1,7 @@
 import { SCROLLS } from "./content/scrolls";
 import {
   applyBattleHealing,
+  applyBattleHpLoss,
   applyDirectScrollDamage,
   battlePlayerForSide,
   choiceFor,
@@ -334,6 +335,36 @@ export function applyEquipmentAfterRoll(
   });
 }
 
+/**
+ * 打完牌之后的装备钩子，每张牌各调用一次。返回这一侧是否因此倒下。
+ *
+ * 在战斗里，扣血走 applyBattleHpLoss 而不是 dealBattleDamage：牌面写的是
+ * 「损失生命」，不该被灰铁胸甲和不灭王铠这类受击装备接管，理由见那个函数的说明。
+ */
+export function applyEquipmentScrollUse(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  kinds: readonly ScrollKind[],
+) {
+  let defeated = false;
+  for (const kind of kinds) {
+    forEachEquipmentEffects(state, battle, side, (effects, item, player) => {
+      effects.onScrollUsed?.({
+        state,
+        battle,
+        player,
+        item,
+        scroll: kind,
+        loseHp(amount, logLine) {
+          if (applyBattleHpLoss(state, battle, side, amount, logLine)) defeated = true;
+        },
+      });
+    });
+  }
+  return defeated;
+}
+
 /** 掷骰前的怪物钩子，与装备钩子在流程里同一位置。 */
 export function applyEnemyBeforeRoll(
   state: GameState,
@@ -393,6 +424,19 @@ export function resolveBattleRound(state: GameState) {
     finishBattle(state, battle, attackerSide);
     return;
   }
+  /*
+    「使用道具后……」这类代价排在效果结算**之后**，和地图上那条路径对齐
+    （engine.ts 的 useMapScroll）。反过来的话，残血时打疗牌会因为扣血下限
+    白嫖掉代价——恰恰是它最该疼的时候。牌已经把对手打倒时上面已经 return，
+    代价自然不再发生：赢下来的这一场没有"之后"。
+
+    自己被代价扣倒时本回合就此中止，对面选好的牌还留在手里，
+    和"卷轴直接把对手打倒"那条路径一致。
+  */
+  if (applyEquipmentScrollUse(state, battle, attackerSide, attackScrollKinds)) {
+    finishBattle(state, battle, defenderSide);
+    return;
+  }
 
   const defenseScrollKinds = defenderId
     ? consumeScrolls(state, state.players[defenderId], defenseScrollIds)
@@ -407,6 +451,10 @@ export function resolveBattleRound(state: GameState) {
     defenseModifiers,
   )) {
     finishBattle(state, battle, defenderSide);
+    return;
+  }
+  if (applyEquipmentScrollUse(state, battle, defenderSide, defenseScrollKinds)) {
+    finishBattle(state, battle, attackerSide);
     return;
   }
   applyEquipmentBeforeRoll(

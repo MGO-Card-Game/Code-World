@@ -73,6 +73,33 @@ export const ACCESSORIES = defineEquipment("accessory", {
     },
   },
 
+  blackSunShard: {
+    name: "黑日碎片",
+    description: "攻击、防御和地图移动骰上限各 +1；每使用一张卷轴，损失 1 点生命",
+    rarity: "SR",
+    modifiers: [
+      { type: "dieSides", die: "attack", value: 1 },
+      { type: "dieSides", die: "defense", value: 1 },
+      { type: "dieSides", die: "movement", value: 1 },
+    ],
+    effects: {
+      /*
+        newCard.md 把它归在「高收益、高代价」那一档，代价就得真能疼到人：
+        战斗里这 1 点可以直接把自己扣倒，引擎会接着判负。地图上只保留 1 点，
+        不是手下留情，而是那边根本没有战败规则可走——山路落石同理。
+
+        「损失生命」不是「受到伤害」：扣血走 applyBattleHpLoss，不过受击钩子。
+        走伤害管线的话，灰铁胸甲会拿这 1 点自损当"本场第一次受到伤害"白吃掉
+        一次充能，不灭王铠还会替你挡住自己的代价——两件护甲反而让它变安全。
+
+        原文的「使用道具」在本作里就是卷轴，战斗和地图两处都收。
+      */
+      onScrollUsed({ player, loseHp }) {
+        loseHp(1, `黑日碎片吞下余烬，${player.name}损失 1 点生命。`);
+      },
+    },
+  },
+
   blankTalisman: {
     name: "空白护符",
     description: "每场战斗开始时，随机将攻击或防御骰上限 +2，持续整场",

@@ -298,12 +298,47 @@ function applyEquipmentBeforeDamage(
 }
 
 /**
- * 战斗内唯一的扣血入口，返回目标是否已被打倒。
+ * 战斗内唯一真正动血条的地方，返回目标是否已被打倒。
  *
  * 攻防结算和卷轴直伤以前各写了一遍同样的五步——记 hpBefore、夹到 0、发 battleDamage、
- * 写战报、同步 PvE 真实血量。两处都对，但没有任何东西保证它们继续对得上；收成一个
- * 函数之后，受击方的减伤钩子也就只有一个挂载点。
+ * 写战报、同步 PvE 真实血量。两处都对，但没有任何东西保证它们继续对得上。
  *
+ * 这里刻意只管扣血，不碰受击钩子：**「损失生命」和「受到伤害」不是一回事**。
+ * 黑日碎片那类自损写的是前者，走伤害管线的话灰铁胸甲会拿自损当"本场第一次受到伤害"
+ * 白吃掉一次充能，不灭王铠也会替你挡住自己的代价——两件护甲反而让高代价装备变安全，
+ * 正好把它的设计意图倒过来。所以伤害是这个函数的一层包装（见 dealBattleDamage），
+ * 而不是反过来。
+ */
+export function applyBattleHpLoss(
+  state: GameState,
+  battle: BattleState,
+  targetSide: CombatSide,
+  amount: number,
+  logLine: string,
+) {
+  const loss = Math.max(0, amount);
+  const hpBefore = sideHp(battle, targetSide);
+  if (targetSide === "a") battle.hpA = Math.max(0, battle.hpA - loss);
+  else battle.hpB = Math.max(0, battle.hpB - loss);
+  const hpAfter = sideHp(battle, targetSide);
+  emit(state, {
+    type: "battleDamage",
+    targetSide,
+    amount: loss,
+    hpBefore,
+    hpAfter,
+    hpMax: sideMaxHp(state, battle, targetSide),
+  });
+  battle.log.unshift(logLine);
+  battle.log = battle.log.slice(0, 8);
+  syncPveHp(state, battle);
+  return hpAfter <= 0;
+}
+
+/**
+ * 一次真正的伤害：先过受击方的减伤钩子，再扣血。返回目标是否已被打倒。
+ *
+ * 攻防结算和卷轴直伤都从这里落地，所以 beforeDamage 只有这一个挂载点。
  * 战报文案两处不同，所以由调用方给 logLine，它拿到的是钩子改完后的最终伤害。
  */
 export function dealBattleDamage(
@@ -314,30 +349,14 @@ export function dealBattleDamage(
   rawDamage: number,
   logLine: (damage: number) => string,
 ) {
-  const incoming = Math.max(0, rawDamage);
-  const hpBefore = sideHp(battle, targetSide);
   const damage = applyEquipmentBeforeDamage(
     state,
     battle,
     sourceSide,
     targetSide,
-    incoming,
+    Math.max(0, rawDamage),
   );
-  if (targetSide === "a") battle.hpA = Math.max(0, battle.hpA - damage);
-  else battle.hpB = Math.max(0, battle.hpB - damage);
-  const hpAfter = sideHp(battle, targetSide);
-  emit(state, {
-    type: "battleDamage",
-    targetSide,
-    amount: damage,
-    hpBefore,
-    hpAfter,
-    hpMax: sideMaxHp(state, battle, targetSide),
-  });
-  battle.log.unshift(logLine(damage));
-  battle.log = battle.log.slice(0, 8);
-  syncPveHp(state, battle);
-  return hpAfter <= 0;
+  return applyBattleHpLoss(state, battle, targetSide, damage, logLine(damage));
 }
 
 export function applyDirectScrollDamage(

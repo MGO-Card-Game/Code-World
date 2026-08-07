@@ -121,7 +121,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
 ### 装备的战斗钩子
 
-通用修正不够用时，在卡上加 `effects`。六个时机：`modifiers`（动态修正）、`onEquip` / `onUnequip`（装备与卸下）、`onBattleStart`（战斗开始）、战斗内的 `beforeRoll` / `afterRoll`，以及受击时的 `beforeDamage`。
+通用修正不够用时，在卡上加 `effects`。七个时机：`modifiers`（动态修正）、`onEquip` / `onUnequip`（装备与卸下）、`onBattleStart`（战斗开始）、战斗内的 `beforeRoll` / `afterRoll`、受击时的 `beforeDamage`，以及打出卷轴后的 `onScrollUsed`。
 
 ```ts
 oldKnightSword: {
@@ -168,7 +168,26 @@ beforeDamage({ incoming, item, reduceDamage, addBattleLog }) {
 
 * **只能把伤害改小。** 改伤只有 `reduceDamage(by)` 和 `keepAtLeast(hp)` 两个口，引擎都会钳一遍。顺序无关是靠这条成立的（多件装备一起挂钩子时谁先谁后不影响结果），而且减伤时机不该能加伤——真要加伤，加在攻击方的 `bonusDamage` 上，那里公开算进合计。用函数而不是可写字段，还挡掉了 `beforeDamage({ ...ctx })` 之后改副本这个坑。
 * **`incoming` 是任何钩子动手之前的快照**，用它判断"这一击有没有真的打到"；它不随其他装备的减免变化。
-* **只对受击方调用**，敌人没有装备会安静跳过。全部伤害都从 `dealBattleDamage` 落地——攻防结算和卷轴直伤共用它，所以钩子对巨龙打击一样生效。
+* **只对受击方调用**，敌人没有装备会安静跳过。全部伤害都从 `dealBattleDamage` 落地——攻防结算和卷轴直伤共用它，所以钩子对巨龙打击一样生效。但**「损失生命」不走这条路**（见下一节的 `onScrollUsed`），那类自损从 `applyBattleHpLoss` 直接扣血，不该被减伤装备接管。
+
+### 打出卷轴之后：onScrollUsed
+
+「每次使用道具后……」这类代价挂在 `onScrollUsed`，每张打出的牌各调用一次：
+
+```ts
+// equipment/accessories.ts —— 黑日碎片
+onScrollUsed({ player, loseHp }) {
+  loseHp(1, `黑日碎片吞下余烬，${player.name}损失 1 点生命。`);
+},
+```
+
+它是**唯一一个战斗和地图都会触发**的装备钩子——卷轴两个地方都能用，代价不该只在战斗里收。两处的血账本不一样（战斗读 `battle.hpA` / `hpB`，地图读 `player.hp`），所以扣血由调用方接好的 `loseHp(amount, logLine)` 负责，卡牌不必自己分辨自己在哪；上下文里的 `battle` 只在战斗中有值。
+
+三条约定：
+
+* **代价排在效果结算之后**，两处一致。反过来的话，残血时打疗牌会因为扣血下限白嫖掉代价——恰恰是它最该疼的时候。牌已经把对手打倒时战斗已经结束，代价自然不再发生。
+* **战斗里可以把自己扣倒**，引擎会接着判负，本回合中止、对面选好的牌留在手里。**地图上至少保留 1 点**：那边根本没有战败规则，山路落石用的是同一个约定（`hazards.ts` 的 `minimumHp`）。
+* **「损失生命」不是「受到伤害」。** 战斗里扣血走 `applyBattleHpLoss` 而不是 `dealBattleDamage`，因此不触发 `beforeDamage`。走伤害管线的话，灰铁胸甲会拿自损当"本场第一次受到伤害"白吃掉一次充能，不灭王铠还会替你挡住自己的代价——两件护甲反而让高代价装备变安全，正好把它的设计意图倒过来。
 
 ### 跨回合效果：装备实例的战斗内暗格
 

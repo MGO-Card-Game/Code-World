@@ -40,6 +40,16 @@ function step(state: GameState): GameState {
         type: "chooseEncounterOpponent",
         opponentId: state.phase.choice.opponentIds[0],
       });
+    case "encounterDecision":
+      return gameReducer(state, {
+        type: "chooseEncounterIntent",
+        side: state.phase.encounter.choiceA.status === "pending" ? "a" : "b",
+        intent: "greet",
+      });
+    case "tradeOffer":
+      throw new Error("自动流程选择打招呼，不应进入交易报价");
+    case "tradeConfirmation":
+      throw new Error("自动流程选择打招呼，不应进入交易确认");
     case "bossGateChoice":
       return gameReducer(state, { type: "chooseBossChallenge", challenge: true });
     case "blessingChoice":

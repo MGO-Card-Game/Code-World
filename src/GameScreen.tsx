@@ -21,6 +21,11 @@ import {
 import { PlayerPanel, PlayerSummary } from "./ui/PlayerPanel";
 import { ResourceModal } from "./ui/ResourceModal";
 import { ShopModal } from "./ui/ShopModal";
+import {
+  EncounterDecisionPanel,
+  TradeConfirmationPanel,
+  TradeOfferPanel,
+} from "./ui/TradePanels";
 import type { Dispatch } from "./ui/shared";
 
 /**
@@ -185,6 +190,33 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             choice={state.phase.choice}
             dispatch={dispatch}
             playing={playback.playing}
+            viewerSeat={viewerSeat}
+          />
+        )}
+        {!lingeringBattle && !playback.playing && state.phase.kind === "encounterDecision" && (
+          <EncounterDecisionPanel
+            key={`encounter-decision-${viewerSeat}`}
+            state={state}
+            encounter={state.phase.encounter}
+            dispatch={dispatch}
+            viewerSeat={viewerSeat}
+          />
+        )}
+        {!lingeringBattle && !playback.playing && state.phase.kind === "tradeOffer" && (
+          <TradeOfferPanel
+            key={`trade-offer-${viewerSeat}`}
+            state={state}
+            trade={state.phase.trade}
+            dispatch={dispatch}
+            viewerSeat={viewerSeat}
+          />
+        )}
+        {!lingeringBattle && !playback.playing && state.phase.kind === "tradeConfirmation" && (
+          <TradeConfirmationPanel
+            key={`trade-confirmation-${viewerSeat}`}
+            state={state}
+            trade={state.phase.trade}
+            dispatch={dispatch}
             viewerSeat={viewerSeat}
           />
         )}

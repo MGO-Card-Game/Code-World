@@ -100,6 +100,7 @@ export function applyEquipmentStats(
   state: GameState,
   player: Player,
   item: OwnedEquipment,
+  healForMaxHp = true,
 ) {
   player.equipment.push(item);
   const maxHpBonus = equipmentMaxHp(item);
@@ -108,21 +109,23 @@ export function applyEquipmentStats(
   const maxHpBefore = player.maxHp;
   const hpBefore = player.hp;
   player.maxHp += maxHpBonus;
-  player.hp = Math.min(player.maxHp, player.hp + maxHpBonus);
+  if (healForMaxHp) player.hp = Math.min(player.maxHp, player.hp + maxHpBonus);
   emit(state, {
     type: "maxHpChanged",
     playerId: player.id,
     from: maxHpBefore,
     to: player.maxHp,
   });
-  emit(state, {
-    type: "playerHpChanged",
-    playerId: player.id,
-    from: hpBefore,
-    to: player.hp,
-    maxHp: player.maxHp,
-    reason: "equipment",
-  });
+  if (player.hp !== hpBefore) {
+    emit(state, {
+      type: "playerHpChanged",
+      playerId: player.id,
+      from: hpBefore,
+      to: player.hp,
+      maxHp: player.maxHp,
+      reason: "equipment",
+    });
+  }
 }
 
 export function removeEquipmentStats(

@@ -306,9 +306,9 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 
 /* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
-.battle-modal, .penalty-modal, .encounter-choice-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .shop-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
+.battle-modal, .penalty-modal, .encounter-choice-modal, .encounter-decision-modal, .trade-offer-modal, .trade-confirmation-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .shop-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
 .modal-kicker { color: #caa45f; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; }
-.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .shop-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
+.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .encounter-decision-modal h2, .trade-offer-modal h2, .trade-confirmation-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .shop-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
 .battle-modal > h2 span { color: #a45a43; font: 900 14px Georgia, serif; padding: 0 12px; }
 .initiative-line { color: #887a68; font-size: 10px; }
 .combatants { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: center; gap: 13px; margin: 21px 0 17px; }
@@ -368,6 +368,42 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .encounter-options span { color: var(--player-color); font: 700 15px "Noto Serif SC", serif; }
 .encounter-options strong { font-size: 10px; }
 .encounter-options small { color: #8f806b; font-size: 9px; }
+.encounter-decision-backdrop { background: radial-gradient(circle, #342d25dd, #080706ed 58%); }
+.encounter-decision-modal { width: min(650px, 100%); }
+.encounter-decision-modal > p, .trade-offer-modal > p, .trade-confirmation-modal > p { color: #a99b87; font-size: 11px; line-height: 1.7; }
+.encounter-emblem, .trade-emblem { width: 60px; height: 60px; margin: 0 auto 12px; display: grid; place-items: center; border: 1px solid #b18b55; border-radius: 50%; color: #e0b66d; background: #241b13; font-size: 29px; box-shadow: 0 0 28px #c98b3a2e; }
+.encounter-intent-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 22px; }
+.encounter-intent-options button { min-height: 112px; display: grid; align-content: center; gap: 7px; padding: 13px 9px; border: 1px solid #5c4b38; background: #171411; color: #d5c0a1; }
+.encounter-intent-options button:hover { border-color: #d2a85c; background: #2b2117; transform: translateY(-1px); }
+.encounter-intent-options span { color: #887966; font-size: 8px; letter-spacing: .1em; }
+.encounter-intent-options strong { font: 700 14px "Noto Serif SC", serif; }
+.encounter-intent-options small { color: #8f806b; font-size: 8px; }
+.trade-backdrop { background: radial-gradient(circle, #273a35dd, #080706ed 60%); }
+.trade-offer-modal, .trade-confirmation-modal { width: min(760px, 100%); border-color: #668d7d; background: radial-gradient(circle at 50% 0, #263b34, #1b211d 34%, #11100e 78%); }
+.trade-error { padding: 9px 12px; border: 1px solid #9d5948; background: #321b17; color: #e9a18e !important; }
+.trade-gold-field { max-width: 330px; margin: 20px auto; display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #526f63; background: #111713; text-align: left; }
+.trade-gold-field span { color: #a9baae; font-size: 10px; }
+.trade-gold-field input { width: 100%; border: 1px solid #668d7d; background: #0b100d; color: #e0d4b8; padding: 7px 9px; text-align: right; }
+.trade-resource-section { margin-top: 16px; text-align: left; }
+.trade-resource-section h3 { margin: 0 0 8px; color: #89aa9b; font-size: 9px; letter-spacing: .15em; }
+.trade-resource-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 7px; }
+.trade-resource-grid > em { color: #6e7b73; font-size: 9px; font-style: normal; }
+.trade-resource-grid label { position: relative; min-height: 68px; display: grid; align-content: center; gap: 4px; padding: 10px 10px 10px 31px; border: 1px solid #3f5149; background: #101511; cursor: pointer; }
+.trade-resource-grid label.selected { border-color: #82b39d; background: #18271f; box-shadow: inset 0 0 0 1px #82b39d33; }
+.trade-resource-grid input { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); accent-color: #82b39d; }
+.trade-resource-grid strong { color: #d9d0ba; font: 700 11px "Noto Serif SC", serif; }
+.trade-resource-grid small { color: #7e8c83; font-size: 8px; line-height: 1.35; }
+.trade-submit { margin-top: 20px; }
+.trade-submit:disabled { opacity: .4; cursor: not-allowed; }
+.trade-cancel { margin: 20px 0 0 8px; }
+.trade-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin: 21px 0 13px; }
+.trade-offer-summary { min-height: 125px; padding: 14px; border: 1px solid #526f63; background: #101511; text-align: left; }
+.trade-offer-summary h3 { margin: 0 0 10px; color: #9fc5b4; font: 700 13px "Noto Serif SC", serif; text-align: center; }
+.trade-offer-summary > div { display: flex; justify-content: space-between; gap: 10px; padding: 6px 2px; border-top: 1px solid #29372f; font-size: 9px; }
+.trade-offer-summary span { color: #77877e; }
+.trade-offer-summary strong { color: #d8cdb4; }
+.trade-confirmation-status { display: flex; justify-content: center; gap: 20px; color: #91ae9f; font-size: 9px; }
+.trade-confirmation-actions { display: flex; justify-content: center; gap: 9px; margin-top: 18px; }
 .blessing-choice-modal { width: min(620px, 100%); }
 .blessing-choice-modal > p { color: #a99b87; font-size: 12px; }
 .blessing-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
@@ -484,6 +520,8 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   .action-dock { grid-template-columns: 1fr auto; }.action-dock .primary-button { grid-column: 1 / -1; }
   .turn-complete-actions { grid-column: 1 / -1; width: 100%; }.turn-complete-actions > button { flex: 1; }
   .shop-options { grid-template-columns: 1fr; }
+  .encounter-intent-options, .trade-comparison { grid-template-columns: 1fr; }
+  .trade-gold-field { grid-template-columns: 1fr; }
   .hand-rail { justify-content: flex-start; overflow-x: auto; padding-bottom: 6px; }
   .hand-card { width: 84px; height: 116px; }
   .battle-hands { grid-template-columns: 1fr; }

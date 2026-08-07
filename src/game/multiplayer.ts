@@ -55,6 +55,37 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
         state.phase.choice.challengerId === actor
       );
 
+    case "chooseEncounterIntent": {
+      if (state.phase.kind !== "encounterDecision") return false;
+      const encounter = state.phase.encounter;
+      const owner = action.side === "a" ? encounter.aPlayerId : encounter.bPlayerId;
+      const choice = action.side === "a" ? encounter.choiceA : encounter.choiceB;
+      return owner === actor && choice.status === "pending";
+    }
+
+    case "submitTradeOffer": {
+      if (state.phase.kind !== "tradeOffer") return false;
+      const trade = state.phase.trade;
+      const owner = action.side === "a" ? trade.aPlayerId : trade.bPlayerId;
+      const offer = action.side === "a" ? trade.offerA : trade.offerB;
+      return owner === actor && offer.status === "pending";
+    }
+
+    case "cancelTrade": {
+      if (state.phase.kind !== "tradeOffer") return false;
+      const trade = state.phase.trade;
+      const owner = action.side === "a" ? trade.aPlayerId : trade.bPlayerId;
+      return owner === actor;
+    }
+
+    case "confirmTrade": {
+      if (state.phase.kind !== "tradeConfirmation") return false;
+      const trade = state.phase.trade;
+      const owner = action.side === "a" ? trade.aPlayerId : trade.bPlayerId;
+      const confirmation = action.side === "a" ? trade.confirmationA : trade.confirmationB;
+      return owner === actor && confirmation === "pending";
+    }
+
     case "chooseBossChallenge":
       return (
         state.phase.kind === "bossGateChoice" &&
@@ -170,6 +201,42 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
         },
       };
     }
+    case "encounterDecision": {
+      const encounter = phase.encounter;
+      const hideChoice = (
+        choice: typeof encounter.choiceA,
+        owner: PlayerId,
+      ): typeof encounter.choiceA => {
+        if (owner === viewer || choice.status === "pending") return choice;
+        return { status: "submitted" };
+      };
+      return {
+        kind: "encounterDecision",
+        encounter: {
+          ...encounter,
+          choiceA: hideChoice(encounter.choiceA, encounter.aPlayerId),
+          choiceB: hideChoice(encounter.choiceB, encounter.bPlayerId),
+        },
+      };
+    }
+    case "tradeOffer": {
+      const trade = phase.trade;
+      const hideOffer = (
+        offer: typeof trade.offerA,
+        owner: PlayerId,
+      ): typeof trade.offerA => {
+        if (owner === viewer || offer.status === "pending") return offer;
+        return { status: "submitted" };
+      };
+      return {
+        kind: "tradeOffer",
+        trade: {
+          ...trade,
+          offerA: hideOffer(trade.offerA, trade.aPlayerId),
+          offerB: hideOffer(trade.offerB, trade.bPlayerId),
+        },
+      };
+    }
     case "pveReward":
       return { kind: "pveReward", notice: redactRewardNotice(phase.notice) };
     case "equipmentChoice":
@@ -229,6 +296,21 @@ export function currentActor(state: GameState): PlayerId {
   switch (state.phase.kind) {
     case "encounterChoice":
       return state.phase.choice.challengerId;
+    case "encounterDecision": {
+      const encounter = state.phase.encounter;
+      if (encounter.choiceA.status === "pending") return encounter.aPlayerId;
+      return encounter.bPlayerId;
+    }
+    case "tradeOffer": {
+      const trade = state.phase.trade;
+      if (trade.offerA.status === "pending") return trade.aPlayerId;
+      return trade.bPlayerId;
+    }
+    case "tradeConfirmation": {
+      const trade = state.phase.trade;
+      if (trade.confirmationA === "pending") return trade.aPlayerId;
+      return trade.bPlayerId;
+    }
     case "bossGateChoice":
       return state.phase.choice.playerId;
     case "blessingChoice":

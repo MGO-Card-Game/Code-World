@@ -15,7 +15,7 @@ function gameWithTwoOpponentsAtDestination(seed = 4242) {
 }
 
 describe("多人同格相遇目标选择", () => {
-  it("同格有两名对手时先进入选择阶段，再与选中的目标开战", () => {
+  it("同格有两名对手时先选目标，再与目标协商相遇意向", () => {
     const prepared = gameWithTwoOpponentsAtDestination();
     const challengerId = prepared.state.activePlayerId;
     const targetId = prepared.opponentIds[1];
@@ -34,6 +34,12 @@ describe("多人同格相遇目标选择", () => {
     expect(canAct(state, { type: "chooseEncounterOpponent", opponentId: targetId }, prepared.opponentIds[0])).toBe(false);
 
     state = gameReducer(state, { type: "chooseEncounterOpponent", opponentId: targetId });
+    expect(state.phase.kind).toBe("encounterDecision");
+    if (state.phase.kind !== "encounterDecision") return;
+    expect(state.phase.encounter.aPlayerId).toBe(challengerId);
+    expect(state.phase.encounter.bPlayerId).toBe(targetId);
+
+    state = gameReducer(state, { type: "chooseEncounterIntent", side: "a", intent: "battle" });
     expect(state.phase.kind).toBe("battle");
     if (state.phase.kind !== "battle") return;
     expect(state.phase.battle.kind).toBe("pvp");
@@ -67,9 +73,9 @@ describe("多人同格相遇目标选择", () => {
 
     const state = gameReducer(prepared.state, { type: "rollMovement" });
 
-    expect(state.phase.kind).toBe("battle");
-    if (state.phase.kind !== "battle") return;
-    expect(state.phase.battle.bPlayerId).toBe(prepared.opponentIds[0]);
+    expect(state.phase.kind).toBe("encounterDecision");
+    if (state.phase.kind !== "encounterDecision") return;
+    expect(state.phase.encounter.bPlayerId).toBe(prepared.opponentIds[0]);
   });
 
   it("选择阶段所有候选人都掉线超时后跳过相遇战并继续结算格子", () => {

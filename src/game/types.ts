@@ -188,11 +188,62 @@ export interface PvpPenaltyState {
   waiveReason?: "unyieldingWill" | "noPayable";
 }
 
-/** 移动结束时同格有多名对手，由本回合行动者选择本次只挑战其中一人。 */
+/** 移动结束时同格有多名对手，由本回合行动者选择本次只与其中一人互动。 */
 export interface EncounterChoiceState {
   challengerId: PlayerId;
   opponentIds: PlayerId[];
   tileIndex: number;
+}
+
+export type EncounterIntent = "trade" | "greet" | "battle";
+
+/** submitted 只用于对手视图，避免后选者根据先选者的和平意向改选战斗。 */
+export type EncounterIntentChoice =
+  | { status: "pending" }
+  | { status: "chosen"; intent: EncounterIntent }
+  | { status: "submitted" };
+
+export interface EncounterDecisionState {
+  aPlayerId: PlayerId;
+  bPlayerId: PlayerId;
+  tileIndex: number;
+  choiceA: EncounterIntentChoice;
+  choiceB: EncounterIntentChoice;
+}
+
+/** 双方各自拿出的完整报价；进入确认阶段后对双方公开。 */
+export interface TradeOffer {
+  gold: number;
+  scrolls: OwnedScroll[];
+  equipment: OwnedEquipment[];
+}
+
+/** offered 是引擎真实状态，submitted 是对手视图中的隐藏状态。 */
+export type TradeOfferChoice =
+  | { status: "pending" }
+  | { status: "offered"; offer: TradeOffer }
+  | { status: "submitted" };
+
+export interface TradeOfferState {
+  aPlayerId: PlayerId;
+  bPlayerId: PlayerId;
+  tileIndex: number;
+  offerA: TradeOfferChoice;
+  offerB: TradeOfferChoice;
+  /** 装备槽位不兼容时双方重新报价，并显示原因。 */
+  error?: string;
+}
+
+export type TradeConfirmationChoice = "pending" | "accepted";
+
+export interface TradeConfirmationState {
+  aPlayerId: PlayerId;
+  bPlayerId: PlayerId;
+  tileIndex: number;
+  offerA: TradeOffer;
+  offerB: TradeOffer;
+  confirmationA: TradeConfirmationChoice;
+  confirmationB: TradeConfirmationChoice;
 }
 
 export interface BossGateChoiceState {
@@ -245,6 +296,9 @@ export type GamePhase =
   | { kind: "awaitingRoll" }
   | { kind: "turnComplete" }
   | { kind: "encounterChoice"; choice: EncounterChoiceState }
+  | { kind: "encounterDecision"; encounter: EncounterDecisionState }
+  | { kind: "tradeOffer"; trade: TradeOfferState }
+  | { kind: "tradeConfirmation"; trade: TradeConfirmationState }
   | { kind: "bossGateChoice"; choice: BossGateChoiceState }
   | { kind: "battle"; battle: BattleState }
   | { kind: "blessingChoice"; choice: BlessingChoiceState }
@@ -268,6 +322,7 @@ export type GoldChangeReason =
   | "treasure"
   | "event"
   | "shop"
+  | "trade"
   | "pvpTransfer";
 
 /**
@@ -480,6 +535,16 @@ export type GameAction =
   | { type: "useMapScroll"; instanceId: string }
   | { type: "endTurn" }
   | { type: "chooseEncounterOpponent"; opponentId: PlayerId }
+  | { type: "chooseEncounterIntent"; side: CombatSide; intent: EncounterIntent }
+  | {
+      type: "submitTradeOffer";
+      side: CombatSide;
+      gold: number;
+      scrollInstanceIds: readonly string[];
+      equipmentInstanceIds: readonly string[];
+    }
+  | { type: "cancelTrade"; side: CombatSide }
+  | { type: "confirmTrade"; side: CombatSide; accept: boolean }
   | { type: "chooseBossChallenge"; challenge: boolean }
   | { type: "chooseBlessing"; replace: boolean }
   | { type: "acknowledgePveReward" }

@@ -210,6 +210,17 @@ describe("事件播放队列", () => {
         state = gameReducer(state, { type: "endTurn" });
       } else if (state.phase.kind === "battle") {
         state = resolveRound(state);
+      } else if (state.phase.kind === "encounterChoice") {
+        state = gameReducer(state, {
+          type: "chooseEncounterOpponent",
+          opponentId: state.phase.choice.opponentIds[0],
+        });
+      } else if (state.phase.kind === "encounterDecision") {
+        state = gameReducer(state, {
+          type: "chooseEncounterIntent",
+          side: state.phase.encounter.choiceA.status === "pending" ? "a" : "b",
+          intent: "greet",
+        });
       } else {
         break;
       }

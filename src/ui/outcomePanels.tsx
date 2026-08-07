@@ -274,8 +274,8 @@ export function EncounterChoicePanel({ state, choice, dispatch, playing, viewerS
         transition={SPRING}
       >
         <div className="modal-kicker">旅者相遇</div>
-        <h2>{challenger.name}选择对手</h2>
-        <p>本次移动只会触发一场相遇战，战斗结束后不会继续挑战同格的其他玩家。</p>
+        <h2>{challenger.name}选择相遇对象</h2>
+        <p>本次移动只会与一名旅者互动，结束后不会继续处理同格的其他玩家。</p>
         {canChoose ? (
           <div className="encounter-options">
             {choice.opponentIds.map((opponentId) => {

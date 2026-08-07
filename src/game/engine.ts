@@ -31,6 +31,12 @@ import {
   pvpGoldTransferAmount,
   transferPvpGold,
 } from "./economy";
+import {
+  createTradeOffer,
+  executeTrade,
+  tradeEquipmentCapacityError,
+  tradePlayerId,
+} from "./trading";
 import type { GameAction, GameState, MapTile, OwnedScroll, Player } from "./types";
 
 /**
@@ -52,7 +58,7 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
 
   if (checkEncounter && !tile.safeZone && opponents.length > 0) {
     if (opponents.length === 1) {
-      startBattle(state, "pvp", player.id, undefined, opponents[0].id);
+      startEncounterDecision(state, player.id, opponents[0].id, tile.id);
     } else {
       state.phase = {
         kind: "encounterChoice",
@@ -273,7 +279,7 @@ function useMapScroll(state: GameState, instanceId: string) {
   return true;
 }
 
-/** 选择同格相遇战目标；候选名单由移动结算时锁定，不能由客户端自行指定。 */
+/** 选择同格相遇目标；候选名单由移动结算时锁定，不能由客户端自行指定。 */
 function chooseEncounterOpponent(state: GameState, opponentId: Player["id"]) {
   if (state.phase.kind !== "encounterChoice") return false;
   const { challengerId, opponentIds, tileIndex } = state.phase.choice;
@@ -292,7 +298,173 @@ function chooseEncounterOpponent(state: GameState, opponentId: Player["id"]) {
     return false;
   }
 
-  startBattle(state, "pvp", challengerId, undefined, opponentId);
+  startEncounterDecision(state, challengerId, opponentId, tileIndex);
+  return true;
+}
+
+function startEncounterDecision(
+  state: GameState,
+  aPlayerId: Player["id"],
+  bPlayerId: Player["id"],
+  tileIndex: number,
+) {
+  state.phase = {
+    kind: "encounterDecision",
+    encounter: {
+      aPlayerId,
+      bPlayerId,
+      tileIndex,
+      choiceA: { status: "pending" },
+      choiceB: { status: "pending" },
+    },
+  };
+  addHistory(
+    state,
+    `${state.players[aPlayerId].name}遇见${state.players[bPlayerId].name}，双方决定战斗、交易或友好招呼。`,
+  );
+}
+
+function chooseEncounterIntent(
+  state: GameState,
+  action: Extract<GameAction, { type: "chooseEncounterIntent" }>,
+) {
+  if (state.phase.kind !== "encounterDecision") return false;
+  if (action.side !== "a" && action.side !== "b") return false;
+  if (action.intent !== "battle" && action.intent !== "trade" && action.intent !== "greet") return false;
+  const encounter = state.phase.encounter;
+  const choice = action.side === "a" ? encounter.choiceA : encounter.choiceB;
+  if (choice.status !== "pending") return false;
+  const playerId = action.side === "a" ? encounter.aPlayerId : encounter.bPlayerId;
+  const otherId = action.side === "a" ? encounter.bPlayerId : encounter.aPlayerId;
+  if (!state.players[playerId] || !state.players[otherId]) return false;
+
+  // 战斗意向拥有最高优先级，不等待另一方作答。
+  if (action.intent === "battle") {
+    addHistory(state, `${state.players[playerId].name}选择拔出武器，相遇立即转为战斗！`);
+    startBattle(state, "pvp", encounter.aPlayerId, undefined, encounter.bPlayerId);
+    return true;
+  }
+
+  const selected = { status: "chosen" as const, intent: action.intent };
+  if (action.side === "a") encounter.choiceA = selected;
+  else encounter.choiceB = selected;
+  if (encounter.choiceA.status === "pending" || encounter.choiceB.status === "pending") {
+    addHistory(state, `${state.players[playerId].name}已经作出相遇选择，等待对方。`);
+    return true;
+  }
+
+  if (
+    encounter.choiceA.status === "chosen"
+    && encounter.choiceB.status === "chosen"
+    && encounter.choiceA.intent === "trade"
+    && encounter.choiceB.intent === "trade"
+  ) {
+    state.phase = {
+      kind: "tradeOffer",
+      trade: {
+        aPlayerId: encounter.aPlayerId,
+        bPlayerId: encounter.bPlayerId,
+        tileIndex: encounter.tileIndex,
+        offerA: { status: "pending" },
+        offerB: { status: "pending" },
+      },
+    };
+    addHistory(state, `${state.players[encounter.aPlayerId].name}与${state.players[encounter.bPlayerId].name}都愿意交易，开始准备报价。`);
+    return true;
+  }
+
+  addHistory(state, `${state.players[encounter.aPlayerId].name}与${state.players[encounter.bPlayerId].name}友好招呼后相安无事。`);
+  resolveTile(state, state.map.tiles[encounter.tileIndex], false);
+  return true;
+}
+
+function submitTradeOffer(
+  state: GameState,
+  action: Extract<GameAction, { type: "submitTradeOffer" }>,
+) {
+  if (state.phase.kind !== "tradeOffer") return false;
+  if (action.side !== "a" && action.side !== "b") return false;
+  const trade = state.phase.trade;
+  const choice = action.side === "a" ? trade.offerA : trade.offerB;
+  if (choice.status !== "pending") return false;
+  const player = state.players[tradePlayerId(trade, action.side)];
+  const offer = player ? createTradeOffer(player, action) : undefined;
+  if (!offer) return false;
+  delete trade.error;
+  if (action.side === "a") trade.offerA = { status: "offered", offer };
+  else trade.offerB = { status: "offered", offer };
+
+  if (trade.offerA.status !== "offered" || trade.offerB.status !== "offered") {
+    addHistory(state, `${player.name}已经提交交易报价，等待对方。`);
+    return true;
+  }
+  const a = state.players[trade.aPlayerId];
+  const b = state.players[trade.bPlayerId];
+  const error = tradeEquipmentCapacityError(a, b, trade.offerA.offer, trade.offerB.offer);
+  if (error) {
+    trade.offerA = { status: "pending" };
+    trade.offerB = { status: "pending" };
+    trade.error = `${error}，请双方调整装备报价。`;
+    addHistory(state, `交易报价无法装入行囊：${error}，双方需要重新报价。`);
+    return true;
+  }
+  state.phase = {
+    kind: "tradeConfirmation",
+    trade: {
+      aPlayerId: trade.aPlayerId,
+      bPlayerId: trade.bPlayerId,
+      tileIndex: trade.tileIndex,
+      offerA: trade.offerA.offer,
+      offerB: trade.offerB.offer,
+      confirmationA: "pending",
+      confirmationB: "pending",
+    },
+  };
+  addHistory(state, "双方报价已经公开，等待最终确认。互相确认前不会转移任何资源。");
+  return true;
+}
+
+function confirmTrade(
+  state: GameState,
+  action: Extract<GameAction, { type: "confirmTrade" }>,
+) {
+  if (state.phase.kind !== "tradeConfirmation") return false;
+  if (action.side !== "a" && action.side !== "b") return false;
+  if (typeof action.accept !== "boolean") return false;
+  const trade = state.phase.trade;
+  const confirmation = action.side === "a" ? trade.confirmationA : trade.confirmationB;
+  if (confirmation !== "pending") return false;
+  const player = state.players[tradePlayerId(trade, action.side)];
+  if (!action.accept) {
+    addHistory(state, `${player.name}取消了交易，双方相安无事。`);
+    resolveTile(state, state.map.tiles[trade.tileIndex], false);
+    return true;
+  }
+  if (action.side === "a") trade.confirmationA = "accepted";
+  else trade.confirmationB = "accepted";
+  if (trade.confirmationA === "pending" || trade.confirmationB === "pending") {
+    addHistory(state, `${player.name}确认了报价，等待对方最终确认。`);
+    return true;
+  }
+  if (!executeTrade(state, trade)) {
+    addHistory(state, "报价中的资源已经变化，交易取消，双方相安无事。");
+  }
+  resolveTile(state, state.map.tiles[trade.tileIndex], false);
+  return true;
+}
+
+function cancelTrade(
+  state: GameState,
+  action: Extract<GameAction, { type: "cancelTrade" }>,
+) {
+  if (state.phase.kind !== "tradeOffer") return false;
+  if (action.side !== "a" && action.side !== "b") return false;
+  const trade = state.phase.trade;
+  const playerId = tradePlayerId(trade, action.side);
+  const player = state.players[playerId];
+  if (!player) return false;
+  addHistory(state, `${player.name}取消了交易，双方相安无事。`);
+  resolveTile(state, state.map.tiles[trade.tileIndex], false);
   return true;
 }
 
@@ -686,6 +858,33 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
         resolveTile(next, next.map.tiles[tileIndex], false);
       }
       return next;
+    case "encounterDecision": {
+      const encounter = next.phase.encounter;
+      if (encounter.aPlayerId === playerId) {
+        next.phase = { kind: "turnComplete" };
+        addHistory(next, `${timedOut.name}掉线超时，放弃本次相遇与格子结算。`);
+        advanceCompletedTurn(next);
+        return next;
+      }
+      if (encounter.bPlayerId !== playerId) return state;
+      encounter.choiceB = { status: "pending" };
+      chooseEncounterIntent(next, { type: "chooseEncounterIntent", side: "b", intent: "greet" });
+      return next;
+    }
+    case "tradeOffer":
+    case "tradeConfirmation": {
+      const trade = next.phase.trade;
+      if (trade.aPlayerId !== playerId && trade.bPlayerId !== playerId) return state;
+      if (trade.aPlayerId === playerId) {
+        next.phase = { kind: "turnComplete" };
+        addHistory(next, `${timedOut.name}掉线超时，交易取消并跳过格子结算。`);
+        advanceCompletedTurn(next);
+      } else {
+        addHistory(next, `${timedOut.name}掉线超时，交易取消，双方相安无事。`);
+        resolveTile(next, next.map.tiles[trade.tileIndex], false);
+      }
+      return next;
+    }
     case "bossGateChoice":
       if (next.phase.choice.playerId !== playerId) return state;
       chooseBossChallenge(next, false);
@@ -838,6 +1037,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "chooseEncounterOpponent":
       return chooseEncounterOpponent(next, action.opponentId) ? next : state;
+    case "chooseEncounterIntent":
+      return chooseEncounterIntent(next, action) ? next : state;
+    case "submitTradeOffer":
+      return submitTradeOffer(next, action) ? next : state;
+    case "cancelTrade":
+      return cancelTrade(next, action) ? next : state;
+    case "confirmTrade":
+      return confirmTrade(next, action) ? next : state;
     case "chooseBossChallenge":
       return chooseBossChallenge(next, action.challenge) ? next : state;
     case "chooseBlessing":

@@ -136,8 +136,10 @@ describe("game engine", () => {
     if (state.phase.kind !== "pveReward") throw new Error("应显示战斗奖励");
     expect(state.phase.notice.elite).toBe(true);
     expect(state.phase.notice.rewards.map((reward) => reward.source))
-      .toEqual(["battle", "elite"]);
-    expect(state.phase.notice.rewards[1].resourceType).toBe("scroll");
+      .toEqual(["battle", "battle", "elite", "elite"]);
+    expect(state.phase.notice.rewards[2].resourceType).toBe("scroll");
+    expect(state.phase.notice.rewards.filter((reward) => reward.resourceType === "gold"))
+      .toHaveLength(2);
     expect(state.players[player.id].scrolls)
       .toHaveLength(1 + Number(state.phase.notice.rewards[0].resourceType === "scroll"));
 
@@ -180,7 +182,7 @@ describe("game engine", () => {
     resolved = gameReducer(resolved, { type: "chooseEquipment" });
     expect(resolved.phase.kind).toBe("pveReward");
     if (resolved.phase.kind !== "pveReward") throw new Error("应在装备选择后显示奖励");
-    expect(resolved.phase.notice.rewards).toHaveLength(2);
+    expect(resolved.phase.notice.rewards).toHaveLength(4);
   });
 
   it("keeps core state inside valid bounds during a full automated game", () => {

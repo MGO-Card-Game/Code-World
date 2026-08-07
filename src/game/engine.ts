@@ -24,6 +24,13 @@ import {
 } from "./resources";
 import { addHistory, createInitialGame, emit, nextPlayerId, rollDie } from "./state";
 import { stageBossUnlocked } from "./stages";
+import {
+  buyShopItem,
+  ECONOMY,
+  grantGold,
+  pvpGoldTransferAmount,
+  transferPvpGold,
+} from "./economy";
 import type { GameAction, GameState, MapTile, OwnedScroll, Player } from "./types";
 
 /**
@@ -104,6 +111,7 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
         return;
       }
       progress.openedTreasureTileIds.push(tile.id);
+      const gold = grantGold(state, player, ECONOMY.treasureGold, "treasure");
       const bonusEquipment = bonusTreasureEquipment(player);
       const reward = grantRandomResourceReward(
         state,
@@ -112,7 +120,7 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
           ? { kind: "grantTreasureEquipment", remaining: bonusEquipment }
           : undefined,
       );
-      const line = (what: string) => `${player.name}打开宝箱，获得${what}。`;
+      const line = (what: string) => `${player.name}打开宝箱，获得${what}和 ${gold} 金币。`;
       addHistory(state, line(reward.name), rewardSecret(player, line, reward));
       if (!reward.pendingEquipmentChoice) {
         if (bonusEquipment > 0) grantTreasureEquipmentReward(state, player, bonusEquipment);
@@ -473,6 +481,14 @@ function choosePvpPenalty(
   const winner = state.players[winnerId];
   const loser = state.players[loserId];
 
+  if (action.choice === "gold") {
+    const amount = transferPvpGold(state, loser, winner);
+    if (amount <= 0) return false;
+    addHistory(state, `${loser.name}支付 ${amount} 金币给${winner.name}。`);
+    finishPenaltyAndResolveTile(state, tileIndex);
+    return true;
+  }
+
   if (action.choice === "hp") {
     const amount = pvpHpTransferAmount(winner, loser);
     // 付不出就忽略这次提交，阶段留在原地让他重选。
@@ -572,6 +588,9 @@ function settleUnavailablePvpPenalty(state: GameState) {
   const winner = state.players[winnerId];
   const loser = state.players[loserId];
   if (state.phase.penalty.waived) return settleWaivedPvpPenalty(state);
+  if (pvpGoldTransferAmount(loser) > 0) {
+    return choosePvpPenalty(state, { type: "choosePvpPenalty", choice: "gold" });
+  }
   if (pvpHpTransferAmount(winner, loser) > 0) {
     return choosePvpPenalty(state, { type: "choosePvpPenalty", choice: "hp" });
   }
@@ -825,6 +844,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return chooseBlessing(next, action.replace) ? next : state;
     case "acknowledgePveReward":
       return acknowledgePveReward(next) ? next : state;
+    case "buyShopItem":
+      return buyShopItem(next, action.item) ? next : state;
     case "submitScrollChoice":
       if (!submitScrollChoice(next, action.side, action.instanceIds)) return state;
       settleWaivedPvpPenalty(next);

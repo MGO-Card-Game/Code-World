@@ -14,6 +14,7 @@ import {
   isRevealed,
   visualAttacker,
   visualBaseStat,
+  visualGold,
   visualBattleHp,
   visualBattleRound,
   visualHp,
@@ -34,6 +35,7 @@ function player(overrides: Partial<Player> = {}): Player {
     maxHp: 18,
     baseAttack: 4,
     baseDefense: 2,
+    gold: 0,
     position: 7,
     checkpointTileId: 1,
     stageProgress: {
@@ -66,6 +68,7 @@ describe("显示数值回拉", () => {
     expect(visualMaxHp(subject, [])).toBe(18);
     expect(visualBaseStat(subject, "attack", [])).toBe(4);
     expect(visualBaseStat(subject, "defense", [])).toBe(2);
+    expect(visualGold(subject, [])).toBe(0);
     expect(visualPosition(subject, [])).toBe(7);
   });
 
@@ -119,6 +122,21 @@ describe("显示数值回拉", () => {
 
     expect(visualBaseStat(subject, "attack", [attack])).toBe(4);
     expect(visualBaseStat(subject, "defense", [attack])).toBe(3);
+  });
+
+  it("金币变化播放前按住旧余额", () => {
+    const subject = player({ gold: 110 });
+    const changed: GameEvent = {
+      id: 1,
+      type: "goldChanged",
+      playerId: "player1",
+      from: 50,
+      to: 110,
+      reason: "event",
+    };
+
+    expect(visualGold(subject, [changed])).toBe(50);
+    expect(visualGold(subject, [])).toBe(110);
   });
 
   it("战斗内临时血量按 targetSide 分别按住", () => {

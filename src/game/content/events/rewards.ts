@@ -1,6 +1,19 @@
 import { defineMapEvents } from "./definition";
+import { ECONOMY } from "../../economy";
 
 export const REWARD_EVENTS = defineMapEvents("reward", {
+  lostPurse: {
+    name: "遗失的钱袋",
+    description: `获得 ${ECONOMY.eventGold} 金币。`,
+    regions: { foothill: 1, mountainside: 1, summit: 1 },
+    effects: [{
+      type: "grantGold",
+      amount: ECONOMY.eventGold,
+      narration: ({ playerName, amount }) =>
+        `${playerName}在路边捡到钱袋，获得 ${amount} 金币。`,
+    }],
+  },
+
   travelerGift: {
     name: "旅人馈赠",
     description: "获得一张随机卷轴。",

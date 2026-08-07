@@ -55,6 +55,11 @@ export type MapEventEffectDefinition =
       narration: (context: BaseStatNarrationContext) => string;
     }
   | {
+      type: "grantGold";
+      amount: number;
+      narration: (context: AmountNarrationContext) => string;
+    }
+  | {
       type: "grantEquipment";
       category?: EquipmentCategory;
       quality?: "standard" | "high";

@@ -7,7 +7,7 @@ export type { BlessingDefinition } from "./definition";
 /**
  * 赐福内容池。
  *
- * 点石成金依赖尚未实现的金币系统，先登记定义但不进入随机池。
+ * 所有已登记赐福都进入随机池；经济相关效果由 economy.ts 统一结算。
  */
 export const BLESSINGS = defineBlessings({
   giantStrength: {
@@ -59,9 +59,9 @@ export const BLESSINGS = defineBlessings({
   },
   midasTouch: {
     name: "点石成金",
-    description: "获得的金币增加 20%（等待金币系统）。",
+    description: "通过战斗、宝箱和事件获得的金币增加 20%。",
     weight: 1,
-    enabled: false,
+    enabled: true,
     modifiers: [],
     effects: [{ type: "goldGainMultiplier", multiplier: 1.2 }],
   },

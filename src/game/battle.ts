@@ -9,6 +9,7 @@ import { findPreviousRestTile, findRestTileAtOrBefore } from "./map";
 import { grantRandomResourceReward, grantScroll, rewardSecret } from "./resources";
 import { enemyStats, getAttack, getDefense, pvpHpTransferAmount } from "./selectors";
 import { addHistory, emit, makeInstanceId, nextRandom, rollDie } from "./state";
+import { ECONOMY, grantGold, pvpGoldTransferAmount } from "./economy";
 import { nextStage, recordEliteVictory, stageBossUnlocked } from "./stages";
 import type {
   EquipmentDamageContext,
@@ -147,6 +148,7 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
   const unyieldingWillTriggered = applyPvpPenaltyReplacement(state, loser);
   const noPayablePenalty =
     !unyieldingWillTriggered &&
+    pvpGoldTransferAmount(loser) === 0 &&
     loser.scrolls.length === 0 &&
     loser.equipment.length === 0 &&
     pvpHpTransferAmount(winner, loser) === 0;
@@ -176,7 +178,7 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
         unyieldingWillTriggered
           ? `；${loser.name}的不屈意志同时生效，仅损失 1 点生命并免除正常代价`
           : noPayablePenalty
-            ? `；${loser.name}没有可支付的资源或生命，免除本次代价`
+            ? `；${loser.name}没有可支付的金币、资源或生命，免除本次代价`
           : ""
       }。`,
     );
@@ -207,7 +209,7 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
       unyieldingWillTriggered
         ? `${loser.name}的不屈意志生效，仅损失 1 点生命并免除正常代价。`
         : noPayablePenalty
-          ? `${loser.name}没有可支付的资源或生命，本次不再承受额外代价。`
+          ? `${loser.name}没有可支付的金币、资源或生命，本次不再承受额外代价。`
         : `${loser.name}需要选择代价。`
     }`,
   );
@@ -304,6 +306,10 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
       }
       const reward = grantRandomResourceReward(state, player);
       const eliteReward = battle.enemyAffix ? grantScroll(state, player) : undefined;
+      const battleGold = grantGold(state, player, ECONOMY.pveGold, "pveReward");
+      const eliteGold = battle.enemyAffix
+        ? grantGold(state, player, ECONOMY.eliteBonusGold, "pveReward")
+        : 0;
       const blessingRewards = Array.from(
         { length: bonusPveVictoryScrolls(player) },
         () => grantScroll(state, player),
@@ -317,11 +323,23 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
           name: reward.name,
           publicName: reward.publicName,
         },
+        {
+          source: "battle",
+          resourceType: "gold",
+          name: `${battleGold} 金币`,
+          publicName: `${battleGold} 金币`,
+        },
         ...(eliteReward ? [{
           source: "elite" as const,
           resourceType: eliteReward.resourceType,
           name: eliteReward.name,
           publicName: eliteReward.publicName,
+        }] : []),
+        ...(eliteGold > 0 ? [{
+          source: "elite" as const,
+          resourceType: "gold" as const,
+          name: `${eliteGold} 金币`,
+          publicName: `${eliteGold} 金币`,
         }] : []),
         ...blessingRewards.map((item) => ({
           source: "blessing" as const,
@@ -350,6 +368,7 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         .map((item, index) => {
           const name = publicView ? item.publicName : item.name;
           if (index === 0) return name;
+          if (item.source === "battle") return `并获得${name}`;
           if (item.source === "elite") return `并因击败精英额外获得${name}`;
           return `并因战争财阀额外获得${name}`;
         })

@@ -9,6 +9,7 @@ describe("地图事件内容注册表", () => {
     expect(Object.keys(MAP_EVENTS)).toEqual([
       "roadsideRespite",
       "fallingRocks",
+      "lostPurse",
       "travelerGift",
       "fallenAdventurer",
       "weaponInStone",
@@ -17,6 +18,7 @@ describe("地图事件内容注册表", () => {
     ]);
     expect(MAP_EVENTS.roadsideRespite.category).toBe("recovery");
     expect(MAP_EVENTS.fallingRocks.category).toBe("hazard");
+    expect(MAP_EVENTS.lostPurse.category).toBe("reward");
     expect(MAP_EVENTS.travelerGift.category).toBe("reward");
     expect(MAP_EVENTS.fallenAdventurer.category).toBe("reward");
     expect(MAP_EVENTS.weaponInStone.category).toBe("reward");
@@ -29,6 +31,7 @@ describe("地图事件内容注册表", () => {
       expect(mapEventPool(region)).toEqual([
         ["roadsideRespite", 1],
         ["fallingRocks", 1],
+        ["lostPurse", 1],
         ["travelerGift", 1],
         ["fallenAdventurer", 0.5],
         ["weaponInStone", 0.25],
@@ -38,23 +41,25 @@ describe("地图事件内容注册表", () => {
     }
   });
 
-  it("一次权重抽取消耗一个随机数并覆盖七个事件区间", () => {
+  it("一次权重抽取消耗一个随机数并覆盖八个事件区间", () => {
     let calls = 0;
     expect(pickMapEvent("foothill", () => { calls += 1; return 0.1; }))
       .toBe("roadsideRespite");
     expect(pickMapEvent("foothill", () => { calls += 1; return 0.25; }))
       .toBe("fallingRocks");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.5; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.45; }))
+      .toBe("lostPurse");
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.6; }))
       .toBe("travelerGift");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.65; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.74; }))
       .toBe("fallenAdventurer");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.75; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.8; }))
       .toBe("weaponInStone");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.82; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.87; }))
       .toBe("veteranGuidance");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.95; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.96; }))
       .toBe("guardianInscription");
-    expect(calls).toBe(7);
+    expect(calls).toBe(8);
   });
 
   it("所有事件都具备展示信息、正权重和至少一个声明式效果", () => {

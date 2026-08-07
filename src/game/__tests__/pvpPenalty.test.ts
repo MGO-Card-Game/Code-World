@@ -47,6 +47,23 @@ describe("可转移生命的计算", () => {
 });
 
 describe("相遇战代价阶段", () => {
+  it("只有金币可付时不会免除代价，并把余额的 20% 交给赢家", () => {
+    let state = decidedPvp(20260805, (draft) => {
+      draft.players.player1.hp = draft.players.player1.maxHp;
+      draft.players.player1.gold = 20;
+      draft.players.player2.gold = 70;
+      draft.players.player2.scrolls = [];
+      draft.players.player2.equipment = [];
+    });
+    expect(state.phase.kind).toBe("pvpPenalty");
+
+    state = gameReducer(state, { type: "choosePvpPenalty", choice: "gold" });
+
+    expect(state.players.player1.gold).toBe(34);
+    expect(state.players.player2.gold).toBe(56);
+    expect(state.phase.kind).not.toBe("pvpPenalty");
+  });
+
   it("资源和生命都无法支付时直接免除，不再后退", () => {
     const state = decidedPvp(20260805, (draft) => {
       // 赢家满血 → 转不了生命；败方两手空空 → 没有资源可交

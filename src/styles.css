@@ -48,7 +48,8 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .player-summary-name { min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 5px; }
 .player-summary-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e4d7c4; font: 700 11px "Noto Serif SC", serif; }
 .player-summary-name em { flex: 0 0 auto; color: var(--player-color); font-size: 7px; font-style: normal; }
-.player-summary-meta { display: flex; justify-content: space-between; gap: 5px; color: #887b69; font-size: 7px; }
+.player-summary-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 7px; color: #887b69; font-size: 7px; }
+.player-summary-meta span:nth-child(even) { text-align: right; }
 .player-summary-health { height: 3px; border-radius: 2px; overflow: hidden; background: #080807; }
 .player-summary-health i { display: block; height: 100%; background: linear-gradient(90deg, #9e3c31, #e66c50); }
 .player-panel { --player-color: #fff; border: 1px solid #4d4439; background: linear-gradient(160deg, #24201bcf, #171513e8); padding: 18px; min-height: 485px; opacity: .78; transition: .25s ease; box-shadow: inset 0 1px #ffffff08; }
@@ -67,6 +68,7 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .stat-grid span { display: block; font-size: 9px; color: #8e806d; }
 .stat-grid strong { display: block; color: #e8d8be; font: 700 17px "Noto Serif SC", serif; margin-top: 2px; }
 .stat-grid .stage-stat strong { font-size: 13px; white-space: nowrap; }
+.stat-grid .gold-stat strong { color: #f0c869; }
 .inventory-block { margin-top: 16px; }
 .inventory-block h3 { display: flex; justify-content: space-between; margin: 0 0 9px; color: #baa98f; font-size: 11px; letter-spacing: .08em; }
 .inventory-block h3 span { color: #d8b66c; }
@@ -233,6 +235,8 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 
 .action-dock { max-width: 960px; margin: 20px auto 0; min-height: 83px; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 22px; padding: 14px 17px 14px 23px; background: #211d18; border: 1px solid #5b4c3a; box-shadow: 0 15px 40px #0006; }
 .action-dock p { margin: 5px 0 0; color: #d0c2ad; font-size: 13px; }
+.turn-complete-actions { display: flex; align-items: center; gap: 8px; }
+.shop-button { color: #e0bd70; border-color: #806538; }
 .turn-waiting { color: #8f8372; font-size: 11px; white-space: nowrap; }
 /* 同上：等高数字才能在骰面上真正居中。旋转由 Framer 内联设置，这里不再重复挂 transform */
 .die-result { width: 49px; height: 49px; display: grid; place-items: center; border-radius: 7px; color: #2b2115; background: #e3c787; font: 900 24px/1 "Noto Serif SC", Georgia, serif; font-variant-numeric: lining-nums tabular-nums; box-shadow: inset 0 0 0 3px #0002, 0 5px 15px #0007; }
@@ -302,9 +306,9 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 
 /* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
-.battle-modal, .penalty-modal, .encounter-choice-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
+.battle-modal, .penalty-modal, .encounter-choice-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .shop-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
 .modal-kicker { color: #caa45f; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; }
-.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
+.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .shop-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
 .battle-modal > h2 span { color: #a45a43; font: 900 14px Georgia, serif; padding: 0 12px; }
 .initiative-line { color: #887a68; font-size: 10px; }
 .combatants { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: center; gap: 13px; margin: 21px 0 17px; }
@@ -441,6 +445,17 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .pve-reward-item strong { color: #efd293; font: 700 15px "Noto Serif SC", serif; }
 .pve-reward-item small { color: #857763; font-size: 9px; }
 .pve-reward-modal .primary-button { margin-top: 3px; }
+.shop-backdrop { background: radial-gradient(circle, #4b3b1dcc, #080706ed 58%); }
+.shop-modal { width: min(560px, 100%); border-color: #a78343; background: radial-gradient(circle at 50% 0, #42351d, #201a12 38%, #11100e 78%); }
+.shop-modal > p { color: #a99b87; font-size: 11px; }
+.shop-emblem { width: 60px; height: 60px; margin: 0 auto 12px; display: grid; place-items: center; border: 1px solid #c9a65b; border-radius: 50%; color: #efca73; background: #2b2315; font: 900 35px Georgia, serif; box-shadow: 0 0 28px #d3a34735; }
+.shop-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 21px 0 17px; }
+.shop-options button { min-height: 108px; display: grid; align-content: center; gap: 7px; padding: 14px; border: 1px solid #765f37; background: #18140e; color: #ddc58f; }
+.shop-options button:not(:disabled):hover { border-color: #d4aa54; background: #292014; transform: translateY(-1px); }
+.shop-options button:disabled { opacity: .42; cursor: not-allowed; }
+.shop-options span { color: #9f8250; font-size: 8px; letter-spacing: .14em; }
+.shop-options strong { font: 700 15px "Noto Serif SC", serif; }
+.shop-options small { color: #8d806c; font-size: 9px; }
 .victory-backdrop { background: radial-gradient(circle, #6b4129cc, #080706ee 52%); }
 .victory-modal { width: min(500px, 100%); padding: 42px; }
 .crown { display: block; color: #e1b95e; font-size: 64px; filter: drop-shadow(0 0 20px #d6923c66); }
@@ -467,6 +482,8 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   .player-roster-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .player-panel { order: 3; }.board-shell { order: 1; }
   .action-dock { grid-template-columns: 1fr auto; }.action-dock .primary-button { grid-column: 1 / -1; }
+  .turn-complete-actions { grid-column: 1 / -1; width: 100%; }.turn-complete-actions > button { flex: 1; }
+  .shop-options { grid-template-columns: 1fr; }
   .hand-rail { justify-content: flex-start; overflow-x: auto; padding-bottom: 6px; }
   .hand-card { width: 84px; height: 116px; }
   .battle-hands { grid-template-columns: 1fr; }

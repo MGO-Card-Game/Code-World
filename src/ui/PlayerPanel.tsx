@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   isRevealed,
   visualBaseStat,
+  visualGold,
   visualHp,
   visualMaxHp,
 } from "../anim/visualState";
@@ -71,6 +72,7 @@ export function PlayerSummary({
 }) {
   const hp = visualHp(player, playback.pending);
   const maxHp = visualMaxHp(player, playback.pending);
+  const gold = visualGold(player, playback.pending);
 
   return (
     <motion.button
@@ -91,6 +93,7 @@ export function PlayerSummary({
         </span>
         <span className="player-summary-meta">
           <span>生命 {hp}/{maxHp}</span>
+          <span>金币 {gold}</span>
           <span>{stageName}</span>
           <span>{stageStatus}</span>
         </span>
@@ -121,6 +124,7 @@ export function PlayerPanel({
 }) {
   const hp = visualHp(player, playback.pending);
   const maxHp = visualMaxHp(player, playback.pending);
+  const gold = visualGold(player, playback.pending);
   const visualPlayer = {
     ...player,
     baseAttack: visualBaseStat(player, "attack", playback.pending),
@@ -154,6 +158,7 @@ export function PlayerPanel({
       <div className="stat-grid">
         <div><span>攻击</span><strong>{getAttack(visualPlayer)}</strong></div>
         <div><span>防御</span><strong>{getDefense(visualPlayer)}</strong></div>
+        <div className="gold-stat"><span>金币</span><strong>{gold}</strong></div>
         <div className="stage-stat"><span>地图</span><strong>{stageName}</strong></div>
         <div><span>首领</span><strong>{stageStatus}</strong></div>
       </div>

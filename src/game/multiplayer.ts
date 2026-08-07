@@ -73,6 +73,9 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
         state.phase.notice.playerId === actor
       );
 
+    case "buyShopItem":
+      return state.phase.kind === "turnComplete" && state.activePlayerId === actor;
+
     case "choosePvpPenalty":
       return (
         state.phase.kind === "pvpPenalty" &&

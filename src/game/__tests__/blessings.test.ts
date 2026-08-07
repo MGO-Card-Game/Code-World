@@ -54,7 +54,7 @@ function forceLandingOn(state: GameState, type: "blessing" | "treasure") {
 }
 
 describe("赐福内容", () => {
-  it("登记了 buff.md 中的八种赐福，点石成金在金币系统上线前禁用", () => {
+  it("登记并启用了 buff.md 中的八种赐福", () => {
     expect(Object.keys(BLESSINGS)).toEqual([
       "giantStrength",
       "dragonScale",
@@ -65,10 +65,11 @@ describe("赐福内容", () => {
       "unyieldingWill",
       "midasTouch",
     ]);
-    expect(BLESSINGS.midasTouch.enabled).toBe(false);
-    for (let ticket = 0; ticket < 100; ticket += 1) {
-      expect(pickBlessingKind(() => ticket / 100)).not.toBe("midasTouch");
-    }
+    expect(BLESSINGS.midasTouch.enabled).toBe(true);
+    const picked = new Set(
+      Array.from({ length: 800 }, (_, ticket) => pickBlessingKind(() => ticket / 800)),
+    );
+    expect(picked).toContain("midasTouch");
   });
 
   it("巨人之力与龙鳞护体分别提供 3 点攻击和防御", () => {

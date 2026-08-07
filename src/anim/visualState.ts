@@ -49,6 +49,14 @@ export function visualBaseStat(
   return stat === "attack" ? player.baseAttack : player.baseDefense;
 }
 
+/** 玩家金币；获得、消费或转移事件播到前保持旧余额。 */
+export function visualGold(player: PlayerStats, pending: readonly GameEvent[]) {
+  const held = pending.find(
+    (event) => event.type === "goldChanged" && event.playerId === player.id,
+  );
+  return held?.type === "goldChanged" ? held.from : player.gold;
+}
+
 /** 玩家在棋盘上的位置。移动和 PvE 战败回退都会改。 */
 export function visualPosition(player: PlayerStats, pending: readonly GameEvent[]) {
   const held = pending.find(

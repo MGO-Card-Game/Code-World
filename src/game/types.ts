@@ -91,6 +91,8 @@ export interface Player {
   maxHp: number;
   baseAttack: number;
   baseDefense: number;
+  /** 公开货币；通过战斗、宝箱和事件获得，可在安全营地购买补给。 */
+  gold: number;
   position: number;
   /** PvE 与阶段 Boss 战败时返回的本阶段检查点。 */
   checkpointTileId: number;
@@ -215,7 +217,7 @@ export type PveRewardSource = "battle" | "elite" | "blessing";
 /** PvE 胜利弹层中的一项奖励；卷轴同时保存私密名称和旁观者可见名称。 */
 export interface PveRewardItem {
   source: PveRewardSource;
-  resourceType: "scroll" | "equipment";
+  resourceType: "scroll" | "equipment" | "gold";
   name: string;
   publicName: string;
 }
@@ -257,7 +259,15 @@ export type HpChangeReason =
   | "equipment"
   | "blessing"
   | "scroll"
+  | "shop"
   | "defeatRecovery"
+  | "pvpTransfer";
+
+export type GoldChangeReason =
+  | "pveReward"
+  | "treasure"
+  | "event"
+  | "shop"
   | "pvpTransfer";
 
 /**
@@ -309,6 +319,13 @@ export type GameEventBody =
       stat: "attack" | "defense";
       from: number;
       to: number;
+    }
+  | {
+      type: "goldChanged";
+      playerId: PlayerId;
+      from: number;
+      to: number;
+      reason: GoldChangeReason;
     }
   /** kind 会被 viewFor 对非持有者裁掉，否则对手抽到什么会从动画事件泄露 */
   | {
@@ -466,6 +483,7 @@ export type GameAction =
   | { type: "chooseBossChallenge"; challenge: boolean }
   | { type: "chooseBlessing"; replace: boolean }
   | { type: "acknowledgePveReward" }
+  | { type: "buyShopItem"; item: "scroll" | "healing" }
   /**
    * 提交本侧本回合要打的全部卷轴（GameRule 8.5，张数不限）。
    * 省略或传空数组表示不使用。两侧都提交后引擎自动结算本回合。
@@ -476,11 +494,11 @@ export type GameAction =
   | { type: "submitScrollChoice"; side: CombatSide; instanceIds?: readonly string[] }
   /**
    * 支付相遇战代价：resource 交一张卷轴或装备，hp 转移真实生命。
-   * 两项都无法支付时直接免除代价；经济系统加入后会改为金币转移。
+   * 金币、资源和生命都无法支付时直接免除代价。
    */
   | {
       type: "choosePvpPenalty";
-      choice: "resource" | "hp";
+      choice: "resource" | "hp" | "gold";
       resourceType?: "scroll" | "equipment";
       instanceId?: string;
     }

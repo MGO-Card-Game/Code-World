@@ -6,7 +6,7 @@ export type BlessingEffectDefinition =
   | { type: "extraPveVictoryScroll"; count: number }
   | { type: "extraTreasureEquipment"; count: number }
   | { type: "replacePvpPenaltyWithHpLoss"; amount: number }
-  /** 经济系统的预留效果；金币上线前对应赐福不会进入随机池。 */
+  /** 只放大奖励金币；商店支付与玩家间转移不应用倍率。 */
   | { type: "goldGainMultiplier"; multiplier: number };
 
 /**

@@ -20,6 +20,7 @@ import {
 } from "./ui/outcomePanels";
 import { PlayerPanel, PlayerSummary } from "./ui/PlayerPanel";
 import { ResourceModal } from "./ui/ResourceModal";
+import { ShopModal } from "./ui/ShopModal";
 import type { Dispatch } from "./ui/shared";
 
 /**
@@ -44,6 +45,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
   const [inspecting, setInspecting] = useState<PlayerId | null>(null);
   const [inspectingEquipment, setInspectingEquipment] = useState<EquipmentKind | null>(null);
   const [inspectingBoss, setInspectingBoss] = useState<MapRegionId | null>(null);
+  const [shopOpen, setShopOpen] = useState(false);
   const activeName = state.players[state.activePlayerId].name;
   const lingeringBattle = useLingeringBattle(state, playback);
   const players = state.turnOrder.map((id) => state.players[id]);
@@ -133,7 +135,14 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
         />
       </div>
 
-      <ActionDock state={state} dispatch={dispatch} message={dockMessage} playback={playback} viewerSeat={viewerSeat} />
+      <ActionDock
+        state={state}
+        dispatch={dispatch}
+        message={dockMessage}
+        playback={playback}
+        viewerSeat={viewerSeat}
+        onOpenShop={() => setShopOpen(true)}
+      />
       <details className="history-panel">
         <summary>冒险记录</summary>
         {state.history.map((entry, index) => <p key={`${index}-${entry.text}`}>{entry.text}</p>)}
@@ -219,6 +228,15 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
 
       {/* 资源弹窗与阶段弹层互不相干，单独一个 AnimatePresence */}
       <AnimatePresence>
+        {shopOpen && (
+          <ShopModal
+            key="shop"
+            state={state}
+            viewerSeat={viewerSeat}
+            dispatch={dispatch}
+            onClose={() => setShopOpen(false)}
+          />
+        )}
         {inspecting && (
           <ResourceModal
             key={`resource-${inspecting}`}

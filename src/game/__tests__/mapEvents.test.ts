@@ -31,12 +31,12 @@ function eventsOf<T extends GameEvent["type"]>(state: GameState, type: T) {
 }
 
 describe("地图事件结算", () => {
-  it("七种声明式事件都能经注册表真实触发", () => {
+  it("八种声明式事件都能经注册表真实触发", () => {
     const outcomes = new Set<
-      "heal" | "damage" | "scroll" | "corpse" | "stoneWeapon" | "attack" | "defense"
+      "heal" | "damage" | "gold" | "scroll" | "corpse" | "stoneWeapon" | "attack" | "defense"
     >();
 
-    for (let seed = 1; seed <= 1000 && outcomes.size < 7; seed += 1) {
+    for (let seed = 1; seed <= 1000 && outcomes.size < 8; seed += 1) {
       const state = landOnEvent(seed);
       const player = state.players[state.activePlayerId];
       expect(state.phase.kind).toBe("turnComplete");
@@ -58,6 +58,14 @@ describe("地图事件结算", () => {
         outcomes.add("defense");
         expect(player.baseDefense).toBe(statChanged.to);
         expect(statChanged.to - statChanged.from).toBe(1);
+      } else if (player.gold > 0) {
+        outcomes.add("gold");
+        expect(player.gold).toBe(50);
+        expect(eventsOf(state, "goldChanged")[0]).toMatchObject({
+          from: 0,
+          to: 50,
+          reason: "event",
+        });
       } else if (player.scrolls.length > 0) {
         outcomes.add("scroll");
         expect(eventsOf(state, "scrollGranted")).toHaveLength(1);
@@ -84,6 +92,7 @@ describe("地图事件结算", () => {
     expect(outcomes).toEqual(new Set([
       "heal",
       "damage",
+      "gold",
       "scroll",
       "corpse",
       "stoneWeapon",

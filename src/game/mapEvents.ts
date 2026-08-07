@@ -13,6 +13,7 @@ import {
   rewardSecret,
 } from "./resources";
 import { addHistory, emit, nextRandom } from "./state";
+import { grantGold } from "./economy";
 import type { GameState, MapTile, Player } from "./types";
 
 /**
@@ -94,6 +95,11 @@ export function applyMapEventEffect(
         stat: effect.stat,
         amount,
       }));
+      return false;
+    }
+    case "grantGold": {
+      const amount = grantGold(state, player, effect.amount, "event");
+      addHistory(state, effect.narration({ playerName: player.name, amount }));
       return false;
     }
     case "grantEquipment": {

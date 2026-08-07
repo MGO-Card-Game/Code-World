@@ -9,6 +9,7 @@ import { blessingDefinition } from "../game/content/blessings";
 import { enemyDefinition } from "../game/content/enemies";
 import { requirementValueForRegion } from "../game/stages";
 import { getAttack, getDefense, pvpHpTransferAmount } from "../game/selectors";
+import { pvpGoldTransferAmount } from "../game/economy";
 import type {
   BlessingChoiceState,
   BossGateChoiceState,
@@ -121,7 +122,13 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
             >
               <span>{sourceNames[reward.source]}</span>
               <strong>{reward.name}</strong>
-              <small>{reward.resourceType === "scroll" ? "卷轴" : "装备"}</small>
+              <small>{
+                reward.resourceType === "scroll"
+                  ? "卷轴"
+                  : reward.resourceType === "equipment"
+                    ? "装备"
+                    : "金币"
+              }</small>
             </motion.div>
           ))}
         </div>
@@ -148,6 +155,7 @@ export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: 
   const loser = state.players[penalty.loserId];
   // 和引擎共用同一个算法，界面画出的选项必然是引擎接受的选项
   const hpAmount = pvpHpTransferAmount(winner, loser);
+  const goldAmount = pvpGoldTransferAmount(loser);
   const canChoose = viewerSeat === penalty.loserId;
   return (
     <ModalBackdrop>
@@ -162,6 +170,11 @@ export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: 
         <h2>{loser.name}选择交付</h2>
         <p>胜者是{winner.name}。生命已经回溯，战斗中消耗的卷轴不会返还。</p>
         {canChoose ? <div className="penalty-options">
+          {goldAmount > 0 && (
+            <button disabled={playing} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "gold" })}>
+              <span>支付 20% 金币</span><strong>{goldAmount} 金币</strong>
+            </button>
+          )}
           {/* 代价由败方来付，视图里正是他自己的手牌，所以牌面可见 */}
           {visibleScrolls(loser.scrolls).map((item) => (
             <button key={item.instanceId} disabled={playing} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "resource", resourceType: "scroll", instanceId: item.instanceId })}>

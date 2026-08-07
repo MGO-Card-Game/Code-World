@@ -27,6 +27,24 @@ export const DICE_BOOST_SCROLLS = {
 
     drawable: false 是关键，否则宝箱和战斗奖励会把它当普通卷轴发出去。
   */
+  /*
+    王座破坏者（武器·PR）在每场战斗开始时发一张这个，战斗结束回收。
+    套路同下面的命运王冠，区别只有两处：这张只有攻击时机，效果是加骰子。
+
+    牌面的「投出三个骰子」写成"额外 2 颗"而不是"把骰数设为 3"：引擎的骰数是累加的
+    （基础 1 + extraDice + 装备的 diceCount），写成设定值就要和另外两个来源抢优先级，
+    而 8.5 允许一回合打任意多张牌，抢优先级这件事没有正确答案。基础骰数是 1，
+    所以今天打出来正好三颗。
+  */
+  throneBreakerStrike: {
+    name: "王座破坏者",
+    description: "本场战斗限定 · 本次攻击额外投 2 个骰子，结果求和",
+    rarity: "PR",
+    timings: ["beforeAttackRoll"],
+    effects: [{ type: "extraDice", count: 2 }],
+    drawable: false,
+  },
+
   fateCrownDecree: {
     name: "命运王冠",
     description: "本场战斗限定 · 本次攻或防的第一颗骰直接视为最高面",

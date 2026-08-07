@@ -24,6 +24,36 @@ function pvpBattle(seed: number): GameState {
 }
 
 /**
+ * 一场谁也打不死谁的 PvP 战斗。
+ *
+ * 跨回合效果至少要观察到同一侧的两次攻击，而攻防每轮交替，所以战斗必须活过
+ * 三轮。把双方的攻击归零、防御拉满，伤害恒为 0，轮数就不受随机影响了。
+ */
+function stalemateBattle(seed: number): GameState {
+  const state = pvpBattle(seed);
+  for (const player of Object.values(state.players)) {
+    player.baseAttack = 0;
+    player.baseDefense = 99;
+  }
+  return state;
+}
+
+/** 把本侧攻击骰锁在骰面上限的测试砧。 */
+const LOCK_ATTACK_MAX: EquipmentDefinition = {
+  name: "测试砧",
+  description: "把攻击骰锁在最高面",
+  rarity: "N",
+  category: "accessory",
+  modifiers: [],
+  effects: {
+    beforeRoll({ dieKind, modifiers }) {
+      if (dieKind !== "attack") return;
+      modifiers.minimumRoll = 99;
+    },
+  },
+};
+
+/**
  * 临时往卡表里塞一张测试卡。
  *
  * 效果直接挂在定义上，所以只有这一个注入点——不像以前还要同步往解析器
@@ -232,6 +262,231 @@ describe("装备战斗钩子", () => {
       const expectedSides = belowHalf ? 7 : 6;
       expect(only(state.lastEvents, "attackRolled").sides).toBe(expectedSides);
       expect(only(state.lastEvents, "defenseRolled").sides).toBe(expectedSides);
+    }
+  });
+
+  it("无名骑士遗甲在战斗生命低于三成时再抬一级防御骰面", () => {
+    for (const belowThreshold of [false, true]) {
+      let state = pvpBattle(20260805);
+      // b 侧是防守方
+      state.players.player2.equipment = [
+        { instanceId: "armor-2", kind: "namelessKnightArmor" },
+      ];
+      if (state.phase.kind !== "battle") throw new Error("unreachable");
+      const threshold = Math.ceil((state.players.player2.maxHp * 3) / 10);
+      state.phase.battle.hpB = belowThreshold ? threshold - 1 : threshold;
+
+      state = resolveRound(state);
+
+      // 6 + 2 是普通 modifier，再 +1 才是钩子的部分
+      expect(only(state.lastEvents, "defenseRolled").sides).toBe(belowThreshold ? 9 : 8);
+      // 只管防御那一侧，攻击骰不受影响
+      expect(only(state.lastEvents, "attackRolled").sides).toBe(6);
+    }
+  });
+
+  it("遗甲装在攻击方身上时不影响攻击骰", () => {
+    let state = pvpBattle(20260805);
+    state.players.player1.equipment = [
+      { instanceId: "armor-1", kind: "namelessKnightArmor" },
+    ];
+    if (state.phase.kind !== "battle") throw new Error("unreachable");
+    state.phase.battle.hpA = 1;
+
+    state = resolveRound(state);
+
+    expect(only(state.lastEvents, "attackRolled").sides).toBe(6);
+  });
+
+  it("双生刺剑在攻击骰点数与上一次攻击不同时加值", () => {
+    let state = stalemateBattle(20260805);
+    state.players.player1.equipment = [
+      { instanceId: "rapier-1", kind: "twinRapier" },
+    ];
+
+    state = resolveRound(state);
+    const first = only(state.lastEvents, "attackRolled");
+    // 本场第一次攻击没有前值，不触发
+    expect(first.flatBonus).toBe(0);
+
+    // 第 2 轮换对手攻击，自己这把剑不参与；第 3 轮才是它的第二次攻击
+    state = resolveRound(state);
+    state = resolveRound(state);
+    const second = only(state.lastEvents, "attackRolled");
+    // 前置条件：这颗种子下两轮点数确实不同，否则测的就不是"触发"了
+    expect(second.dice[0]).not.toBe(first.dice[0]);
+    expect(second.flatBonus).toBe(1);
+  });
+
+  it("两次攻击点数相同时双生刺剑不加值", () => {
+    const remove = addProbe("testLockMax", LOCK_ATTACK_MAX);
+
+    try {
+      let state = stalemateBattle(20260805);
+      state.players.player1.equipment = [
+        { instanceId: "rapier-1", kind: "twinRapier" },
+        { instanceId: "probe-1", kind: "testLockMax" as never },
+      ];
+
+      state = resolveRound(state);
+      expect(only(state.lastEvents, "attackRolled").dice).toEqual([7]);
+
+      state = resolveRound(state);
+      state = resolveRound(state);
+      const second = only(state.lastEvents, "attackRolled");
+      expect(second.dice).toEqual([7]);
+      expect(second.flatBonus).toBe(0);
+    } finally {
+      remove();
+    }
+  });
+
+  it("断星剑掷出最高面后，下一次攻击多投一颗骰子", () => {
+    const remove = addProbe("testLockMax", LOCK_ATTACK_MAX);
+
+    try {
+      let state = stalemateBattle(20260805);
+      state.players.player1.equipment = [
+        { instanceId: "star-1", kind: "starbreakerSword" },
+        { instanceId: "probe-1", kind: "testLockMax" as never },
+      ];
+
+      state = resolveRound(state);
+      const first = only(state.lastEvents, "attackRolled");
+      expect(first.sides).toBe(8);
+      // 攒下的骰子留给下一次攻击，不被本轮自己吃掉
+      expect(first.dice).toEqual([8]);
+
+      // 第 2 轮自己是防守方，额外骰不能花在防御上
+      state = resolveRound(state);
+      expect(only(state.lastEvents, "defenseRolled").dice).toHaveLength(1);
+
+      state = resolveRound(state);
+      expect(only(state.lastEvents, "attackRolled").dice).toEqual([8, 8]);
+    } finally {
+      remove();
+    }
+  });
+
+  it("没掷出最高面时断星剑不攒额外骰子", () => {
+    const remove = addProbe("testWideDie", {
+      name: "测试砧",
+      description: "把攻击骰面拉大",
+      rarity: "N",
+      category: "accessory",
+      modifiers: [],
+      effects: {
+        beforeRoll({ dieKind, modifiers }) {
+          // 骰面拉到 D22，掷中最高面的概率低到可以靠固定种子避开
+          if (dieKind !== "attack") return;
+          modifiers.sidesOverride = 20;
+        },
+      },
+    });
+
+    try {
+      let state = stalemateBattle(7);
+      state.players.player1.equipment = [
+        { instanceId: "star-1", kind: "starbreakerSword" },
+        { instanceId: "probe-1", kind: "testWideDie" as never },
+      ];
+
+      state = resolveRound(state);
+      const first = only(state.lastEvents, "attackRolled");
+      // 前置条件：这一颗不能是最高面，否则本用例测的就不是"没攒到"了
+      expect(first.dice).not.toContain(first.sides);
+
+      state = resolveRound(state);
+      state = resolveRound(state);
+      expect(only(state.lastEvents, "attackRolled").dice).toHaveLength(1);
+    } finally {
+      remove();
+    }
+  });
+
+  it("回响之剑把攻击骰点数的一半加到下一次防御上", () => {
+    const remove = addProbe("testLockMax", LOCK_ATTACK_MAX);
+
+    try {
+      let state = stalemateBattle(20260805);
+      state.players.player1.equipment = [
+        { instanceId: "echo-1", kind: "echoBlade" },
+        { instanceId: "probe-1", kind: "testLockMax" as never },
+      ];
+
+      state = resolveRound(state);
+      const attack = only(state.lastEvents, "attackRolled");
+      // 骰面锁在 7，余响是 floor(7 / 2)
+      expect(attack.dice).toEqual([7]);
+      expect(attack.flatBonus).toBe(0);
+
+      // 第 2 轮换对手攻击，自己防守，余响在这里兑现
+      state = resolveRound(state);
+      expect(only(state.lastEvents, "defenseRolled").flatBonus).toBe(3);
+
+      // 只兑现一次：第 4 轮的防御拿到的是第 3 轮攻击新攒的那份，不是叠加
+      state = resolveRound(state);
+      state = resolveRound(state);
+      expect(only(state.lastEvents, "defenseRolled").flatBonus).toBe(3);
+    } finally {
+      remove();
+    }
+  });
+
+  it("回响之剑攒下的余响不加在自己的攻击上", () => {
+    const remove = addProbe("testLockMax", LOCK_ATTACK_MAX);
+
+    try {
+      let state = stalemateBattle(20260805);
+      state.players.player1.equipment = [
+        { instanceId: "echo-1", kind: "echoBlade" },
+        { instanceId: "probe-1", kind: "testLockMax" as never },
+      ];
+
+      state = resolveRound(state);
+      state = resolveRound(state);
+      state = resolveRound(state);
+      // 第 3 轮又是自己攻击：上一轮防守已经把余响花掉了，攻击不该白拿加值
+      expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(0);
+    } finally {
+      remove();
+    }
+  });
+
+  it("战斗结束时回收暗格，余势不会带进下一场", () => {
+    const remove = addProbe("testLockMax", LOCK_ATTACK_MAX);
+
+    try {
+      let state = createInitialGame(4242);
+      state.players.player1.equipment = [
+        { instanceId: "star-1", kind: "starbreakerSword" },
+        { instanceId: "probe-1", kind: "testLockMax" as never },
+      ];
+      const sword = () =>
+        state.players.player1.equipment.find((item) => item.instanceId === "star-1");
+      state.phase = {
+        kind: "battle",
+        battle: makeBattle({
+          kind: "pve",
+          aPlayerId: "player1",
+          enemyId: "slime",
+          hpB: 2,
+        }),
+      };
+
+      // 锁在最高面的一击既打死史莱姆、又满足断星剑的攒骰条件
+      state = resolveRound(state);
+      expect(state.phase.kind).not.toBe("battle");
+      expect(sword()?.battleMemo).toBeUndefined();
+
+      state.phase = {
+        kind: "battle",
+        battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId: "slime" }),
+      };
+      state = resolveRound(state);
+      expect(only(state.lastEvents, "attackRolled").dice).toHaveLength(1);
+    } finally {
+      remove();
     }
   });
 

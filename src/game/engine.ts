@@ -710,6 +710,7 @@ function chosenInstanceIds(choice: ScrollChoice): readonly string[] {
 function finishBattle(state: GameState, battle: BattleState, winnerSide: CombatSide) {
   // 先回收临时牌，再走任何分支——相遇战代价阶段会让败方交出一张卷轴
   dropTemporaryScrolls(state);
+  clearBattleMemos(state);
 
   if (battle.kind === "pvp") {
     emit(state, {
@@ -1184,6 +1185,20 @@ function applyEquipmentBattleStart(
 function dropTemporaryScrolls(state: GameState) {
   for (const player of Object.values(state.players)) {
     player.scrolls = player.scrolls.filter((scroll) => !scroll.temporary);
+  }
+}
+
+/**
+ * 清空全部装备的战斗内暗格（`OwnedEquipment.battleMemo`）。
+ *
+ * 和临时牌一起在 finishBattle 开头回收。暗格记的是"上一回合"，跨场留着的话
+ * 下一场第一轮就会把上一场最后一轮当成前一轮用——断星剑会白送一颗骰子。
+ * 放在引擎里而不是让每张卡在 onBattleStart 自己清：漏清不报错、不掉日志，
+ * 只是效果偶尔多触发一次，是最难发现的那类 bug。
+ */
+function clearBattleMemos(state: GameState) {
+  for (const player of Object.values(state.players)) {
+    for (const item of player.equipment) delete item.battleMemo;
   }
 }
 

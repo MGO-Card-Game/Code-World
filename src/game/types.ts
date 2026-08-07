@@ -47,6 +47,18 @@ export interface OwnedScroll {
 export interface OwnedEquipment {
   instanceId: string;
   kind: EquipmentKind;
+  /**
+   * 这一件装备的战斗内暗格，供「和上一回合比较」这类跨回合效果使用。
+   *
+   * 只能存数字：它要跟着 GameState 一起 structuredClone、JSON 广播，
+   * 还要在同种子重放里逐位复现。存的内容也不能是暗牌情报——它随装备一起公开，
+   * 目前两把剑记的都是已经由 attackRolled 公开过的骰点。
+   *
+   * 生命周期由引擎保证：finishBattle 开头统一清空，卡牌不必自己收尾。
+   * 交给每张卡在 onBattleStart 自己清的话，漏清不会报错，只会让效果在下一场
+   * 的第一轮偷偷多触发一次。
+   */
+  battleMemo?: number;
 }
 
 export interface Player {

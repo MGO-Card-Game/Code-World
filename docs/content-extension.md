@@ -119,6 +119,29 @@ oldKnightSword: {
 
 纯数值的骰面/属性修正仍然走 `modifiers` 配置，不要为它写 `effects`。
 
+### 跨回合效果：装备实例的战斗内暗格
+
+「和上一回合比较」这类效果需要记忆。`OwnedEquipment` 上有一个 `battleMemo?: number`，钩子拿到的 `item` 就是状态里那个对象，直接读写它即可：
+
+```ts
+// equipment/weapons.ts —— 双生刺剑
+afterRoll({ dieKind, roll, item, modifiers }) {
+  if (dieKind !== "attack") return;
+  const previous = item.battleMemo;
+  item.battleMemo = roll.dice[0];
+  if (previous === undefined || previous === roll.dice[0]) return;
+  modifiers.flatBonus += 1;
+},
+```
+
+三条约定：
+
+* **只放数字。** 它跟着 `GameState` 一起 `structuredClone`、JSON 广播，还要在同种子重放里逐位复现。
+* **不能放暗牌情报。** 装备是公开的，暗格也就是公开的。两把剑记的都是 `attackRolled` 已经播出去的骰点。
+* **生命周期由引擎负责**，`clearBattleMemos` 在 `finishBattle` 开头统一清空，卡牌不必自己收尾。所以它只能表达**战斗内**的记忆；真要跨场记东西，得另开一个字段并想清楚它什么时候失效。
+
+攻防每轮交替，所以「下一次攻击」隔着对手的一轮。**读写暗格时一律先判 `dieKind`**，否则中间那一轮的防御会把攒下的东西花掉——断星剑的 `beforeRoll` / `afterRoll` 两处都带这个判断。
+
 ### 「每场战斗一次的主动技」怎么写
 
 不要为它新建一套装备发动交互。**战斗开始时发一张战斗限定的临时卷轴**，让它落到已有的选牌阶段上：
@@ -162,7 +185,7 @@ fateCrownDecree: {
 
 `CARD_RARITY_WEIGHTS` 的**键序就是由低到高的档位顺序**，抽取按这个顺序走票，`CARD_RARITY_ORDER` 导出同一份顺序供展示排序使用。
 
-空档不参加抽取，其权重由剩下的档位按比例承接——所以上面四个数字只有在每一档都至少有一张卡时才等于实际概率。当前 PR 尚无卡牌，实际是 N 52.6% / R 31.6% / SR 15.8%。
+空档不参加抽取，其权重由剩下的档位按比例承接——所以上面四个数字只有在每一档都至少有一张卡时才等于实际概率。装备四档现已齐全，正好是 50 / 30 / 15 / 5；卷轴的 PR 档只有 `drawable: false` 的命运王冠，不参与抽取，因此实际是 N 52.6% / R 31.6% / SR 15.8%。
 
 > 改权重会打乱整个随机流。「整局跑通」类测试（`engine.test.ts`、`events.test.ts`、`multiplayer.test.ts`）用的是 `testSupport.ts` 里的 `PLAYTHROUGH_SEED` / `PLAYTHROUGH_CAP`，同一颗种子的对局长度可能从一千多步跳到一万六。跑挂了先确认是不是这个原因，再决定是换种子还是抬上限。
 

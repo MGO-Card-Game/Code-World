@@ -20,6 +20,8 @@ function advanceAutomatically(state: GameState) {
         type: "chooseEncounterOpponent",
         opponentId: state.phase.choice.opponentIds[0],
       });
+    case "blessingChoice":
+      return gameReducer(state, { type: "chooseBlessing", replace: false });
     case "battle": {
       const battle = state.phase.battle;
       const attackerId = battle.attacker === "a" ? battle.aPlayerId : battle.bPlayerId;

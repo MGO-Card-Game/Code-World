@@ -90,6 +90,7 @@ function newPlayer(id: PlayerId, name: string, color: string): Player {
     position: 0,
     scrolls: [],
     equipment: [],
+    blessings: [],
   };
 }
 

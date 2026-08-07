@@ -6,6 +6,7 @@ export const TILE_ICON: Record<MapTile["type"], string> = {
   battle: "⚔",
   elite: "⚔",
   treasure: "◆",
+  blessing: "✧",
   spring: "✦",
   event: "?",
   boss: "♛",

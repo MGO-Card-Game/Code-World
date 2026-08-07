@@ -4,6 +4,7 @@ import {
   enemyDefinition,
 } from "./content/enemies";
 import { EQUIPMENT, equipmentDefinition } from "./content/equipment";
+import { blessingDefinition } from "./content/blessings";
 import { scrollDefinition } from "./content/scrolls";
 import type {
   DiceKind,
@@ -71,27 +72,37 @@ export function equipmentModifiers(player: PlayerStats): StatModifier[] {
   });
 }
 
+export function blessingModifiers(player: PlayerStats): StatModifier[] {
+  return player.blessings.flatMap((blessing) =>
+    blessingDefinition(blessing.kind).modifiers
+  );
+}
+
+export function playerModifiers(player: PlayerStats): StatModifier[] {
+  return [...equipmentModifiers(player), ...blessingModifiers(player)];
+}
+
 export function getAttack(player: PlayerStats) {
-  return player.baseAttack + statBonus(equipmentModifiers(player), "attack");
+  return player.baseAttack + statBonus(playerModifiers(player), "attack");
 }
 
 export function getDefense(player: PlayerStats) {
-  return player.baseDefense + statBonus(equipmentModifiers(player), "defense");
+  return player.baseDefense + statBonus(playerModifiers(player), "defense");
 }
 
 export function getDieSidesBonus(player: PlayerStats, die: DiceKind) {
-  return dieSidesBonus(equipmentModifiers(player), die);
+  return dieSidesBonus(playerModifiers(player), die);
 }
 
 export function getDiceCountBonus(
   player: PlayerStats,
   die: Exclude<DiceKind, "movement">,
 ) {
-  return diceCountBonus(equipmentModifiers(player), die);
+  return diceCountBonus(playerModifiers(player), die);
 }
 
 export function getMaxHpBonus(player: PlayerStats) {
-  return maxHpBonus(equipmentModifiers(player));
+  return maxHpBonus(playerModifiers(player));
 }
 
 /**

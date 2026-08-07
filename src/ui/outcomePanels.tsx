@@ -5,9 +5,11 @@ import {
   equipmentCategory,
 } from "../game/content/equipment";
 import { SCROLLS } from "../game/content/scrolls";
+import { blessingDefinition } from "../game/content/blessings";
 import { PVP_RETREAT_TILES } from "../game/engine";
 import { getAttack, getDefense, pvpHpTransferAmount } from "../game/selectors";
 import type {
+  BlessingChoiceState,
   EquipmentChoiceState,
   EncounterChoiceState,
   GameStateView,
@@ -18,7 +20,7 @@ import type {
 import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
 
 /**
- * 战斗之后的三个弹层：相遇战代价、装备槽已满、终局。
+ * 战斗之后的规则弹层：赐福覆盖、相遇战代价、装备槽已满、终局。
  * 它们共享同一个 AnimatePresence，都要等战斗演出播完才登场。
  */
 
@@ -70,6 +72,63 @@ export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: 
             <span>后退</span><strong>{retreatTiles} 格</strong>
           </button>
         </div> : <p className="waiting-notice">等待{loser.name}选择代价……</p>}
+      </motion.section>
+    </ModalBackdrop>
+  );
+}
+
+export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: BlessingChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const winner = state.players[choice.winnerId];
+  const loser = state.players[choice.loserId];
+  const current = winner.blessings[0];
+  const currentDefinition = current ? blessingDefinition(current.kind) : undefined;
+  const offeredDefinition = blessingDefinition(choice.offered.kind);
+  const canChoose = viewerSeat === choice.winnerId;
+
+  return (
+    <ModalBackdrop>
+      <motion.section
+        className="blessing-choice-modal"
+        initial={{ opacity: 0, scale: 0.94, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={SPRING}
+      >
+        <div className="modal-kicker">赐福抉择</div>
+        <h2>{winner.name}夺得了{loser.name}的赐福</h2>
+        <p>每名玩家只能持有一个赐福。选择覆盖后，原赐福会永久消失。</p>
+        <div className="blessing-comparison">
+          <div>
+            <span>当前赐福</span>
+            <strong>{currentDefinition?.name ?? "无"}</strong>
+            <small>{currentDefinition?.description ?? "当前没有赐福"}</small>
+          </div>
+          <div className="offered">
+            <span>败方赐福</span>
+            <strong>{offeredDefinition.name}</strong>
+            <small>{offeredDefinition.description}</small>
+          </div>
+        </div>
+        {canChoose ? (
+          <div className="blessing-choice-options">
+            <button disabled={playing} onClick={() => dispatch({ type: "chooseBlessing", replace: false })}>
+              <span>保留当前赐福</span>
+              <strong>{currentDefinition?.name ?? "不覆盖"}</strong>
+            </button>
+            <button className="replace-blessing" disabled={playing} onClick={() => dispatch({ type: "chooseBlessing", replace: true })}>
+              <span>覆盖原赐福</span>
+              <strong>接纳{offeredDefinition.name}</strong>
+            </button>
+          </div>
+        ) : (
+          <p className="waiting-notice">等待{winner.name}选择赐福……</p>
+        )}
       </motion.section>
     </ModalBackdrop>
   );

@@ -15,6 +15,7 @@ const tileClassNames: Record<MapTile["type"], string> = {
   battle: "battle",
   elite: "elite",
   treasure: "treasure",
+  blessing: "blessing",
   spring: "spring",
   event: "event",
   boss: "boss",
@@ -227,6 +228,7 @@ export function Board({ state, playback }: { state: GameStateView; playback: Pla
         <span>拖动平移 · 滚轮缩放 · {Math.round(transform.scale * 100)}%</span>
         <span><i className="legend-battle" />战斗</span>
         <span><i className="legend-treasure" />宝箱</span>
+        <span><i className="legend-blessing" />赐福</span>
         <span><i className="legend-spring" />泉水</span>
         <span><i className="legend-event" />事件</span>
       </div>

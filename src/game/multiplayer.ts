@@ -55,8 +55,18 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
         state.phase.choice.challengerId === actor
       );
 
+    case "chooseBlessing":
+      return (
+        state.phase.kind === "blessingChoice" &&
+        state.phase.choice.winnerId === actor
+      );
+
     case "choosePvpPenalty":
-      return state.phase.kind === "pvpPenalty" && state.phase.penalty.loserId === actor;
+      return (
+        state.phase.kind === "pvpPenalty" &&
+        !state.phase.penalty.waived &&
+        state.phase.penalty.loserId === actor
+      );
 
     case "chooseEquipment":
       return state.phase.kind === "equipmentChoice" && state.phase.choice.playerId === actor;
@@ -172,6 +182,8 @@ export function currentActor(state: GameState): PlayerId {
   switch (state.phase.kind) {
     case "encounterChoice":
       return state.phase.choice.challengerId;
+    case "blessingChoice":
+      return state.phase.choice.winnerId;
     case "pvpPenalty":
       return state.phase.penalty.loserId;
     case "equipmentChoice":

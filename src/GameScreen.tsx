@@ -8,6 +8,7 @@ import { BattlePanel, useLingeringBattle } from "./ui/BattlePanel";
 import { Board } from "./ui/Board";
 import { EquipmentDetailModal } from "./ui/EquipmentDetailModal";
 import {
+  BlessingChoicePanel,
   EncounterChoicePanel,
   EquipmentChoicePanel,
   GameOverPanel,
@@ -115,7 +116,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
       </details>
 
       {/*
-        四个弹层放在同一个 AnimatePresence 下，阶段切换时才有进退场衔接。
+        所有规则阶段弹层放在同一个 AnimatePresence 下，阶段切换时才有进退场衔接。
         战后的弹层都要等 lingeringBattle 让位——否则决出胜负的那一瞬间，
         战斗演出还没播，代价/装备弹层就先盖上来了。
       */}
@@ -133,6 +134,16 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
         )}
         {!lingeringBattle && state.phase.kind === "pvpPenalty" && (
           <PenaltyPanel key="penalty" state={state} penalty={state.phase.penalty} dispatch={dispatch} playing={playback.playing} viewerSeat={viewerSeat} />
+        )}
+        {!lingeringBattle && state.phase.kind === "blessingChoice" && (
+          <BlessingChoicePanel
+            key="blessing-choice"
+            state={state}
+            choice={state.phase.choice}
+            dispatch={dispatch}
+            playing={playback.playing}
+            viewerSeat={viewerSeat}
+          />
         )}
         {!lingeringBattle && !playback.playing && state.phase.kind === "encounterChoice" && (
           <EncounterChoicePanel

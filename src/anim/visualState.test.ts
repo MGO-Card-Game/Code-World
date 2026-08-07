@@ -37,6 +37,7 @@ function player(overrides: Partial<Player> = {}): Player {
     position: 7,
     scrolls: [],
     equipment: [],
+    blessings: [],
     ...overrides,
   };
 }

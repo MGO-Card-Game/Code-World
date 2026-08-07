@@ -3,10 +3,19 @@ import { scrollDefinition } from "./content/scrolls";
 import { getDieSidesBonus, pvpHpTransferAmount } from "./selectors";
 import { finishBattle, PVP_RETREAT_TILES, startBattle } from "./battle";
 import { submitScrollChoice } from "./battleRound";
+import {
+  blessingName,
+  blessingMovementRollBonus,
+  bonusTreasureEquipment,
+  detachBlessing,
+  grantRandomBlessing,
+  receiveTransferredBlessing,
+} from "./blessings";
 import { resolveRandomMapEvent } from "./mapEvents";
 import {
   applyEquipmentStats,
   consumeScroll,
+  grantEquipment,
   grantRandomResourceReward,
   hasFreeEquipmentSlot,
   removeEquipmentStats,
@@ -77,12 +86,36 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
       return;
     }
     case "treasure": {
-      const reward = grantRandomResourceReward(state, player);
-      if (!reward.pendingEquipmentChoice) {
-        state.phase = { kind: "turnComplete" };
-      }
+      const bonusEquipment = bonusTreasureEquipment(player);
+      const reward = grantRandomResourceReward(
+        state,
+        player,
+        bonusEquipment > 0
+          ? { kind: "grantTreasureEquipment", remaining: bonusEquipment }
+          : undefined,
+      );
       const line = (what: string) => `${player.name}打开宝箱，获得${what}。`;
       addHistory(state, line(reward.name), rewardSecret(player, line, reward));
+      if (!reward.pendingEquipmentChoice) {
+        if (bonusEquipment > 0) grantTreasureEquipmentReward(state, player, bonusEquipment);
+        else state.phase = { kind: "turnComplete" };
+      }
+      return;
+    }
+    case "blessing": {
+      if (player.blessings.length > 0) {
+        state.phase = { kind: "turnComplete" };
+        addHistory(state, `${player.name}已经拥有赐福，没有从「${tile.label}」重复获得。`);
+        return;
+      }
+      const blessing = grantRandomBlessing(state, player);
+      state.phase = { kind: "turnComplete" };
+      addHistory(
+        state,
+        blessing
+          ? `${player.name}在「${tile.label}」获得永久赐福：${blessingName(blessing)}。`
+          : `${player.name}来到「${tile.label}」，但赐福内容尚未配置。`,
+      );
       return;
     }
     case "event": {
@@ -216,15 +249,62 @@ function finishPenaltyAndResolveTile(state: GameState, tileIndex: number) {
   resolveTile(state, state.map.tiles[tileIndex], false);
 }
 
-function resumeAfterEquipmentChoice(
+function settleWaivedPvpPenalty(state: GameState) {
+  if (state.phase.kind !== "pvpPenalty" || !state.phase.penalty.waived) return false;
+  const { loserId, tileIndex } = state.phase.penalty;
+  if (
+    state.unavailablePlayerIds.includes(loserId) &&
+    state.activePlayerId === loserId
+  ) {
+    state.phase = { kind: "turnComplete" };
+    advanceCompletedTurn(state);
+    return true;
+  }
+  finishPenaltyAndResolveTile(state, tileIndex);
+  return true;
+}
+
+function grantTreasureEquipmentReward(
   state: GameState,
-  resume: Extract<GameState["phase"], { kind: "equipmentChoice" }>["choice"]["resume"],
+  player: Player,
+  remaining: number,
 ) {
-  if (resume.kind === "turnComplete") {
+  if (remaining <= 0) {
     state.phase = { kind: "turnComplete" };
     return;
   }
-  resolveTile(state, state.map.tiles[resume.tileIndex], false);
+  const reward = grantEquipment(
+    state,
+    player,
+    undefined,
+    remaining > 1
+      ? { kind: "grantTreasureEquipment", remaining: remaining - 1 }
+      : { kind: "turnComplete" },
+  );
+  if (!reward.pendingEquipmentChoice) {
+    if (remaining > 1) grantTreasureEquipmentReward(state, player, remaining - 1);
+    else state.phase = { kind: "turnComplete" };
+  }
+  addHistory(state, `${player.name}因宝物猎人额外获得${reward.name}。`);
+}
+
+function resumeAfterEquipmentChoice(
+  state: GameState,
+  playerId: Player["id"],
+  resume: Extract<GameState["phase"], { kind: "equipmentChoice" }>["choice"]["resume"],
+) {
+  switch (resume.kind) {
+    case "turnComplete":
+      state.phase = { kind: "turnComplete" };
+      return;
+    case "resolveTile":
+      resolveTile(state, state.map.tiles[resume.tileIndex], false);
+      return;
+    case "grantTreasureEquipment": {
+      grantTreasureEquipmentReward(state, state.players[playerId], resume.remaining);
+      return;
+    }
+  }
 }
 
 /** 装备槽满时，由获得装备的玩家选择替换同类装备，或放弃新装备。 */
@@ -240,7 +320,7 @@ function chooseEquipment(
 
   if (!replaceInstanceId) {
     addHistory(state, `${player.name}放弃了${offeredDefinition.name}。`);
-    resumeAfterEquipmentChoice(state, choice.resume);
+    resumeAfterEquipmentChoice(state, choice.playerId, choice.resume);
     return true;
   }
 
@@ -269,7 +349,53 @@ function chooseEquipment(
     state,
     `${player.name}用${offeredDefinition.name}替换了${EQUIPMENT[removed.kind].name}。`,
   );
-  resumeAfterEquipmentChoice(state, choice.resume);
+  resumeAfterEquipmentChoice(state, choice.playerId, choice.resume);
+  return true;
+}
+
+/** 赢家在已有赐福时，选择保留原赐福或用败方赐福覆盖。 */
+function chooseBlessing(state: GameState, replace: boolean) {
+  if (state.phase.kind !== "blessingChoice") return false;
+  const { winnerId, loserId, offered, tileIndex, penaltyWaived } = state.phase.choice;
+  const winner = state.players[winnerId];
+  const loser = state.players[loserId];
+  const existing = winner.blessings[0];
+
+  if (replace) {
+    const existingName = existing ? blessingName(existing) : undefined;
+    if (existing) detachBlessing(state, winner);
+    if (!receiveTransferredBlessing(state, winner, loserId, offered)) return false;
+    addHistory(
+      state,
+      existingName
+        ? `${winner.name}放弃${existingName}，接纳了${loser.name}的${blessingName(offered)}。`
+        : `${winner.name}接纳了${loser.name}的${blessingName(offered)}。`,
+    );
+  } else {
+    addHistory(
+      state,
+      `${winner.name}保留自己的赐福，${loser.name}失去的${blessingName(offered)}随之消散。`,
+    );
+  }
+
+  state.phase = {
+    kind: "pvpPenalty",
+    penalty: { winnerId, loserId, tileIndex, waived: penaltyWaived },
+  };
+  if (penaltyWaived) {
+    settleWaivedPvpPenalty(state);
+    return true;
+  }
+  // 败方可能早已掉线超时；赢家作出选择后不能再等待一个已经不会触发的计时器。
+  if (state.unavailablePlayerIds.includes(loserId)) {
+    choosePvpPenalty(state, { type: "choosePvpPenalty", choice: "retreat" });
+    if (
+      (state.phase as GameState["phase"]).kind === "turnComplete" &&
+      state.activePlayerId === loserId
+    ) {
+      advanceCompletedTurn(state);
+    }
+  }
   return true;
 }
 
@@ -277,7 +403,7 @@ function choosePvpPenalty(
   state: GameState,
   action: Extract<GameAction, { type: "choosePvpPenalty" }>,
 ) {
-  if (state.phase.kind !== "pvpPenalty") return false;
+  if (state.phase.kind !== "pvpPenalty" || state.phase.penalty.waived) return false;
   const { winnerId, loserId, tileIndex } = state.phase.penalty;
   const winner = state.players[winnerId];
   const loser = state.players[loserId];
@@ -473,14 +599,22 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       if (!loserSide) return state;
       finishBattle(next, battle, loserSide === "a" ? "b" : "a");
       const phaseAfterBattle = next.phase as GameState["phase"];
-      if (phaseAfterBattle.kind === "pvpPenalty" && phaseAfterBattle.penalty.loserId === playerId) {
-        choosePvpPenalty(next, { type: "choosePvpPenalty", choice: "retreat" });
+      if (phaseAfterBattle.kind === "pvpPenalty") {
+        if (phaseAfterBattle.penalty.waived) {
+          settleWaivedPvpPenalty(next);
+        } else if (phaseAfterBattle.penalty.loserId === playerId) {
+          choosePvpPenalty(next, { type: "choosePvpPenalty", choice: "retreat" });
+        }
       }
       if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
         advanceCompletedTurn(next);
       }
       return next;
     }
+    case "blessingChoice":
+      if (next.phase.choice.winnerId !== playerId) return state;
+      chooseBlessing(next, false);
+      return next;
     case "pvpPenalty":
       if (next.phase.penalty.loserId !== playerId) return state;
       choosePvpPenalty(next, { type: "choosePvpPenalty", choice: "retreat" });
@@ -529,7 +663,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (next.phase.kind !== "awaitingRoll") return state;
       const player = next.players[next.activePlayerId];
       const sides = Math.max(2, 6 + getDieSidesBonus(player, "movement"));
-      const roll = rollDie(next, sides);
+      const roll = rollDie(next, sides) + blessingMovementRollBonus(player);
       next.lastMovementRoll = roll;
       const positionBefore = player.position;
       next.movementOrigin = positionBefore;
@@ -560,8 +694,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "chooseEncounterOpponent":
       return chooseEncounterOpponent(next, action.opponentId) ? next : state;
+    case "chooseBlessing":
+      return chooseBlessing(next, action.replace) ? next : state;
     case "submitScrollChoice":
-      return submitScrollChoice(next, action.side, action.instanceIds) ? next : state;
+      if (!submitScrollChoice(next, action.side, action.instanceIds)) return state;
+      settleWaivedPvpPenalty(next);
+      return next;
     case "choosePvpPenalty":
       return choosePvpPenalty(next, action) ? next : state;
     case "chooseEquipment":

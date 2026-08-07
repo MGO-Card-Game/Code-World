@@ -24,13 +24,14 @@ export type RandomTileType = Exclude<TileType, "start" | "boss">;
  *
  * 加类型时要连带核对可行性：min 合计必须 ≤ 区域容量 ≤ max 合计，
  * 否则 chooseCounts 会抛「地图格数量规则无法填满」。
- * 现在是 min 28、max 39，容量 35～36。
+ * 现在是 min 29、max 40，容量 35～36。
  */
 export const MAP_TILE_LIMITS: Record<RandomTileType, TileCountRange> = {
   battle: { min: 8, max: 11 },
   elite: { min: 2, max: 3 },
   event: { min: 8, max: 11 },
   treasure: { min: 6, max: 8 },
+  blessing: { min: 1, max: 1 },
   spring: { min: 4, max: 6 },
 };
 
@@ -48,6 +49,7 @@ const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
     elite: ["荒径凶兽", "岩坡异种", "林深咆哮", "旧道恶徒"],
     event: ["岔路奇遇", "风蚀石门", "旅人营火", "迷雾路标"],
     treasure: ["旧木宝箱", "遗落行囊", "石缝秘藏", "猎人补给"],
+    blessing: ["古树赐福", "晨曦祭坛", "山灵石龛", "荒径圣印"],
     spring: ["微光泉水", "林间清泉", "苔石水潭", "山脚驿泉"],
   },
   mountainside: {
@@ -55,6 +57,7 @@ const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
     elite: ["峭壁凶兽", "云中异种", "断桥恶客", "古道悍匪"],
     event: ["悬崖栈道", "回声洞窟", "失落祭坛", "云海幻景"],
     treasure: ["旅者遗物", "封印宝匣", "古道秘藏", "商队遗物"],
+    blessing: ["云中古坛", "风语石龛", "先民圣印", "雾隐祷所"],
     spring: ["半山泉眼", "雾隐清潭", "石壁灵泉", "云杉水涧"],
   },
   summit: {
@@ -62,6 +65,7 @@ const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
     elite: ["雷脊凶兽", "龙巢异种", "风暴悍将", "峰顶恶灵"],
     event: ["雷鸣山口", "断裂天梯", "先民石碑", "风暴之眼"],
     treasure: ["古代秘藏", "登顶补给", "龙裔宝匣", "云巅遗物"],
+    blessing: ["雷霆祭坛", "星辉石龛", "峰顶圣印", "龙脉祷所"],
     spring: ["云上清泉", "雷霆圣泉", "峰顶雪池", "龙眠水潭"],
   },
 };

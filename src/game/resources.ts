@@ -9,6 +9,7 @@ import { pickScrollKind, SCROLLS } from "./content/scrolls";
 import { emit, makeInstanceId, nextRandom, rollDie } from "./state";
 import type {
   EquipmentKind,
+  EquipmentChoiceState,
   GameState,
   OwnedEquipment,
   OwnedScroll,
@@ -57,10 +58,14 @@ export function grantScroll(state: GameState, player: Player, kind?: ScrollKind)
 }
 
 /** 宝箱与非 Boss 战斗共用的资源奖励：卷轴、装备各 50%。 */
-export function grantRandomResourceReward(state: GameState, player: Player): Reward {
+export function grantRandomResourceReward(
+  state: GameState,
+  player: Player,
+  equipmentResume?: EquipmentChoiceState["resume"],
+): Reward {
   return rollDie(state, 2) === 1
     ? grantScroll(state, player)
-    : grantEquipment(state, player);
+    : grantEquipment(state, player, undefined, equipmentResume);
 }
 
 /** 按奖励是否需要保密，拼出 addHistory 的第三个参数 */
@@ -163,6 +168,7 @@ export function grantEquipment(
   state: GameState,
   player: Player,
   selectedKind?: EquipmentKind,
+  resume: EquipmentChoiceState["resume"] = { kind: "turnComplete" },
 ): Reward {
   const kind = selectedKind ?? pickEquipmentKind(() => nextRandom(state));
   const item: OwnedEquipment = {
@@ -177,7 +183,7 @@ export function grantEquipment(
         playerId: player.id,
         offered: item,
         source: "reward",
-        resume: { kind: "turnComplete" },
+        resume,
       },
     };
     return { name, publicName: name, pendingEquipmentChoice: true };

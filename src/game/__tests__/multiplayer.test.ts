@@ -289,6 +289,9 @@ describe("暗牌裁剪 viewFor", () => {
       switch (state.phase.kind) {
         case "awaitingRoll": state = gameReducer(state, { type: "rollMovement" }); break;
         case "turnComplete": state = gameReducer(state, { type: "endTurn" }); break;
+        case "blessingChoice":
+          state = gameReducer(state, { type: "chooseBlessing", replace: false });
+          break;
         case "battle": {
           const battle = state.phase.battle;
           const attackerId = battle.attacker === "a"

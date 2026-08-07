@@ -170,7 +170,7 @@ export function battleWithDamage(
 }
 
 /**
- * 卷轴/装备是否应该已经出现在界面上。
+ * 卷轴、装备或赐福是否应该已经出现在界面上。
  *
  * 获得类事件播完之前先不渲染，免得卡牌在“获得”动画播之前就凭空出现在手牌里。
  */
@@ -179,8 +179,10 @@ export function isRevealed(instanceId: string, pending: readonly GameEvent[]) {
     (event) =>
       (event.type === "scrollGranted" ||
         event.type === "equipmentGranted" ||
+        event.type === "blessingGranted" ||
         event.type === "scrollTransferred" ||
-        event.type === "equipmentTransferred") &&
+        event.type === "equipmentTransferred" ||
+        event.type === "blessingTransferred") &&
       event.instanceId === instanceId,
   );
 }

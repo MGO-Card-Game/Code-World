@@ -7,6 +7,7 @@ import {
   visualPosition,
 } from "../anim/visualState";
 import { EQUIPMENT, type EquipmentKind } from "../game/content/equipment";
+import { blessingDefinition } from "../game/content/blessings";
 import { getAttack, getDefense } from "../game/selectors";
 import type { PlayerView } from "../game/types";
 import { HealthBar, revealedScrolls, SPRING, type Playback } from "./shared";
@@ -126,6 +127,9 @@ export function PlayerPanel({
   const equipment = player.equipment.filter((item) =>
     isRevealed(item.instanceId, playback.pending),
   );
+  const blessings = player.blessings.filter((item) =>
+    isRevealed(item.instanceId, playback.pending),
+  );
 
   return (
     <motion.aside
@@ -177,6 +181,24 @@ export function PlayerPanel({
               </motion.button>
             ))}
           </AnimatePresence>
+        </div>
+      </div>
+      <div className="inventory-block">
+        <h3>赐福 <span>{player.blessings.length}</span></h3>
+        <div className="chips">
+          {blessings.length === 0 && <em>尚未获得</em>}
+          {blessings.map((blessing) => {
+            const definition = blessingDefinition(blessing.kind);
+            return (
+              <span
+                className="chip blessing"
+                title={definition.description}
+                key={blessing.instanceId}
+              >
+                {definition.name}
+              </span>
+            );
+          })}
         </div>
       </div>
       <button className="ghost-button inspect-button" onClick={onInspect}>查看资源</button>

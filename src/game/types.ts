@@ -1,8 +1,9 @@
 import type { EliteAffixKind, EnemyKind } from "./content/enemies";
 import type { EquipmentKind } from "./content/equipment";
 import type { ScrollKind } from "./content/scrolls";
+import type { BlessingKind } from "./content/blessings";
 
-export type { EliteAffixKind, EnemyKind, EquipmentKind, ScrollKind };
+export type { BlessingKind, EliteAffixKind, EnemyKind, EquipmentKind, ScrollKind };
 
 export type PlayerId = "player1" | "player2" | "player3" | "player4";
 
@@ -20,6 +21,7 @@ export type TileType =
   | "battle"
   | "elite"
   | "treasure"
+  | "blessing"
   | "spring"
   | "event"
   | "boss";
@@ -61,6 +63,12 @@ export interface OwnedEquipment {
   battleMemo?: number;
 }
 
+/** 赐福在持有期间永久生效；每名玩家的数组长度由引擎限制为至多一个。 */
+export interface OwnedBlessing {
+  instanceId: string;
+  kind: BlessingKind;
+}
+
 export interface Player {
   id: PlayerId;
   name: string;
@@ -74,6 +82,7 @@ export interface Player {
   skipNextMovement?: true;
   scrolls: OwnedScroll[];
   equipment: OwnedEquipment[];
+  blessings: OwnedBlessing[];
 }
 
 export interface MapTile {
@@ -148,6 +157,8 @@ export interface PvpPenaltyState {
   winnerId: PlayerId;
   loserId: PlayerId;
   tileIndex: number;
+  /** 不屈意志已支付真实生命，正常三选一惩罚应由引擎直接跳过。 */
+  waived?: true;
 }
 
 /** 移动结束时同格有多名对手，由本回合行动者选择本次只挑战其中一人。 */
@@ -157,13 +168,23 @@ export interface EncounterChoiceState {
   tileIndex: number;
 }
 
+/** 赢家已有赐福时，决定是否用败方的赐福覆盖自己当前持有的一个。 */
+export interface BlessingChoiceState {
+  winnerId: PlayerId;
+  loserId: PlayerId;
+  offered: OwnedBlessing;
+  tileIndex: number;
+  penaltyWaived?: true;
+}
+
 export interface EquipmentChoiceState {
   playerId: PlayerId;
   offered: OwnedEquipment;
   source: "reward" | "transfer";
   resume:
     | { kind: "turnComplete" }
-    | { kind: "resolveTile"; tileIndex: number };
+    | { kind: "resolveTile"; tileIndex: number }
+    | { kind: "grantTreasureEquipment"; remaining: number };
 }
 
 export type GamePhase =
@@ -171,6 +192,7 @@ export type GamePhase =
   | { kind: "turnComplete" }
   | { kind: "encounterChoice"; choice: EncounterChoiceState }
   | { kind: "battle"; battle: BattleState }
+  | { kind: "blessingChoice"; choice: BlessingChoiceState }
   | { kind: "pvpPenalty"; penalty: PvpPenaltyState }
   | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
   | { kind: "gameOver"; winnerId: PlayerId };
@@ -179,6 +201,7 @@ export type HpChangeReason =
   | "spring"
   | "event"
   | "equipment"
+  | "blessing"
   | "scroll"
   | "defeatRecovery"
   | "pvpTransfer";
@@ -265,6 +288,19 @@ export type GameEventBody =
       toId: PlayerId;
       instanceId: string;
       kind: EquipmentKind;
+    }
+  | {
+      type: "blessingGranted";
+      playerId: PlayerId;
+      instanceId: string;
+      kind: BlessingKind;
+    }
+  | {
+      type: "blessingTransferred";
+      fromId: PlayerId;
+      toId: PlayerId;
+      instanceId: string;
+      kind: BlessingKind;
     }
   | {
       type: "battleStarted";
@@ -373,6 +409,7 @@ export type GameAction =
   | { type: "useMapScroll"; instanceId: string }
   | { type: "endTurn" }
   | { type: "chooseEncounterOpponent"; opponentId: PlayerId }
+  | { type: "chooseBlessing"; replace: boolean }
   /**
    * 提交本侧本回合要打的全部卷轴（GameRule 8.5，张数不限）。
    * 省略或传空数组表示不使用。两侧都提交后引擎自动结算本回合。

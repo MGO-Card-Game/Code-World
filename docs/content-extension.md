@@ -25,6 +25,9 @@ src/game/
 ```
 src/game/content/
   rarity.ts                 N/R/SR/PR 权重与抽取
+  blessings/
+    definition.ts           BlessingDefinition / 声明式赐福效果
+    index.ts                赐福内容池、权重抽取与 BlessingKind
   equipment/
     definition.ts           EquipmentBody / 分类元数据 / defineEquipment
     weapons.ts   armor.ts   shoes.ts   accessories.ts
@@ -36,7 +39,13 @@ src/game/content/
     index.ts                合并出 SCROLLS 与 ScrollKind
 ```
 
-新增一张卡 = 改对应的那张表。新增一个类别/主题 = 建一个表文件，再在 `index.ts` 里合并进来。`EquipmentKind` 和 `ScrollKind` 始终由配置键推导，不需要另外维护枚举。
+新增一张卡 = 改对应的那张表。新增一个类别/主题 = 建一个表文件，再在 `index.ts` 里合并进来。`BlessingKind`、`EquipmentKind` 和 `ScrollKind` 始终由配置键推导，不需要另外维护枚举。
+
+## 赐福
+
+赐福集中定义在 `content/blessings/index.ts`。`modifiers` 负责永久攻防等通用数值，`effects` 负责战斗骰保底、移动结果、额外奖励和 PvP 惩罚替代等生命周期效果。玩家状态只保存一个 `{ instanceId, kind }`；每名玩家同时最多持有一个，PvP 覆盖时整份实例转移。
+
+依赖尚未上线系统的赐福可以先写入定义并设置 `enabled: false`。它会保留类型和说明，但不会进入随机池；对应系统完成后再启用，避免玩家抽到当前没有实际作用的奖励。
 
 各表之间的 kind **不能重名**——合并是对象展开，撞键会静默覆盖。两边的 `category.test.ts` 各有一条数量断言守着这件事。
 

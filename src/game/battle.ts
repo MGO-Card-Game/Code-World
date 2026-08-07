@@ -1,6 +1,12 @@
 import { equipmentDefinition } from "./content/equipment";
+import {
+  applyPvpPenaltyReplacement,
+  bonusPveVictoryScrolls,
+  detachBlessing,
+  receiveTransferredBlessing,
+} from "./blessings";
 import { findPreviousRestTile, findRestTileAtOrBefore } from "./map";
-import { grantRandomResourceReward, rewardSecret } from "./resources";
+import { grantRandomResourceReward, grantScroll, rewardSecret } from "./resources";
 import { enemyStats, getAttack, getDefense } from "./selectors";
 import { addHistory, emit, makeInstanceId, nextRandom, rollDie } from "./state";
 import type {
@@ -141,13 +147,53 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
   const loserId = battlePlayerForSide(battle, winnerSide === "a" ? "b" : "a")!;
   const loser = state.players[loserId];
   const winner = state.players[winnerId];
+  const tileIndex = state.players[state.activePlayerId].position;
+  const penaltyWaived = applyPvpPenaltyReplacement(state, loser);
+  const offeredBlessing = detachBlessing(state, loser);
+
+  if (offeredBlessing && winner.blessings.length > 0) {
+    state.phase = {
+      kind: "blessingChoice",
+      choice: {
+        winnerId,
+        loserId,
+        offered: offeredBlessing,
+        tileIndex,
+        penaltyWaived: penaltyWaived || undefined,
+      },
+    };
+    addHistory(
+      state,
+      `${winner.name}赢得相遇战，需要决定是否用${loser.name}的赐福覆盖自己的赐福${
+        penaltyWaived
+          ? `；${loser.name}的不屈意志同时生效，仅损失 1 点生命并免除正常代价`
+          : ""
+      }。`,
+    );
+    return;
+  }
+
+  if (offeredBlessing) {
+    receiveTransferredBlessing(state, winner, loserId, offeredBlessing);
+  }
 
   // 后退永远付得出，所以这里没有"付不起"的分支——代价阶段一定有路可走
   state.phase = {
     kind: "pvpPenalty",
-    penalty: { winnerId, loserId, tileIndex: state.players[state.activePlayerId].position },
+    penalty: { winnerId, loserId, tileIndex, waived: penaltyWaived || undefined },
   };
-  addHistory(state, `${winner.name}赢得相遇战，${loser.name}需要选择代价。`);
+  addHistory(
+    state,
+    `${winner.name}赢得相遇战${
+      offeredBlessing
+        ? `并夺得${loser.name}的赐福`
+        : ""
+    }，${
+      penaltyWaived
+        ? `${loser.name}的不屈意志生效，仅损失 1 点生命并免除正常代价。`
+        : `${loser.name}需要选择代价。`
+    }`,
+  );
 }
 
 /**
@@ -210,13 +256,27 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
       addHistory(state, `${player.name}击败峰顶巨龙，夺得登峰之冠！`);
     } else {
       const reward = grantRandomResourceReward(state, player);
+      const bonusScrolls = Array.from(
+        { length: bonusPveVictoryScrolls(player) },
+        () => grantScroll(state, player),
+      );
       if (!reward.pendingEquipmentChoice) {
         state.phase = { kind: "turnComplete" };
       }
       // 战报里用折算后的名字，精英怪才不会在这一句退回成普通怪
       const enemyName = battleEnemyStats(battle).name;
       const line = (what: string) => `${player.name}击败${enemyName}，获得${what}。`;
-      addHistory(state, line(reward.name), rewardSecret(player, line, reward));
+      const combinedReward = bonusScrolls.length > 0
+        ? {
+            name: `${reward.name}，并因战争财阀额外获得${bonusScrolls.map((item) => item.name).join("、")}`,
+            publicName: `${reward.publicName}，并因战争财阀额外获得${bonusScrolls.map((item) => item.publicName).join("、")}`,
+          }
+        : reward;
+      addHistory(
+        state,
+        line(combinedReward.name),
+        rewardSecret(player, line, combinedReward),
+      );
     }
     return;
   }

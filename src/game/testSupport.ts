@@ -16,7 +16,7 @@ import type { BattleState, CombatSide, GameState } from "./types";
  * 所以留足余量，别让它退化成"这颗种子恰好够快"的暗坑
  * （5000 这个旧上限就是这样：抽样 21 颗种子里有 4 颗本来就会超）。
  */
-export const PLAYTHROUGH_SEED = 1000;
+export const PLAYTHROUGH_SEED = 3;
 export const PLAYTHROUGH_CAP = 20000;
 
 /** 构造一个战斗状态，补齐卷轴选择等样板字段 */

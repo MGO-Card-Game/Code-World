@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { handCardLayout, handSpacing } from "../anim/handLayout";
 import { EQUIPMENT, type EquipmentKind } from "../game/content/equipment";
+import { blessingDefinition } from "../game/content/blessings";
 import {
   SCROLL_CATEGORY_NAMES,
   SCROLL_CATEGORY_SIGILS,
@@ -145,6 +146,20 @@ export function ResourceModal({
               <i>{EQUIPMENT[item.kind].description}</i>
             </button>
           ))}
+        </div>
+
+        <h3 className="resource-heading">赐福 <span>{player.blessings.length} 个</span></h3>
+        <div className="chips resource-chips">
+          {player.blessings.length === 0 && <em>尚未获得</em>}
+          {player.blessings.map((blessing) => {
+            const definition = blessingDefinition(blessing.kind);
+            return (
+              <span className="chip blessing" key={blessing.instanceId}>
+                {definition.name}
+                <i>{definition.description}</i>
+              </span>
+            );
+          })}
         </div>
 
         <button className="primary-button secondary" onClick={onClose}>关闭</button>

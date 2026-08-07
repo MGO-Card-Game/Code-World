@@ -17,6 +17,7 @@ import {
   sideStats,
 } from "./battle";
 import { consumeScrolls } from "./resources";
+import { applyBlessingCombatRoll } from "./blessings";
 import {
   enemyDiceCountBonus,
   enemyDieSidesBonus,
@@ -469,6 +470,8 @@ export function resolveBattleRound(state: GameState) {
   applyEnemyBeforeRoll(
     state, battle, defenderSide, attackerSide, "defense", defenseModifiers,
   );
+  if (attackerId) applyBlessingCombatRoll(state.players[attackerId], attackModifiers);
+  if (defenderId) applyBlessingCombatRoll(state.players[defenderId], defenseModifiers);
 
   const attackRoll = rollForSide(
     state,

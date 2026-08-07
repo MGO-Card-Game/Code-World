@@ -27,6 +27,8 @@ export const DEFAULT_DURATIONS: Record<GameEvent["type"], number> = {
   scrollTransferred: 620,
   equipmentGranted: 620,
   equipmentTransferred: 620,
+  blessingGranted: 620,
+  blessingTransferred: 620,
   battleStarted: 700,
   initiativeRolled: 760,
   attackRolled: 640,

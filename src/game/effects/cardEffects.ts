@@ -90,6 +90,42 @@ export interface EquipmentBattleStartContext {
 }
 
 /**
+ * 即将落到自己头上的一次伤害。
+ *
+ * 这是唯一能读到"这一下要掉多少血"的时机：攻防差、追加伤害和卷轴直伤都已经折算完，
+ * 血还没扣。防守方的 afterRoll 读不到对手的合计，所以护甲的减免、致命拦截这类效果
+ * 只能挂在这里——判据是它们关心的是结果，不是自己那次投骰。
+ *
+ * 改伤害只能通过 reduceDamage / keepAtLeast，两者都只会让伤害变小。这不是洁癖：
+ * 顺序无关是靠它成立的（多件装备一起挂钩子时谁先谁后不影响结果），而且减伤时机
+ * 不该能加伤——真要加伤，加在攻击方的 bonusDamage 上，那里是公开算进合计的。
+ * 用函数而不是可写字段，还顺带挡掉了 `beforeDamage({ ...ctx })` 之后改副本这个坑。
+ */
+export interface EquipmentDamageContext {
+  state: GameState;
+  battle: BattleState;
+  /** 受击的一侧，也就是这件装备主人所在的一侧 */
+  side: CombatSide;
+  sourceSide: CombatSide;
+  player: Player;
+  item: OwnedEquipment;
+  /** 扣血前的战斗生命值。PvP 期间 player.hp 不动，一律读这个 */
+  ownHp: number;
+  ownMaxHp: number;
+  /**
+   * 任何钩子动手之前的伤害，用来判断"这一下有没有真的打到"。
+   *
+   * 刻意是快照而不是实时值：护甲关心的是这一击本身，而不是别的装备减免完剩多少。
+   */
+  incoming: number;
+  /** 减免固定伤害量。 */
+  reduceDamage: (by: number) => void;
+  /** 把伤害压到"扣完至少还剩 hp 点"，用于致命拦截。 */
+  keepAtLeast: (hp: number) => void;
+  addBattleLog: (text: string) => void;
+}
+
+/**
  * 通用 modifier 表达不了的装备逻辑，直接写在卡牌定义的 effects 上。
  * 和卷轴的 custom 同理：定义不进 GameState，放函数是安全的。
  */
@@ -112,6 +148,13 @@ export interface EquipmentEffects {
    * 此时改 flatBonus 仍会计入本次合计。
    */
   afterRoll?: (context: EquipmentBattleContext & { roll: RollResult }) => void;
+  /**
+   * 伤害落地前，只对受击方调用。
+   *
+   * 与 afterRoll 的分工：afterRoll 站在自己那次投骰上，看不到对手的合计；
+   * 这里站在结果上，看得到最终伤害和自己的剩余血量，但只能把伤害改小。
+   */
+  beforeDamage?: (context: EquipmentDamageContext) => void;
   onEquip?: (context: EquipmentLifecycleContext) => void;
   onUnequip?: (context: EquipmentLifecycleContext) => void;
 }

@@ -6,6 +6,7 @@ import {
   choiceFor,
   chosenInstanceIds,
   combatantName,
+  dealBattleDamage,
   finishBattle,
   forEachEquipmentEffects,
   resetChoices,
@@ -13,7 +14,6 @@ import {
   sideHp,
   sideMaxHp,
   sideStats,
-  syncPveHp,
 } from "./battle";
 import { consumeScrolls } from "./resources";
 import {
@@ -463,28 +463,17 @@ export function resolveBattleRound(state: GameState) {
     total: defenseTotal,
   });
 
-  const hpBefore = defenderSide === "a" ? battle.hpA : battle.hpB;
-  if (defenderSide === "a") battle.hpA = Math.max(0, battle.hpA - damage);
-  else battle.hpB = Math.max(0, battle.hpB - damage);
-  const hpAfter = defenderSide === "a" ? battle.hpA : battle.hpB;
-  emit(state, {
-    type: "battleDamage",
-    targetSide: defenderSide,
-    amount: damage,
-    hpBefore,
-    hpAfter,
-    hpMax: sideMaxHp(state, battle, defenderSide),
-  });
-
   const attackerName = combatantName(state, battle, attackerSide);
   const defenderName = combatantName(state, battle, defenderSide);
-  battle.log.unshift(
-    `${attackerName} 攻击 ${attackTotal} 对 防御 ${defenseTotal}，${defenderName}受到 ${damage} 点伤害。`,
+  const defenderDefeated = dealBattleDamage(
+    state,
+    battle,
+    attackerSide,
+    defenderSide,
+    damage,
+    (dealt) =>
+      `${attackerName} 攻击 ${attackTotal} 对 防御 ${defenseTotal}，${defenderName}受到 ${dealt} 点伤害。`,
   );
-  battle.log = battle.log.slice(0, 8);
-  syncPveHp(state, battle);
-
-  const defenderDefeated = defenderSide === "a" ? battle.hpA <= 0 : battle.hpB <= 0;
   if (defenderDefeated) {
     finishBattle(state, battle, attackerSide);
     return;

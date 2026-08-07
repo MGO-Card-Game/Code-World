@@ -109,7 +109,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
 ### 装备的战斗钩子
 
-通用修正不够用时，在卡上加 `effects`。五个时机：`modifiers`（动态修正）、`onEquip` / `onUnequip`（装备与卸下）、`onBattleStart`（战斗开始）、以及战斗内的 `beforeRoll` / `afterRoll`。
+通用修正不够用时，在卡上加 `effects`。六个时机：`modifiers`（动态修正）、`onEquip` / `onUnequip`（装备与卸下）、`onBattleStart`（战斗开始）、战斗内的 `beforeRoll` / `afterRoll`，以及受击时的 `beforeDamage`。
 
 ```ts
 oldKnightSword: {
@@ -132,10 +132,31 @@ oldKnightSword: {
 * **`modifiers` 与卷轴共用一份**，字段是加值、骰面替换、额外骰子、最低骰值、追加伤害。结算顺序固定为先卷轴后装备。
 * **`beforeRoll` 是唯一能读到对手状态的时机**，`afterRoll` 能额外读到 `roll`（骰面上限、每颗点数、总和）。`afterRoll` 里改加值仍会计入本次合计。
 * **血量一律读上下文给的 `ownHp` / `opponentHp` / `ownMaxHp` / `opponentMaxHp`**，不要读 `player.hp`。PvP 的战斗生命值存在 `battle.hpA` / `hpB` 上，战斗期间 `player.hp` 不动，直接读会拿到开战前的数值。
-* **`bonusDamage` 是攻防差之外的追加伤害**，防御挡不住。目前只结算攻击方那一份——防守方的反伤需要自己的 `battleDamage` 事件和击倒判定顺序，还没做。
+* **`bonusDamage` 是攻防差之外的追加伤害**，防御挡不住，且只结算攻击方那一份。防守方的反伤（荆棘铠甲那类）现在只差一半：`dealBattleDamage` 已经能对任意一侧发伤害，但"反伤打死攻击者、同一回合防守方自己也倒下"该判谁赢还没有规则。
 * 钩子只对有归属玩家的一侧调用；PvE 的敌人没有装备，会安静跳过。
 
 纯数值的骰面/属性修正仍然走 `modifiers` 配置，不要为它写 `effects`。
+
+### 受击时的效果：beforeDamage
+
+护甲的减免、致命拦截这类效果关心的是**结果**，不是自己那次投骰——防守方的 `afterRoll` 读不到对手的合计，压根不知道这一下会不会挨到。它们挂在 `beforeDamage`：攻防差、追加伤害和卷轴直伤都折算完了，血还没扣。
+
+```ts
+// equipment/armor.ts —— 灰铁胸甲
+beforeDamage({ incoming, item, reduceDamage, addBattleLog }) {
+  if (item.battleMemo !== undefined) return;   // 本场已用过
+  if (incoming <= 0) return;                    // 没挨到就不算次数
+  item.battleMemo = 1;
+  reduceDamage(1);
+  addBattleLog("灰铁胸甲卸掉了第一次冲击，伤害减少 1。");
+},
+```
+
+三条约定：
+
+* **只能把伤害改小。** 改伤只有 `reduceDamage(by)` 和 `keepAtLeast(hp)` 两个口，引擎都会钳一遍。顺序无关是靠这条成立的（多件装备一起挂钩子时谁先谁后不影响结果），而且减伤时机不该能加伤——真要加伤，加在攻击方的 `bonusDamage` 上，那里公开算进合计。用函数而不是可写字段，还挡掉了 `beforeDamage({ ...ctx })` 之后改副本这个坑。
+* **`incoming` 是任何钩子动手之前的快照**，用它判断"这一击有没有真的打到"；它不随其他装备的减免变化。
+* **只对受击方调用**，敌人没有装备会安静跳过。全部伤害都从 `dealBattleDamage` 落地——攻防结算和卷轴直伤共用它，所以钩子对巨龙打击一样生效。
 
 ### 跨回合效果：装备实例的战斗内暗格
 

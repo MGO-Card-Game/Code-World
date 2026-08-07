@@ -3,7 +3,10 @@ import { findPreviousRestTile, findRestTileAtOrBefore } from "./map";
 import { grantRandomResourceReward, rewardSecret } from "./resources";
 import { enemyStats, getAttack, getDefense } from "./selectors";
 import { addHistory, emit, makeInstanceId, rollDie } from "./state";
-import type { EquipmentEffects } from "./effects/cardEffects";
+import type {
+  EquipmentDamageContext,
+  EquipmentEffects,
+} from "./effects/cardEffects";
 import type {
   BattleState,
   CombatSide,
@@ -251,6 +254,92 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
 }
 
 /** 返回目标是否被卷轴直接击败。 */
+/**
+ * 受击方装备的减伤钩子，返回实际该扣的伤害。
+ *
+ * 只接受更小的结果，见 EquipmentDamageContext.damage：多件装备一起挂钩子时，
+ * 结算顺序就影响不了最终数值。敌人一侧没有装备，forEachEquipmentEffects 会安静跳过。
+ */
+function applyEquipmentBeforeDamage(
+  state: GameState,
+  battle: BattleState,
+  sourceSide: CombatSide,
+  targetSide: CombatSide,
+  incoming: number,
+) {
+  let damage = incoming;
+  const ownHp = sideHp(battle, targetSide);
+  // 两个改伤函数都收敛到这里，钳一次就够——外面再也没有别的路能改这个值
+  const shrinkTo = (value: number) => {
+    damage = Math.min(damage, Math.max(0, value));
+  };
+  forEachEquipmentEffects(state, battle, targetSide, (effects, item, player) => {
+    if (!effects.beforeDamage) return;
+    const context: EquipmentDamageContext = {
+      state,
+      battle,
+      side: targetSide,
+      sourceSide,
+      player,
+      item,
+      ownHp,
+      ownMaxHp: sideMaxHp(state, battle, targetSide),
+      incoming,
+      reduceDamage: (by) => shrinkTo(damage - Math.max(0, by)),
+      keepAtLeast: (hp) => shrinkTo(ownHp - Math.max(0, hp)),
+      addBattleLog(text) {
+        battle.log.unshift(text);
+        battle.log = battle.log.slice(0, 8);
+      },
+    };
+    effects.beforeDamage(context);
+  });
+  return damage;
+}
+
+/**
+ * 战斗内唯一的扣血入口，返回目标是否已被打倒。
+ *
+ * 攻防结算和卷轴直伤以前各写了一遍同样的五步——记 hpBefore、夹到 0、发 battleDamage、
+ * 写战报、同步 PvE 真实血量。两处都对，但没有任何东西保证它们继续对得上；收成一个
+ * 函数之后，受击方的减伤钩子也就只有一个挂载点。
+ *
+ * 战报文案两处不同，所以由调用方给 logLine，它拿到的是钩子改完后的最终伤害。
+ */
+export function dealBattleDamage(
+  state: GameState,
+  battle: BattleState,
+  sourceSide: CombatSide,
+  targetSide: CombatSide,
+  rawDamage: number,
+  logLine: (damage: number) => string,
+) {
+  const incoming = Math.max(0, rawDamage);
+  const hpBefore = sideHp(battle, targetSide);
+  const damage = applyEquipmentBeforeDamage(
+    state,
+    battle,
+    sourceSide,
+    targetSide,
+    incoming,
+  );
+  if (targetSide === "a") battle.hpA = Math.max(0, battle.hpA - damage);
+  else battle.hpB = Math.max(0, battle.hpB - damage);
+  const hpAfter = sideHp(battle, targetSide);
+  emit(state, {
+    type: "battleDamage",
+    targetSide,
+    amount: damage,
+    hpBefore,
+    hpAfter,
+    hpMax: sideMaxHp(state, battle, targetSide),
+  });
+  battle.log.unshift(logLine(damage));
+  battle.log = battle.log.slice(0, 8);
+  syncPveHp(state, battle);
+  return hpAfter <= 0;
+}
+
 export function applyDirectScrollDamage(
   state: GameState,
   battle: BattleState,
@@ -261,24 +350,15 @@ export function applyDirectScrollDamage(
 ) {
   // 读取当前总防御（基础值 + 装备），但不投防御骰。
   const damage = Math.max(0, rawDamage - sideStats(state, battle, targetSide).defense);
-  const hpBefore = targetSide === "a" ? battle.hpA : battle.hpB;
-  if (targetSide === "a") battle.hpA = Math.max(0, battle.hpA - damage);
-  else battle.hpB = Math.max(0, battle.hpB - damage);
-  const hpAfter = targetSide === "a" ? battle.hpA : battle.hpB;
-  emit(state, {
-    type: "battleDamage",
+  return dealBattleDamage(
+    state,
+    battle,
+    sourceSide,
     targetSide,
-    amount: damage,
-    hpBefore,
-    hpAfter,
-    hpMax: sideMaxHp(state, battle, targetSide),
-  });
-  battle.log.unshift(
-    `${combatantName(state, battle, sourceSide)}使用${effectName}，${combatantName(state, battle, targetSide)}受到 ${damage} 点伤害。`,
+    damage,
+    (dealt) =>
+      `${combatantName(state, battle, sourceSide)}使用${effectName}，${combatantName(state, battle, targetSide)}受到 ${dealt} 点伤害。`,
   );
-  battle.log = battle.log.slice(0, 8);
-  syncPveHp(state, battle);
-  return hpAfter <= 0;
 }
 
 export function applyBattleHealing(

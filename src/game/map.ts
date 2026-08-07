@@ -8,37 +8,51 @@ import type {
 } from "./types";
 import { isCombatTile } from "./types";
 
-export const MAP_COLUMNS = 36;
-export const MAP_REGION_SIZE = 36;
+/** 9×5 矩形外框恰好有 24 个格子，三个阶段各占一圈。 */
+export const MAP_COLUMNS = 9;
+export const MAP_REGION_SIZE = 24;
 
 export interface TileCountRange {
   min: number;
   max: number;
 }
 
-export type RandomTileType = Exclude<TileType, "start" | "boss">;
+export type RandomTileType = Exclude<TileType, "start" | "boss" | "gate">;
 
 /**
  * 每个区域独立满足这组上下限，避免某一类格子全部挤在同一段路上。
- * 起点和 Boss 占用的格子不计入这些数量。
+ * 守关门和阶段营地占用的格子不计入这些数量。
  *
  * 加类型时要连带核对可行性：min 合计必须 ≤ 区域容量 ≤ max 合计，
  * 否则 chooseCounts 会抛「地图格数量规则无法填满」。
- * 现在是 min 29、max 40，容量 35～36。
+ * 现在是 min 19、max 25，每圈扣除守关门与营地后容量为 22。
  */
 export const MAP_TILE_LIMITS: Record<RandomTileType, TileCountRange> = {
-  battle: { min: 8, max: 11 },
+  battle: { min: 5, max: 7 },
   elite: { min: 2, max: 3 },
-  event: { min: 8, max: 11 },
-  treasure: { min: 6, max: 8 },
+  event: { min: 5, max: 6 },
+  treasure: { min: 3, max: 4 },
   blessing: { min: 1, max: 1 },
-  spring: { min: 4, max: 6 },
+  spring: { min: 3, max: 4 },
 };
 
 export const MAP_REGIONS: MapRegion[] = [
-  { id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 35 },
-  { id: "mountainside", name: "云雾山腰", startIndex: 36, endIndex: 71 },
-  { id: "summit", name: "雷鸣峰顶", startIndex: 72, endIndex: 107 },
+  {
+    id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 23,
+    gateIndex: 0, entryIndex: 1, bossEnemyId: "banditChief",
+    requirements: [{ type: "uniqueEliteVictories", target: 1, label: "击败 1 个精英格敌人" }],
+  },
+  {
+    id: "mountainside", name: "云雾山腰", startIndex: 24, endIndex: 47,
+    gateIndex: 24, entryIndex: 25, bossEnemyId: "frostFang",
+    requirements: [{ type: "uniqueEliteVictories", target: 2, label: "击败 2 个不同精英格敌人" }],
+  },
+  {
+    id: "summit", name: "雷鸣峰顶", startIndex: 48, endIndex: 71,
+    gateIndex: 48, entryIndex: 49, bossEnemyId: "dragon",
+    // 龙巢正式条件尚未确定，暂用两个不同山顶精英作为可完整通关的占位规则。
+    requirements: [{ type: "uniqueEliteVictories", target: 2, label: "击败 2 个不同山顶精英" }],
+  },
 ];
 
 const RANDOM_TYPES = Object.keys(MAP_TILE_LIMITS) as RandomTileType[];
@@ -190,23 +204,30 @@ export function generateMap(seed: number): GameMap {
   const tiles: MapTile[] = [];
 
   for (const region of MAP_REGIONS) {
-    const hasStart = region.startIndex === 0;
-    const hasBoss = region.endIndex === MAP_REGIONS.at(-1)!.endIndex;
-    const capacity = MAP_REGION_SIZE - Number(hasStart) - Number(hasBoss);
-    const preceding = tiles.slice(-2).map((tile) => tile.type);
-    const types = makeTypePool(capacity, random, preceding);
+    const capacity = MAP_REGION_SIZE - 2;
+    const types = makeTypePool(capacity, random, ["gate", "start"]);
     let poolIndex = 0;
 
     for (let id = region.startIndex; id <= region.endIndex; id += 1) {
-      if (id === 0) {
-        tiles.push({ id, region: region.id, type: "start", label: "山脚营地", safeZone: true });
-      } else if (hasBoss && id === region.endIndex) {
+      if (id === region.gateIndex) {
         tiles.push({
           id,
           region: region.id,
-          type: "boss",
-          label: "峰顶巨龙",
-          enemyId: "dragon",
+          type: "gate",
+          label: region.id === "summit" ? "龙巢入口" : "守关之门",
+          safeZone: true,
+        });
+      } else if (id === region.entryIndex) {
+        const labels: Record<MapRegionId, string> = {
+          foothill: "山脚营地",
+          mountainside: "云腰营地",
+          summit: "峰顶营地",
+        };
+        tiles.push({
+          id,
+          region: region.id,
+          type: "start",
+          label: labels[region.id],
           safeZone: true,
         });
       } else {
@@ -225,16 +246,33 @@ export function generateMap(seed: number): GameMap {
   };
 }
 
+export function regionForPosition(map: GameMap, position: number) {
+  const tile = map.tiles[position];
+  if (!tile) throw new Error(`地图位置 ${position} 不存在`);
+  return map.regions.find((region) => region.id === tile.region)!;
+}
+
+export function tilesInRegion(map: GameMap, regionId: MapRegionId) {
+  const region = map.regions.find((candidate) => candidate.id === regionId);
+  if (!region) throw new Error(`地图区域 ${regionId} 不存在`);
+  return map.tiles.slice(region.startIndex, region.endIndex + 1);
+}
+
 /** 最近一个已走过的泉水或起点，是 PvE 战败后的休整点。 */
 export function findPreviousRestTile(map: GameMap, position: number) {
-  return [...map.tiles]
-    .reverse()
-    .find((tile) => tile.id < position && (tile.type === "start" || tile.type === "spring"))?.id ?? 0;
+  const region = regionForPosition(map, position);
+  for (let offset = 1; offset < MAP_REGION_SIZE; offset += 1) {
+    const local = (position - region.startIndex - offset + MAP_REGION_SIZE) % MAP_REGION_SIZE;
+    const tile = map.tiles[region.startIndex + local];
+    if (tile.type === "start" || tile.type === "spring") return tile.id;
+  }
+  return region.entryIndex;
 }
 
 /** 位于指定位置或其后方的最近休整点；用于在掷骰移动前锁定战败退路。 */
 export function findRestTileAtOrBefore(map: GameMap, position: number) {
-  return [...map.tiles]
-    .reverse()
-    .find((tile) => tile.id <= position && (tile.type === "start" || tile.type === "spring"))?.id ?? 0;
+  const tile = map.tiles[position];
+  return tile.type === "start" || tile.type === "spring"
+    ? position
+    : findPreviousRestTile(map, position);
 }

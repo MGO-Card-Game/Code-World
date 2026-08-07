@@ -40,6 +40,8 @@ function step(state: GameState): GameState {
         type: "chooseEncounterOpponent",
         opponentId: state.phase.choice.opponentIds[0],
       });
+    case "bossGateChoice":
+      return gameReducer(state, { type: "chooseBossChallenge", challenge: true });
     case "blessingChoice":
       return gameReducer(state, { type: "chooseBlessing", replace: false });
     case "battle": {
@@ -75,10 +77,12 @@ function step(state: GameState): GameState {
           instanceId: equipment.instanceId,
         });
       }
-      return gameReducer(state, { type: "choosePvpPenalty", choice: "retreat" });
+      throw new Error("无可支付代价的相遇战不应停留在 pvpPenalty 阶段");
     }
     case "equipmentChoice":
       return gameReducer(state, { type: "chooseEquipment" });
+    case "pveReward":
+      return gameReducer(state, { type: "acknowledgePveReward" });
     case "gameOver":
       return state;
   }
@@ -356,6 +360,7 @@ describe("事件流", () => {
   it("移动发出投骰与位移事件，位移距离等于骰值", () => {
     let state = createInitialGame(20260805);
     const mover = state.activePlayerId;
+    const from = state.players[mover].position;
 
     state = gameReducer(state, { type: "rollMovement" });
     const rolled = only(state.lastEvents, "movementRolled");
@@ -363,7 +368,7 @@ describe("事件流", () => {
 
     expect(rolled.playerId).toBe(mover);
     expect(moved.playerId).toBe(mover);
-    expect(moved.from).toBe(0);
+    expect(moved.from).toBe(from);
     expect(moved.to).toBe(moved.from + rolled.value);
   });
 
@@ -426,7 +431,7 @@ describe("事件流", () => {
     expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(0);
   });
 
-  it("战败发出结束、回血与后退三条事件", () => {
+  it("PvE 战败发出结束、回血与检查点回退三条事件", () => {
     let state = createInitialGame(4242);
     state.players.player1.position = 13;
     const expectedRetreat = findPreviousRestTile(state.map, 13);
@@ -565,13 +570,15 @@ describe("事件流", () => {
     }
 
     for (const event of pick(events, "playerMoved")) {
-      expect(event.to).toBeGreaterThan(event.from);
+      expect(event.from).toBeGreaterThanOrEqual(0);
+      expect(event.to).not.toBe(event.from);
       expect(event.to).toBeLessThan(state.map.tiles.length);
     }
 
     for (const event of pick(events, "playerRetreated")) {
-      expect(event.to).toBeLessThan(event.from);
+      expect(event.from).toBeGreaterThanOrEqual(0);
       expect(event.to).toBeGreaterThanOrEqual(0);
+      expect(event.to).toBeLessThan(state.map.tiles.length);
     }
 
     expect(pick(events, "gameOver")).toHaveLength(1);

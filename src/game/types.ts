@@ -24,6 +24,7 @@ export type TileType =
   | "blessing"
   | "spring"
   | "event"
+  | "gate"
   | "boss";
 
 /** 会打起来的格子。三处判定（结算、地图约束、界面）共用，免得各写一份对不上。 */
@@ -33,6 +34,19 @@ export function isCombatTile(type: TileType) {
   return (COMBAT_TILE_TYPES as readonly TileType[]).includes(type);
 }
 export type MapRegionId = "foothill" | "mountainside" | "summit";
+
+export type StageRequirement = {
+  type: "uniqueEliteVictories";
+  target: number;
+  label: string;
+};
+
+export interface StageProgress {
+  laps: number;
+  defeatedEliteTileIds: number[];
+  openedTreasureTileIds: number[];
+  bossDefeated: boolean;
+}
 
 export interface OwnedScroll {
   instanceId: string;
@@ -78,6 +92,10 @@ export interface Player {
   baseAttack: number;
   baseDefense: number;
   position: number;
+  /** PvE 与阶段 Boss 战败时返回的本阶段检查点。 */
+  checkpointTileId: number;
+  /** 三个阶段各自独立的环数、目标和一次性格子状态。 */
+  stageProgress: Record<MapRegionId, StageProgress>;
   /** 战斗中使用战地药剂后，下一次自己的地图行动会失去移动机会。 */
   skipNextMovement?: true;
   scrolls: OwnedScroll[];
@@ -104,6 +122,10 @@ export interface MapRegion {
   name: string;
   startIndex: number;
   endIndex: number;
+  gateIndex: number;
+  entryIndex: number;
+  bossEnemyId: EnemyKind;
+  requirements: StageRequirement[];
 }
 
 /** 一局实际使用的地图。地图随状态广播，客户端不会各自重新随机。 */
@@ -139,6 +161,8 @@ export interface BattleState {
   bPlayerId?: PlayerId;
   enemyId?: EnemyKind;
   enemyAffix?: EliteAffixKind;
+  stageId?: MapRegionId;
+  tileIndex?: number;
   /** PvE 战败时返回的休整点；开战时按本次移动前的位置锁定。 */
   retreatTo?: number;
   hpA: number;
@@ -157,8 +181,9 @@ export interface PvpPenaltyState {
   winnerId: PlayerId;
   loserId: PlayerId;
   tileIndex: number;
-  /** 不屈意志已支付真实生命，正常三选一惩罚应由引擎直接跳过。 */
+  /** 不屈意志已支付真实生命，或当前无可支付项；正常惩罚应由引擎直接跳过。 */
   waived?: true;
+  waiveReason?: "unyieldingWill" | "noPayable";
 }
 
 /** 移动结束时同格有多名对手，由本回合行动者选择本次只挑战其中一人。 */
@@ -168,6 +193,13 @@ export interface EncounterChoiceState {
   tileIndex: number;
 }
 
+export interface BossGateChoiceState {
+  playerId: PlayerId;
+  stageId: MapRegionId;
+  gateTileIndex: number;
+  bossEnemyId: EnemyKind;
+}
+
 /** 赢家已有赐福时，决定是否用败方的赐福覆盖自己当前持有的一个。 */
 export interface BlessingChoiceState {
   winnerId: PlayerId;
@@ -175,6 +207,25 @@ export interface BlessingChoiceState {
   offered: OwnedBlessing;
   tileIndex: number;
   penaltyWaived?: true;
+  penaltyWaiveReason?: "unyieldingWill" | "noPayable";
+}
+
+export type PveRewardSource = "battle" | "elite" | "blessing";
+
+/** PvE 胜利弹层中的一项奖励；卷轴同时保存私密名称和旁观者可见名称。 */
+export interface PveRewardItem {
+  source: PveRewardSource;
+  resourceType: "scroll" | "equipment";
+  name: string;
+  publicName: string;
+}
+
+/** 战斗奖励必须由获奖玩家确认，保证日志之外还有不会一闪而过的醒目反馈。 */
+export interface PveRewardNoticeState {
+  playerId: PlayerId;
+  enemyName: string;
+  elite: boolean;
+  rewards: PveRewardItem[];
 }
 
 export interface EquipmentChoiceState {
@@ -184,17 +235,20 @@ export interface EquipmentChoiceState {
   resume:
     | { kind: "turnComplete" }
     | { kind: "resolveTile"; tileIndex: number }
-    | { kind: "grantTreasureEquipment"; remaining: number };
+    | { kind: "grantTreasureEquipment"; remaining: number }
+    | { kind: "showPveReward"; notice: PveRewardNoticeState };
 }
 
 export type GamePhase =
   | { kind: "awaitingRoll" }
   | { kind: "turnComplete" }
   | { kind: "encounterChoice"; choice: EncounterChoiceState }
+  | { kind: "bossGateChoice"; choice: BossGateChoiceState }
   | { kind: "battle"; battle: BattleState }
   | { kind: "blessingChoice"; choice: BlessingChoiceState }
   | { kind: "pvpPenalty"; penalty: PvpPenaltyState }
   | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
+  | { kind: "pveReward"; notice: PveRewardNoticeState }
   | { kind: "gameOver"; winnerId: PlayerId };
 
 export type HpChangeReason =
@@ -394,7 +448,7 @@ export interface GameState {
   rngSeed: number;
   nextInstanceId: number;
   lastMovementRoll?: number;
-  /** 当前回合掷骰移动前的位置，用来锁定随后 PvE 战斗的后退边界。 */
+  /** 当前回合掷骰移动前的位置，用来锁定随后 PvE 战败的检查点回退。 */
   movementOrigin?: number;
   message: LogEntry;
   history: LogEntry[];
@@ -409,7 +463,9 @@ export type GameAction =
   | { type: "useMapScroll"; instanceId: string }
   | { type: "endTurn" }
   | { type: "chooseEncounterOpponent"; opponentId: PlayerId }
+  | { type: "chooseBossChallenge"; challenge: boolean }
   | { type: "chooseBlessing"; replace: boolean }
+  | { type: "acknowledgePveReward" }
   /**
    * 提交本侧本回合要打的全部卷轴（GameRule 8.5，张数不限）。
    * 省略或传空数组表示不使用。两侧都提交后引擎自动结算本回合。
@@ -419,15 +475,12 @@ export type GameAction =
    */
   | { type: "submitScrollChoice"; side: CombatSide; instanceIds?: readonly string[] }
   /**
-   * 支付相遇战代价（GameRule 13.1）。三选一：
-   * resource 交一张卷轴或装备、hp 转移真实生命、retreat 后退若干格。
-   *
-   * retreat 永远付得出（站在起点也能"退 0 格"），所以代价阶段一定有路可走，
-   * 引擎忽略掉付不出的那一项时不会把玩家卡住。
+   * 支付相遇战代价：resource 交一张卷轴或装备，hp 转移真实生命。
+   * 两项都无法支付时直接免除代价；经济系统加入后会改为金币转移。
    */
   | {
       type: "choosePvpPenalty";
-      choice: "resource" | "hp" | "retreat";
+      choice: "resource" | "hp";
       resourceType?: "scroll" | "equipment";
       instanceId?: string;
     }

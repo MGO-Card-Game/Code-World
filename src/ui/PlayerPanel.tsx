@@ -4,7 +4,6 @@ import {
   visualBaseStat,
   visualHp,
   visualMaxHp,
-  visualPosition,
 } from "../anim/visualState";
 import { EQUIPMENT, type EquipmentKind } from "../game/content/equipment";
 import { blessingDefinition } from "../game/content/blessings";
@@ -56,7 +55,8 @@ export function PlayerSummary({
   active,
   unavailable,
   selected,
-  destination,
+  stageName,
+  stageStatus,
   playback,
   onSelect,
 }: {
@@ -64,13 +64,13 @@ export function PlayerSummary({
   active: boolean;
   unavailable: boolean;
   selected: boolean;
-  destination: number;
+  stageName: string;
+  stageStatus: string;
   playback: Playback;
   onSelect: () => void;
 }) {
   const hp = visualHp(player, playback.pending);
   const maxHp = visualMaxHp(player, playback.pending);
-  const position = visualPosition(player, playback.pending);
 
   return (
     <motion.button
@@ -91,7 +91,8 @@ export function PlayerSummary({
         </span>
         <span className="player-summary-meta">
           <span>生命 {hp}/{maxHp}</span>
-          <span>进度 {position}/{destination}</span>
+          <span>{stageName}</span>
+          <span>{stageStatus}</span>
         </span>
         <span className="player-summary-health" aria-hidden="true">
           <motion.i animate={{ width: `${Math.max(0, Math.min(100, hp / maxHp * 100))}%` }} />
@@ -104,21 +105,22 @@ export function PlayerSummary({
 export function PlayerPanel({
   player,
   active,
-  destination,
+  stageName,
+  stageStatus,
   playback,
   onInspect,
   onInspectEquipment,
 }: {
   player: PlayerView;
   active: boolean;
-  destination: number;
+  stageName: string;
+  stageStatus: string;
   playback: Playback;
   onInspect: () => void;
   onInspectEquipment: (kind: EquipmentKind) => void;
 }) {
   const hp = visualHp(player, playback.pending);
   const maxHp = visualMaxHp(player, playback.pending);
-  const position = visualPosition(player, playback.pending);
   const visualPlayer = {
     ...player,
     baseAttack: visualBaseStat(player, "attack", playback.pending),
@@ -152,7 +154,8 @@ export function PlayerPanel({
       <div className="stat-grid">
         <div><span>攻击</span><strong>{getAttack(visualPlayer)}</strong></div>
         <div><span>防御</span><strong>{getDefense(visualPlayer)}</strong></div>
-        <div><span>进度</span><strong>{position}/{destination}</strong></div>
+        <div className="stage-stat"><span>地图</span><strong>{stageName}</strong></div>
+        <div><span>首领</span><strong>{stageStatus}</strong></div>
       </div>
       {/* 规格 25.2：侧栏只给卷轴数量，完整手牌走资源弹窗 */}
       <div className="inventory-block">

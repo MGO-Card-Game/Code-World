@@ -20,6 +20,8 @@ function advanceAutomatically(state: GameState) {
         type: "chooseEncounterOpponent",
         opponentId: state.phase.choice.opponentIds[0],
       });
+    case "bossGateChoice":
+      return gameReducer(state, { type: "chooseBossChallenge", challenge: true });
     case "blessingChoice":
       return gameReducer(state, { type: "chooseBlessing", replace: false });
     case "battle": {
@@ -54,10 +56,12 @@ function advanceAutomatically(state: GameState) {
           instanceId: equipment.instanceId,
         });
       }
-      return gameReducer(state, { type: "choosePvpPenalty", choice: "retreat" });
+      throw new Error("无可支付代价的相遇战不应停留在 pvpPenalty 阶段");
     }
     case "equipmentChoice":
       return gameReducer(state, { type: "chooseEquipment" });
+    case "pveReward":
+      return gameReducer(state, { type: "acknowledgePveReward" });
     case "gameOver":
       return state;
   }
@@ -109,6 +113,74 @@ describe("game engine", () => {
 
       expect(outcomes).toEqual(new Set(["scroll", "equipment"]));
     }
+  });
+
+  it("精英胜利在基础奖励外必定追加一张卷轴，并等待玩家确认", () => {
+    let state = createInitialGame(20260807);
+    const player = state.players.player1;
+    player.baseAttack = 99;
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({
+        kind: "pve",
+        aPlayerId: player.id,
+        enemyId: "wolf",
+        enemyAffix: "frenzied",
+        hpB: 1,
+      }),
+    };
+
+    state = resolveRound(state);
+
+    expect(state.phase.kind).toBe("pveReward");
+    if (state.phase.kind !== "pveReward") throw new Error("应显示战斗奖励");
+    expect(state.phase.notice.elite).toBe(true);
+    expect(state.phase.notice.rewards.map((reward) => reward.source))
+      .toEqual(["battle", "elite"]);
+    expect(state.phase.notice.rewards[1].resourceType).toBe("scroll");
+    expect(state.players[player.id].scrolls)
+      .toHaveLength(1 + Number(state.phase.notice.rewards[0].resourceType === "scroll"));
+
+    state = gameReducer(state, { type: "acknowledgePveReward" });
+    expect(state.phase.kind).toBe("turnComplete");
+  });
+
+  it("精英基础装备奖励需要替换时，完成选择后再显示完整奖励", () => {
+    let resolved: GameState | undefined;
+    for (let seed = 1; seed <= 100 && !resolved; seed += 1) {
+      let state = createInitialGame(seed);
+      const player = state.players.player1;
+      player.baseAttack = 99;
+      player.equipment = [
+        { instanceId: "weapon-full", kind: "sword" },
+        { instanceId: "armor-full", kind: "shield" },
+        { instanceId: "shoes-full", kind: "travelerBoots" },
+        { instanceId: "accessory-full-1", kind: "charm" },
+        { instanceId: "accessory-full-2", kind: "fateCrown" },
+      ];
+      state.phase = {
+        kind: "battle",
+        battle: makeBattle({
+          kind: "pve",
+          aPlayerId: player.id,
+          enemyId: "slime",
+          enemyAffix: "ironclad",
+          hpB: 1,
+        }),
+      };
+      state = resolveRound(state);
+      if (state.phase.kind === "equipmentChoice") resolved = state;
+    }
+
+    if (!resolved || resolved.phase.kind !== "equipmentChoice") {
+      throw new Error("100 个种子内应抽到一件装备奖励");
+    }
+    expect(resolved.phase.choice.resume.kind).toBe("showPveReward");
+
+    resolved = gameReducer(resolved, { type: "chooseEquipment" });
+    expect(resolved.phase.kind).toBe("pveReward");
+    if (resolved.phase.kind !== "pveReward") throw new Error("应在装备选择后显示奖励");
+    expect(resolved.phase.notice.rewards).toHaveLength(2);
   });
 
   it("keeps core state inside valid bounds during a full automated game", () => {
@@ -203,6 +275,7 @@ describe("game engine", () => {
     for (let index = 1; index <= 10; index += 1) state.map.tiles[index].type = "event";
     state.map.tiles[4].type = "spring";
     state.map.tiles[11].type = "spring";
+    state.players.player1.checkpointTileId = 4;
     const target = state.map.tiles[10 + roll];
     target.type = "battle";
     target.enemyId = "slime";

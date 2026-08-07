@@ -16,12 +16,20 @@ export const ENEMY_TIER_NAMES: Record<EnemyTier, string> = {
   boss: "首领",
 };
 
+/** 玩家可以在地图首领情报与战斗界面中查看的能力说明。 */
+export interface EnemyAbility {
+  name: string;
+  description: string;
+}
+
 /** 一只怪的内容。这里没有 tier——它由所在的档位表盖章，见 defineEnemies。 */
 export interface EnemyBody {
   name: string;
   maxHp: number;
   attack: number;
   defense: number;
+  /** 与 modifiers/effects 对应的玩家可见说明；规则逻辑仍由后两者执行。 */
+  abilities?: readonly EnemyAbility[];
   /**
    * 出现在哪些区域，值是该区域内的相对权重。
    *

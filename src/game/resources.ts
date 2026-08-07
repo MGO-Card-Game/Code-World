@@ -35,6 +35,7 @@ import type { MapEventResource } from "./content/events";
 export interface Reward {
   name: string;
   publicName: string;
+  resourceType: "scroll" | "equipment";
   pendingEquipmentChoice?: boolean;
 }
 
@@ -54,6 +55,7 @@ export function grantScroll(state: GameState, player: Player, kind?: ScrollKind)
   return {
     name: SCROLLS[selected].name,
     publicName: "一张卷轴",
+    resourceType: "scroll",
   };
 }
 
@@ -69,7 +71,11 @@ export function grantRandomResourceReward(
 }
 
 /** 按奖励是否需要保密，拼出 addHistory 的第三个参数 */
-export function rewardSecret(player: Player, template: (what: string) => string, reward: Reward) {
+export function rewardSecret(
+  player: Player,
+  template: (what: string) => string,
+  reward: Pick<Reward, "name" | "publicName">,
+) {
   if (reward.name === reward.publicName) return undefined;
   return { owner: player.id, publicText: template(reward.publicName) };
 }
@@ -186,7 +192,7 @@ export function grantEquipment(
         resume,
       },
     };
-    return { name, publicName: name, pendingEquipmentChoice: true };
+    return { name, publicName: name, resourceType: "equipment", pendingEquipmentChoice: true };
   }
   emit(state, {
     type: "equipmentGranted",
@@ -195,7 +201,7 @@ export function grantEquipment(
     kind,
   });
   applyEquipmentStats(state, player, item);
-  return { name, publicName: name };
+  return { name, publicName: name, resourceType: "equipment" };
 }
 
 export function grantMapEventResource(

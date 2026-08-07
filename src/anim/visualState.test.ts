@@ -35,6 +35,12 @@ function player(overrides: Partial<Player> = {}): Player {
     baseAttack: 4,
     baseDefense: 2,
     position: 7,
+    checkpointTileId: 1,
+    stageProgress: {
+      foothill: { laps: 0, defeatedEliteTileIds: [], openedTreasureTileIds: [], bossDefeated: false },
+      mountainside: { laps: 0, defeatedEliteTileIds: [], openedTreasureTileIds: [], bossDefeated: false },
+      summit: { laps: 0, defeatedEliteTileIds: [], openedTreasureTileIds: [], bossDefeated: false },
+    },
     scrolls: [],
     equipment: [],
     blessings: [],
@@ -84,7 +90,7 @@ describe("显示数值回拉", () => {
     expect(visualHp(other, [hpChanged(1, 18, 9)])).toBe(12);
   });
 
-  it("移动和后退都会按住位置", () => {
+  it("移动和 PvE 战败回退都会按住位置", () => {
     const subject = player({ position: 12 });
     const moved: GameEvent = { id: 1, type: "playerMoved", playerId: "player1", from: 7, to: 12 };
     const retreated: GameEvent = { id: 2, type: "playerRetreated", playerId: "player1", from: 12, to: 9 };

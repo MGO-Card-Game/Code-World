@@ -66,6 +66,7 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .stat-grid div { text-align: center; border: 1px solid #413a32; background: #11100e8f; padding: 9px 3px; }
 .stat-grid span { display: block; font-size: 9px; color: #8e806d; }
 .stat-grid strong { display: block; color: #e8d8be; font: 700 17px "Noto Serif SC", serif; margin-top: 2px; }
+.stat-grid .stage-stat strong { font-size: 13px; white-space: nowrap; }
 .inventory-block { margin-top: 16px; }
 .inventory-block h3 { display: flex; justify-content: space-between; margin: 0 0 9px; color: #baa98f; font-size: 11px; letter-spacing: .08em; }
 .inventory-block h3 span { color: #d8b66c; }
@@ -156,19 +157,33 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .damage-float { color: #ff8f6a; text-shadow: 0 0 14px #ff5c2e88, 0 2px 6px #000; }
 .healing-float { color: #83e3a1; text-shadow: 0 0 14px #42bd6888, 0 2px 6px #000; }
 
-.board-shell { position: relative; min-height: 485px; border: 1px solid #514536; background:
+.board-shell { position: relative; min-height: 500px; display: flex; flex-direction: column; border: 1px solid #514536; background:
   linear-gradient(#171613e8, #10100ee8),
-  repeating-linear-gradient(135deg, transparent 0 18px, #fff 19px 20px); overflow: hidden; padding: 58px 24px 22px; }
+  repeating-linear-gradient(135deg, transparent 0 18px, #fff 19px 20px); overflow: hidden; padding: 72px 24px 22px; }
 .board-shell::before { content: "SUMMIT"; position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); color: #ffffff05; font: 900 90px Georgia, serif; letter-spacing: .18em; }
 .mountain-glow { position: absolute; width: 440px; height: 300px; background: radial-gradient(ellipse, #c08d4222, transparent 65%); left: 50%; top: -100px; transform: translateX(-50%); }
-.board-toolbar { position: absolute; z-index: 4; top: 14px; right: 18px; display: flex; align-items: center; gap: 6px; }
+.board-stage-tabs { position: absolute; z-index: 4; top: 11px; left: 18px; display: flex; gap: 6px; }
+.board-stage-tabs > button { position: relative; min-width: 104px; height: 48px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center; padding: 6px 9px; border: 1px solid #4b4135; background: #171411e8; color: #7f7466; text-align: left; }
+.board-stage-tabs > button:hover { border-color: #80633d; color: #c6b395; }
+.board-stage-tabs > button.selected { border-color: #b68b4d; background: #292117; color: #e1c58e; box-shadow: inset 0 -2px #b68b4d; }
+.board-stage-tabs > button.active-stage::after { content: ""; position: absolute; right: 5px; top: 5px; width: 5px; height: 5px; border-radius: 50%; background: #e2b865; box-shadow: 0 0 7px #e2b865; }
+.board-stage-tabs span { grid-column: 1; color: inherit; font-size: 7px; letter-spacing: .12em; }
+.board-stage-tabs strong { grid-column: 1; font: 700 10px "Noto Serif SC", serif; white-space: nowrap; }
+.stage-tab-pieces { grid-column: 2; grid-row: 1 / 3; display: flex; padding-right: 3px; font-style: normal; }
+.stage-tab-pieces b { --piece-color: #fff; width: 18px; height: 18px; margin-right: -5px; display: grid; place-items: center; border: 1px solid var(--piece-color); border-radius: 50%; background: #151310; color: var(--piece-color); font: 700 7px "Noto Serif SC", serif; box-shadow: 0 2px 5px #000; }
+.board-toolbar { position: absolute; z-index: 4; top: 20px; right: 18px; display: flex; align-items: center; gap: 6px; }
 .board-toolbar > span { color: #c9b792; font: 700 10px "Noto Serif SC", serif; letter-spacing: .08em; margin-right: 5px; }
 .board-toolbar button { min-width: 30px; height: 28px; border: 1px solid #584a39; background: #211d18e8; color: #cdbb9e; padding: 0 9px; font-size: 11px; }
 .board-toolbar button:hover { border-color: #b68b4d; color: #f0d8aa; }
-.board-viewport { position: relative; z-index: 1; height: 370px; overflow: hidden; border: 1px solid #3f382f; background: #0e0d0be0; cursor: grab; touch-action: none; user-select: none; }
+.board-viewport { position: relative; z-index: 1; flex: 1 1 430px; min-height: 430px; overflow: hidden; border: 1px solid #3f382f; background: #0e0d0be0; cursor: grab; touch-action: none; user-select: none; }
 .board-viewport.dragging { cursor: grabbing; }
-.board-world { --tile-width: 88px; --tile-height: 92px; position: absolute; left: 0; top: 0; width: max-content; display: grid; gap: 15px 10px; transform-origin: 0 0; will-change: transform; padding: 16px; box-sizing: content-box; }
-.tile { position: relative; border: 1px solid #51483e; background: #201d19; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-shadow: inset 0 1px #ffffff0b, 0 8px 20px #0004; transition: .2s ease; }
+.board-world { --tile-width: 88px; --tile-height: 82px; position: absolute; left: 0; top: 0; width: max-content; display: flex; flex-direction: column; gap: 28px; transform-origin: 0 0; will-change: transform; padding: 16px; box-sizing: content-box; }
+.stage-board { padding: 13px; border: 1px solid #443b31; background: #13110f; opacity: 1; transition: border-color .2s; }
+.stage-board.active { opacity: 1; border-color: #80633d; }
+.stage-board-heading { display: flex; justify-content: space-between; align-items: center; margin: 0 3px 10px; color: #8f806b; font-size: 9px; letter-spacing: .12em; }
+.stage-board-heading span { color: #d2b174; font: 700 13px "Noto Serif SC", serif; }
+.stage-ring { position: relative; display: grid; grid-template-columns: repeat(9, var(--tile-width)); grid-template-rows: repeat(5, var(--tile-height)); gap: 8px; }
+.tile { position: relative; width: var(--tile-width); height: var(--tile-height); border: 1px solid #51483e; background: #201d19; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-shadow: inset 0 1px #ffffff0b, 0 8px 20px #0004; transition: .2s ease; }
 .tile::after { content: ""; position: absolute; inset: 5px; border: 1px solid #ffffff08; pointer-events: none; }
 .tile.route-forward:not(.route-turn)::before { content: ""; position: absolute; width: 11px; height: 1px; right: -11px; top: 50%; background: #6a5840; }
 .tile.route-reverse:not(.route-turn)::before { content: ""; position: absolute; width: 11px; height: 1px; left: -11px; top: 50%; background: #6a5840; }
@@ -186,11 +201,28 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .tile.blessing .tile-icon { color: #c69bea; text-shadow: 0 0 10px #b67be877; }
 .tile.spring .tile-icon { color: #62b6c5; }
 .tile.event .tile-icon { color: #9b79bd; }
+.tile.gate { border-color: #bc8d45; background: linear-gradient(145deg, #392816, #20170f); }
+.tile.gate .tile-icon { color: #f0be60; text-shadow: 0 0 10px #e1a53c88; }
 .tile.boss { border-color: #965a3f; background: linear-gradient(145deg, #382018, #211714); }
 .tile.boss .tile-icon { color: #e18a5d; }
 .tile.region-foothill { box-shadow: inset 0 2px #6f7d4b22, 0 8px 20px #0004; }
 .tile.region-mountainside { box-shadow: inset 0 2px #54798a22, 0 8px 20px #0004; }
 .tile.region-summit { box-shadow: inset 0 2px #9a684c2b, 0 8px 20px #0004; }
+.stage-boss-card { grid-column: 3 / 8; grid-row: 2 / 5; margin: 10px; display: grid; place-content: center; gap: 9px; border: 1px solid #554534; background: radial-gradient(circle, #2b2117, #15120f 68%); color: inherit; font: inherit; text-align: center; cursor: pointer; }
+.stage-boss-card:hover { border-color: #9d7847; background: radial-gradient(circle, #342718, #17130f 68%); }
+.stage-boss-card:focus-visible { outline: 2px solid #d2a85c; outline-offset: 2px; }
+.stage-boss-card span { color: #82725e; font-size: 9px; letter-spacing: .17em; }
+.stage-boss-card strong { color: #d5b477; font: 900 22px "Noto Serif SC", serif; }
+.stage-boss-card small { color: #958671; font-size: 9px; }
+.stage-boss-card.unlocked { border-color: #b9853b; box-shadow: inset 0 0 35px #d2922920; }
+.stage-boss-card.unlocked strong { color: #efc56e; }
+.stage-boss-card.defeated { opacity: .48; filter: grayscale(.45); }
+.boss-player-progress { display: grid; gap: 4px; min-width: 190px; margin-top: 3px; }
+.boss-player-progress > div { display: grid; grid-template-columns: 17px 1fr auto; align-items: center; gap: 6px; padding: 3px 6px; border: 1px solid #3f352b; background: #15120f; text-align: left; }
+.boss-player-progress i { --piece-color: #fff; width: 15px; height: 15px; display: grid; place-items: center; border: 1px solid var(--piece-color); border-radius: 50%; color: var(--piece-color); font: 700 6px "Noto Serif SC", serif; font-style: normal; }
+.boss-player-progress span { color: #a99a85; font-size: 8px; letter-spacing: 0; }
+.boss-player-progress b { color: #d3ae6a; font-size: 8px; }
+.boss-detail-hint { color: #806f5a; font-size: 8px; font-style: normal; letter-spacing: .08em; }
 .pieces { position: absolute; right: 5px; bottom: 5px; display: flex; }
 .piece { --piece-color: #fff; margin-left: -4px; width: 22px; height: 22px; border-radius: 50%; background: #151413; color: var(--piece-color); border: 2px solid var(--piece-color); display: grid; place-items: center; font: 700 8px "Noto Serif SC", serif; box-shadow: 0 2px 8px #000; }
 .piece.active { box-shadow: 0 0 12px var(--piece-color), 0 2px 8px #000; z-index: 2; }
@@ -270,9 +302,9 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 
 /* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
-.battle-modal, .penalty-modal, .encounter-choice-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
+.battle-modal, .penalty-modal, .encounter-choice-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
 .modal-kicker { color: #caa45f; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; }
-.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
+.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
 .battle-modal > h2 span { color: #a45a43; font: 900 14px Georgia, serif; padding: 0 12px; }
 .initiative-line { color: #887a68; font-size: 10px; }
 .combatants { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: center; gap: 13px; margin: 21px 0 17px; }
@@ -281,6 +313,14 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .combatants h3 { margin: 4px 0; font: 700 15px "Noto Serif SC", serif; }
 .combatants strong { font-size: 11px; color: #d8c5aa; }
 .combat-role { font-size: 8px; color: #987c57; letter-spacing: .12em; }
+.elite-affix { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; margin-top: 10px; padding: 7px 9px; border: 1px solid #755837; background: #21170f; text-align: left; }
+.elite-affix > span { grid-row: 1 / 3; padding: 4px 5px; border: 1px solid currentColor; color: #c49b58; font-size: 7px; letter-spacing: .08em; white-space: nowrap; }
+.elite-affix > b { color: #e2bd78; font: 700 10px "Noto Serif SC", serif; }
+.elite-affix > small { color: #aa9980; font-size: 8px; line-height: 1.4; }
+.elite-affix.rarity-r { border-color: #4f7691; background: #121d24; }
+.elite-affix.rarity-r > span, .elite-affix.rarity-r > b { color: #83b9d8; }
+.elite-affix.rarity-sr { border-color: #775993; background: #1d1525; }
+.elite-affix.rarity-sr > span, .elite-affix.rarity-sr > b { color: #c39be7; }
 .clash-mark { color: #b76b4f; font-size: 21px; }
 .turn-callout { font-size: 12px; color: #c4b49e; }
 /* 战斗中的可用卷轴（规格 25.5）。投骰前决定，每方最多一张（8.3 / 8.5） */
@@ -364,6 +404,43 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .equipment-choice-options strong { font-size: 12px; }
 .equipment-choice-options small { color: #998b76; font-size: 9px; }
 .equipment-choice-options .discard-equipment { border-color: #593b35; color: #be8a7c; }
+.boss-gate-backdrop { background: radial-gradient(circle, #642b1dcc, #080706ed 58%); }
+.boss-gate-modal { width: min(570px, 100%); border-color: #a85e3d; background: radial-gradient(circle at 50% 0, #4a2419, #241713 38%, #11100e 78%); }
+.boss-gate-modal > p { color: #af9b88; font-size: 11px; line-height: 1.7; }
+.boss-gate-emblem { color: #e89759; font-size: 52px; filter: drop-shadow(0 0 17px #df733f66); }
+.boss-requirements { display: grid; gap: 7px; margin: 19px 0; }
+.boss-requirements > div { display: flex; justify-content: space-between; padding: 11px 14px; border: 1px solid #664534; background: #1a1210; color: #bfa78e; font-size: 10px; }
+.boss-requirements strong { color: #e3b26c; }
+.boss-gate-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; }
+.boss-detail-backdrop { background: radial-gradient(circle, #58331dcc, #080706ed 58%); }
+.boss-detail-modal { width: min(590px, 100%); border-color: #9c7041; background: radial-gradient(circle at 50% 0, #3d2b19, #211813 38%, #11100e 78%); }
+.boss-detail-emblem { color: #dda451; font-size: 48px; line-height: 1; filter: drop-shadow(0 0 16px #d98c3866); }
+.boss-detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 20px 0 9px; }
+.boss-detail-stats > div { padding: 11px 8px; border: 1px solid #574532; background: #15110e; }
+.boss-detail-stats span { display: block; color: #887864; font-size: 8px; letter-spacing: .13em; }
+.boss-detail-stats strong { display: block; margin-top: 3px; color: #e7c17a; font: 800 21px "Noto Serif SC", serif; }
+.boss-detail-dice { display: flex; justify-content: center; gap: 22px; padding: 9px; border: 1px solid #40362c; background: #12100e; color: #8e806d; font-size: 9px; }
+.boss-detail-dice strong { color: #d4b16f; margin-left: 4px; }
+.boss-detail-section { margin-top: 14px; padding: 12px 14px; border: 1px solid #4b3d30; background: #15110f; text-align: left; }
+.boss-detail-section h3 { margin: 0 0 9px; color: #b89a67; font-size: 9px; letter-spacing: .15em; }
+.boss-ability { display: grid; grid-template-columns: 72px 1fr; gap: 9px; align-items: baseline; padding: 8px 0; border-top: 1px solid #332b24; }
+.boss-ability strong { color: #e1b76c; font: 700 12px "Noto Serif SC", serif; }
+.boss-ability p, .boss-requirement-line { margin: 0; color: #b2a18b; font-size: 10px; line-height: 1.65; }
+.boss-detail-empty { margin: 0; color: #756b5e; font-size: 10px; }
+.boss-detail-rule { margin: 14px 0; color: #92836f; font-size: 9px; line-height: 1.7; }
+.reward-backdrop { background: radial-gradient(circle, #5d421dcc, #080706ed 56%); }
+.pve-reward-modal { width: min(580px, 100%); border-color: #b88b43; background: radial-gradient(circle at 50% 0, #4b351c 0, #241c13 34%, #11100e 78%); }
+.pve-reward-modal > p { color: #ad9d85; font-size: 11px; }
+.reward-emblem { width: 66px; height: 66px; margin: 0 auto 12px; display: grid; place-items: center; border: 1px solid #d4ad63; border-radius: 50%; background: #2e2112; color: #f2c76e; font-size: 35px; box-shadow: 0 0 34px #e2a74142, inset 0 0 18px #e4b04a1c; }
+.pve-reward-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 9px; margin: 22px 0; }
+.pve-reward-item { min-height: 105px; padding: 14px 10px; display: grid; align-content: center; gap: 7px; border: 1px solid #715b38; background: #17130e; }
+.pve-reward-item.source-elite { border-color: #c3913e; background: linear-gradient(150deg, #3b2912, #18130d); box-shadow: inset 0 1px #f5cf7a24; }
+.pve-reward-item.source-blessing { border-color: #76558e; background: linear-gradient(150deg, #2a1d33, #151016); }
+.pve-reward-item span { color: #9f8152; font-size: 8px; letter-spacing: .13em; }
+.pve-reward-item.source-blessing span { color: #b18ac8; }
+.pve-reward-item strong { color: #efd293; font: 700 15px "Noto Serif SC", serif; }
+.pve-reward-item small { color: #857763; font-size: 9px; }
+.pve-reward-modal .primary-button { margin-top: 3px; }
 .victory-backdrop { background: radial-gradient(circle, #6b4129cc, #080706ee 52%); }
 .victory-modal { width: min(500px, 100%); padding: 42px; }
 .crown { display: block; color: #e1b95e; font-size: 64px; filter: drop-shadow(0 0 20px #d6923c66); }
@@ -379,9 +456,12 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   .app-shell { padding: 12px; }
   .topbar { min-height: 62px; }.round-status { display: none; }.brand h1 { font-size: 19px; }
   .game-layout { display: flex; flex-direction: column; }
-  .board-shell { padding: 58px 10px 18px; min-height: 500px; }
-  .board-viewport { height: 390px; }
-  .board-toolbar { right: 10px; }
+  .board-shell { padding: 112px 10px 18px; min-height: 554px; }
+  .board-viewport { flex-basis: 410px; min-height: 410px; }
+  .board-stage-tabs { left: 10px; right: 10px; top: 9px; }
+  .board-stage-tabs > button { flex: 1; min-width: 0; padding: 6px; }
+  .stage-tab-pieces { display: none; }
+  .board-toolbar { top: 68px; right: 10px; }
   .board-toolbar > span { display: none; }
   .player-roster { order: 2; }
   .player-roster-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }

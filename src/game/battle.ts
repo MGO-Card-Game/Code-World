@@ -7,8 +7,9 @@ import {
 } from "./blessings";
 import { findPreviousRestTile, findRestTileAtOrBefore } from "./map";
 import { grantRandomResourceReward, grantScroll, rewardSecret } from "./resources";
-import { enemyStats, getAttack, getDefense } from "./selectors";
+import { enemyStats, getAttack, getDefense, pvpHpTransferAmount } from "./selectors";
 import { addHistory, emit, makeInstanceId, nextRandom, rollDie } from "./state";
+import { nextStage, recordEliteVictory, stageBossUnlocked } from "./stages";
 import type {
   EquipmentDamageContext,
   EquipmentEffects,
@@ -24,6 +25,8 @@ import type {
   Player,
   PlayerId,
   PlayerStats,
+  PveRewardItem,
+  PveRewardNoticeState,
   ScrollChoice,
 } from "./types";
 
@@ -53,6 +56,7 @@ export function startBattle(
   enemyId?: EnemyKind,
   bPlayerId?: PlayerId,
   enemyAffix?: EliteAffixKind,
+  context?: { stageId?: GameState["map"]["regions"][number]["id"]; tileIndex?: number; retreatTo?: number },
 ) {
   emit(state, {
     type: "battleStarted",
@@ -74,12 +78,16 @@ export function startBattle(
     bPlayerId,
     enemyId,
     enemyAffix,
+    stageId: context?.stageId,
+    tileIndex: context?.tileIndex,
     retreatTo: kind === "pvp"
       ? undefined
-      : findRestTileAtOrBefore(
-          state.map,
-          state.movementOrigin ?? state.players[aPlayerId].position,
-        ),
+      : context?.retreatTo
+        ?? state.players[aPlayerId].checkpointTileId
+        ?? findRestTileAtOrBefore(
+            state.map,
+            state.movementOrigin ?? state.players[aPlayerId].position,
+          ),
     hpA: state.players[aPlayerId].hp,
     // 精英词缀会抬高血量上限，所以这里必须走折算，不能直接读定义
     hpB: bPlayerId ? state.players[bPlayerId].hp : enemyStats(enemyId!, enemyAffix).maxHp,
@@ -130,25 +138,24 @@ export function sideMaxHp(state: GameState, battle: BattleState, side: CombatSid
   return battleEnemyStats(battle).maxHp;
 }
 
-/**
- * 相遇战选择"后退"时退多少格（GameRule 13.8）。
- *
- * 这一项存在的意义是让代价永远付得出：卷轴和装备可能一张都没有，
- * 转移生命可能因为赢家满血而为 0，只有后退在任何局面下都能执行。
- * 于是"进入代价阶段"与"有可付选项"变成同一件事，不需要再做例外分支。
- *
- * 数值上要比交牌更疼一点才有取舍——移动骰均值 3.5，退 5 格约等于一个半回合。
- * 太便宜的话所有人永远选后退，资源转移这条机制就废了。具体数字仍需实测调整。
- */
-export const PVP_RETREAT_TILES = 5;
-
 export function finishPvp(state: GameState, battle: BattleState, winnerSide: CombatSide) {
   const winnerId = battlePlayerForSide(battle, winnerSide)!;
   const loserId = battlePlayerForSide(battle, winnerSide === "a" ? "b" : "a")!;
   const loser = state.players[loserId];
   const winner = state.players[winnerId];
   const tileIndex = state.players[state.activePlayerId].position;
-  const penaltyWaived = applyPvpPenaltyReplacement(state, loser);
+  const unyieldingWillTriggered = applyPvpPenaltyReplacement(state, loser);
+  const noPayablePenalty =
+    !unyieldingWillTriggered &&
+    loser.scrolls.length === 0 &&
+    loser.equipment.length === 0 &&
+    pvpHpTransferAmount(winner, loser) === 0;
+  const penaltyWaived = unyieldingWillTriggered || noPayablePenalty;
+  const penaltyWaiveReason = unyieldingWillTriggered
+    ? "unyieldingWill" as const
+    : noPayablePenalty
+      ? "noPayable" as const
+      : undefined;
   const offeredBlessing = detachBlessing(state, loser);
 
   if (offeredBlessing && winner.blessings.length > 0) {
@@ -160,13 +167,16 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
         offered: offeredBlessing,
         tileIndex,
         penaltyWaived: penaltyWaived || undefined,
+        penaltyWaiveReason,
       },
     };
     addHistory(
       state,
       `${winner.name}赢得相遇战，需要决定是否用${loser.name}的赐福覆盖自己的赐福${
-        penaltyWaived
+        unyieldingWillTriggered
           ? `；${loser.name}的不屈意志同时生效，仅损失 1 点生命并免除正常代价`
+          : noPayablePenalty
+            ? `；${loser.name}没有可支付的资源或生命，免除本次代价`
           : ""
       }。`,
     );
@@ -177,10 +187,15 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
     receiveTransferredBlessing(state, winner, loserId, offeredBlessing);
   }
 
-  // 后退永远付得出，所以这里没有"付不起"的分支——代价阶段一定有路可走
   state.phase = {
     kind: "pvpPenalty",
-    penalty: { winnerId, loserId, tileIndex, waived: penaltyWaived || undefined },
+    penalty: {
+      winnerId,
+      loserId,
+      tileIndex,
+      waived: penaltyWaived || undefined,
+      waiveReason: penaltyWaiveReason,
+    },
   };
   addHistory(
     state,
@@ -189,8 +204,10 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
         ? `并夺得${loser.name}的赐福`
         : ""
     }，${
-      penaltyWaived
+      unyieldingWillTriggered
         ? `${loser.name}的不屈意志生效，仅损失 1 点生命并免除正常代价。`
+        : noPayablePenalty
+          ? `${loser.name}没有可支付的资源或生命，本次不再承受额外代价。`
         : `${loser.name}需要选择代价。`
     }`,
   );
@@ -251,27 +268,96 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
     });
     const player = state.players[battle.aPlayerId];
     if (battle.kind === "boss") {
-      state.phase = { kind: "gameOver", winnerId: player.id };
-      emit(state, { type: "gameOver", winnerId: player.id });
-      addHistory(state, `${player.name}击败峰顶巨龙，夺得登峰之冠！`);
+      const stageId = battle.stageId;
+      const region = stageId
+        ? state.map.regions.find((candidate) => candidate.id === stageId)
+        : undefined;
+      const following = stageId ? nextStage(state.map, stageId) : undefined;
+      if (stageId && region && following) {
+        player.stageProgress[stageId].bossDefeated = true;
+        const from = player.position;
+        player.position = following.entryIndex;
+        player.checkpointTileId = following.entryIndex;
+        state.phase = { kind: "turnComplete" };
+        emit(state, { type: "playerMoved", playerId: player.id, from, to: player.position });
+        addHistory(
+          state,
+          `${player.name}击败${battleEnemyStats(battle).name}，进入${following.name}！`,
+        );
+      } else {
+        if (stageId) player.stageProgress[stageId].bossDefeated = true;
+        state.phase = { kind: "gameOver", winnerId: player.id };
+        emit(state, { type: "gameOver", winnerId: player.id });
+        addHistory(state, `${player.name}击败峰顶巨龙，夺得登峰之冠！`);
+      }
     } else {
+      if (battle.enemyAffix && battle.stageId && battle.tileIndex !== undefined) {
+        const firstClear = recordEliteVictory(
+          player,
+          battle.stageId,
+          battle.tileIndex,
+        );
+        const region = state.map.regions.find((candidate) => candidate.id === battle.stageId)!;
+        if (firstClear && stageBossUnlocked(player, region)) {
+          addHistory(state, `${player.name}已满足${region.name}的首领挑战条件！`);
+        }
+      }
       const reward = grantRandomResourceReward(state, player);
-      const bonusScrolls = Array.from(
+      const eliteReward = battle.enemyAffix ? grantScroll(state, player) : undefined;
+      const blessingRewards = Array.from(
         { length: bonusPveVictoryScrolls(player) },
         () => grantScroll(state, player),
       );
-      if (!reward.pendingEquipmentChoice) {
-        state.phase = { kind: "turnComplete" };
-      }
       // 战报里用折算后的名字，精英怪才不会在这一句退回成普通怪
       const enemyName = battleEnemyStats(battle).name;
+      const rewards: PveRewardItem[] = [
+        {
+          source: "battle",
+          resourceType: reward.resourceType,
+          name: reward.name,
+          publicName: reward.publicName,
+        },
+        ...(eliteReward ? [{
+          source: "elite" as const,
+          resourceType: eliteReward.resourceType,
+          name: eliteReward.name,
+          publicName: eliteReward.publicName,
+        }] : []),
+        ...blessingRewards.map((item) => ({
+          source: "blessing" as const,
+          resourceType: item.resourceType,
+          name: item.name,
+          publicName: item.publicName,
+        })),
+      ];
+      const notice: PveRewardNoticeState = {
+        playerId: player.id,
+        enemyName,
+        elite: battle.enemyAffix !== undefined,
+        rewards,
+      };
+      if (reward.pendingEquipmentChoice) {
+        if (state.phase.kind !== "equipmentChoice") {
+          throw new Error("装备奖励等待选择时应处于 equipmentChoice 阶段");
+        }
+        state.phase.choice.resume = { kind: "showPveReward", notice };
+      } else {
+        state.phase = { kind: "pveReward", notice };
+      }
+
       const line = (what: string) => `${player.name}击败${enemyName}，获得${what}。`;
-      const combinedReward = bonusScrolls.length > 0
-        ? {
-            name: `${reward.name}，并因战争财阀额外获得${bonusScrolls.map((item) => item.name).join("、")}`,
-            publicName: `${reward.publicName}，并因战争财阀额外获得${bonusScrolls.map((item) => item.publicName).join("、")}`,
-          }
-        : reward;
+      const describeRewards = (publicView: boolean) => rewards
+        .map((item, index) => {
+          const name = publicView ? item.publicName : item.name;
+          if (index === 0) return name;
+          if (item.source === "elite") return `并因击败精英额外获得${name}`;
+          return `并因战争财阀额外获得${name}`;
+        })
+        .join("，");
+      const combinedReward = {
+        name: describeRewards(false),
+        publicName: describeRewards(true),
+      };
       addHistory(
         state,
         line(combinedReward.name),

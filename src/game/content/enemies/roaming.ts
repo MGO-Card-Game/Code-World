@@ -9,7 +9,7 @@ import { defineEnemies } from "./definition";
 export const ROAMING_ENEMIES = defineEnemies("roaming", {
   slime: {
     name: "史莱姆",
-    maxHp: 5,
+    maxHp: 6,
     attack: 1,
     defense: 0,
     regions: { foothill: 2 },
@@ -17,7 +17,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
 
   wolf: {
     name: "山狼",
-    maxHp: 8,
+    maxHp: 9,
     attack: 2,
     defense: 1,
     regions: { foothill: 1, mountainside: 2, summit: 1 },

@@ -1,7 +1,7 @@
 import { EQUIPMENT, equipmentCategory, equipmentDefinition } from "./content/equipment";
 import { scrollDefinition } from "./content/scrolls";
 import { getDieSidesBonus, pvpHpTransferAmount } from "./selectors";
-import { finishBattle, PVP_RETREAT_TILES, startBattle } from "./battle";
+import { finishBattle, startBattle } from "./battle";
 import { submitScrollChoice } from "./battleRound";
 import {
   blessingName,
@@ -12,6 +12,7 @@ import {
   receiveTransferredBlessing,
 } from "./blessings";
 import { resolveRandomMapEvent } from "./mapEvents";
+import { MAP_REGION_SIZE, regionForPosition } from "./map";
 import {
   applyEquipmentStats,
   consumeScroll,
@@ -22,6 +23,7 @@ import {
   rewardSecret,
 } from "./resources";
 import { addHistory, createInitialGame, emit, nextPlayerId, rollDie } from "./state";
+import { stageBossUnlocked } from "./stages";
 import type { GameAction, GameState, MapTile, OwnedScroll, Player } from "./types";
 
 /**
@@ -62,7 +64,15 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
     case "battle":
     case "elite":
       // 精英格和普通战斗格走同一条 PvE 结算，差别只在那只怪身上贴了词缀
-      startBattle(state, "pve", player.id, tile.enemyId, undefined, tile.eliteAffix);
+      startBattle(
+        state,
+        "pve",
+        player.id,
+        tile.enemyId,
+        undefined,
+        tile.eliteAffix,
+        { stageId: tile.region, tileIndex: tile.id, retreatTo: player.checkpointTileId },
+      );
       return;
     case "boss":
       startBattle(state, "boss", player.id, tile.enemyId);
@@ -71,6 +81,7 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
       const hpBefore = player.hp;
       const healed = Math.min(5, player.maxHp - player.hp);
       player.hp += healed;
+      player.checkpointTileId = tile.id;
       state.phase = { kind: "turnComplete" };
       if (healed > 0) {
         emit(state, {
@@ -86,6 +97,13 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
       return;
     }
     case "treasure": {
+      const progress = player.stageProgress[tile.region];
+      if (progress.openedTreasureTileIds.includes(tile.id)) {
+        state.phase = { kind: "turnComplete" };
+        addHistory(state, `${player.name}检查「${tile.label}」，这里已经被搜空了。`);
+        return;
+      }
+      progress.openedTreasureTileIds.push(tile.id);
       const bonusEquipment = bonusTreasureEquipment(player);
       const reward = grantRandomResourceReward(
         state,
@@ -123,9 +141,34 @@ function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
       return;
     }
     case "start":
+    case "gate":
       state.phase = { kind: "turnComplete" };
-      addHistory(state, `${player.name}回到山脚营地。`);
+      addHistory(state, `${player.name}来到「${tile.label}」。`);
   }
+}
+
+function chooseBossChallenge(state: GameState, challenge: boolean) {
+  if (state.phase.kind !== "bossGateChoice") return false;
+  const { playerId, stageId, gateTileIndex, bossEnemyId } = state.phase.choice;
+  const player = state.players[playerId];
+  const region = state.map.regions.find((candidate) => candidate.id === stageId);
+  if (!player || !region || player.position !== gateTileIndex) return false;
+  if (!challenge) {
+    state.phase = { kind: "turnComplete" };
+    addHistory(state, `${player.name}暂不挑战${region.name}首领，继续整备。`);
+    return true;
+  }
+  if (!stageBossUnlocked(player, region)) return false;
+  startBattle(
+    state,
+    "boss",
+    player.id,
+    bossEnemyId,
+    undefined,
+    undefined,
+    { stageId, tileIndex: gateTileIndex, retreatTo: player.checkpointTileId },
+  );
+  return true;
 }
 
 function applyMapHealing(state: GameState, player: Player, amount: number) {
@@ -304,7 +347,16 @@ function resumeAfterEquipmentChoice(
       grantTreasureEquipmentReward(state, state.players[playerId], resume.remaining);
       return;
     }
+    case "showPveReward":
+      state.phase = { kind: "pveReward", notice: resume.notice };
+      return;
   }
+}
+
+function acknowledgePveReward(state: GameState) {
+  if (state.phase.kind !== "pveReward") return false;
+  state.phase = { kind: "turnComplete" };
+  return true;
 }
 
 /** 装备槽满时，由获得装备的玩家选择替换同类装备，或放弃新装备。 */
@@ -356,7 +408,14 @@ function chooseEquipment(
 /** 赢家在已有赐福时，选择保留原赐福或用败方赐福覆盖。 */
 function chooseBlessing(state: GameState, replace: boolean) {
   if (state.phase.kind !== "blessingChoice") return false;
-  const { winnerId, loserId, offered, tileIndex, penaltyWaived } = state.phase.choice;
+  const {
+    winnerId,
+    loserId,
+    offered,
+    tileIndex,
+    penaltyWaived,
+    penaltyWaiveReason,
+  } = state.phase.choice;
   const winner = state.players[winnerId];
   const loser = state.players[loserId];
   const existing = winner.blessings[0];
@@ -380,7 +439,13 @@ function chooseBlessing(state: GameState, replace: boolean) {
 
   state.phase = {
     kind: "pvpPenalty",
-    penalty: { winnerId, loserId, tileIndex, waived: penaltyWaived },
+    penalty: {
+      winnerId,
+      loserId,
+      tileIndex,
+      waived: penaltyWaived,
+      waiveReason: penaltyWaiveReason,
+    },
   };
   if (penaltyWaived) {
     settleWaivedPvpPenalty(state);
@@ -388,7 +453,7 @@ function chooseBlessing(state: GameState, replace: boolean) {
   }
   // 败方可能早已掉线超时；赢家作出选择后不能再等待一个已经不会触发的计时器。
   if (state.unavailablePlayerIds.includes(loserId)) {
-    choosePvpPenalty(state, { type: "choosePvpPenalty", choice: "retreat" });
+    settleUnavailablePvpPenalty(state);
     if (
       (state.phase as GameState["phase"]).kind === "turnComplete" &&
       state.activePlayerId === loserId
@@ -408,30 +473,11 @@ function choosePvpPenalty(
   const winner = state.players[winnerId];
   const loser = state.players[loserId];
 
-  if (action.choice === "retreat") {
-    const positionBefore = loser.position;
-    loser.position = Math.max(0, loser.position - PVP_RETREAT_TILES);
-    emit(state, {
-      type: "playerRetreated",
-      playerId: loser.id,
-      from: positionBefore,
-      to: loser.position,
-    });
-    addHistory(state, `${loser.name}选择后退 ${positionBefore - loser.position} 格。`);
-    // 退走的人如果正是本回合行动的人，他已经不站在那格上了，格子内容自然不该结算
-    if (loser.id === state.activePlayerId) {
-      state.phase = { kind: "turnComplete" };
-    } else {
-      finishPenaltyAndResolveTile(state, tileIndex);
-    }
-    return true;
-  }
-
   if (action.choice === "hp") {
     const amount = pvpHpTransferAmount(winner, loser);
     // 付不出就忽略这次提交，阶段留在原地让他重选。
     // 界面本来就不会画出这个按钮（同一个函数算的），走到这里说明是客户端越权，
-    // 而后退永远可选，所以忽略不会造成死局。
+    // 仍有资源项可选；两项都付不起的状态会在战斗结束时直接跳过本阶段。
     if (amount <= 0) return false;
     const loserBefore = loser.hp;
     const winnerBefore = winner.hp;
@@ -519,6 +565,38 @@ function rebaseEventIds(state: GameState, startId: number): GameState {
   return state;
 }
 
+/** 掉线玩家无法选择时按固定顺序自动支付；确实付不起则直接继续。 */
+function settleUnavailablePvpPenalty(state: GameState) {
+  if (state.phase.kind !== "pvpPenalty") return false;
+  const { winnerId, loserId, tileIndex } = state.phase.penalty;
+  const winner = state.players[winnerId];
+  const loser = state.players[loserId];
+  if (state.phase.penalty.waived) return settleWaivedPvpPenalty(state);
+  if (pvpHpTransferAmount(winner, loser) > 0) {
+    return choosePvpPenalty(state, { type: "choosePvpPenalty", choice: "hp" });
+  }
+  const scroll = loser.scrolls[0];
+  if (scroll) {
+    return choosePvpPenalty(state, {
+      type: "choosePvpPenalty",
+      choice: "resource",
+      resourceType: "scroll",
+      instanceId: scroll.instanceId,
+    });
+  }
+  const equipment = loser.equipment[0];
+  if (equipment) {
+    return choosePvpPenalty(state, {
+      type: "choosePvpPenalty",
+      choice: "resource",
+      resourceType: "equipment",
+      instanceId: equipment.instanceId,
+    });
+  }
+  finishPenaltyAndResolveTile(state, tileIndex);
+  return true;
+}
+
 function advanceCompletedTurn(state: GameState) {
   state.activePlayerId = nextPlayerId(state);
   state.turn += 1;
@@ -589,6 +667,11 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
         resolveTile(next, next.map.tiles[tileIndex], false);
       }
       return next;
+    case "bossGateChoice":
+      if (next.phase.choice.playerId !== playerId) return state;
+      chooseBossChallenge(next, false);
+      if (next.activePlayerId === playerId) advanceCompletedTurn(next);
+      return next;
     case "battle": {
       const battle = next.phase.battle;
       const loserSide = battle.aPlayerId === playerId
@@ -603,7 +686,7 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
         if (phaseAfterBattle.penalty.waived) {
           settleWaivedPvpPenalty(next);
         } else if (phaseAfterBattle.penalty.loserId === playerId) {
-          choosePvpPenalty(next, { type: "choosePvpPenalty", choice: "retreat" });
+          settleUnavailablePvpPenalty(next);
         }
       }
       if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
@@ -617,7 +700,7 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       return next;
     case "pvpPenalty":
       if (next.phase.penalty.loserId !== playerId) return state;
-      choosePvpPenalty(next, { type: "choosePvpPenalty", choice: "retreat" });
+      settleUnavailablePvpPenalty(next);
       if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
         advanceCompletedTurn(next);
       }
@@ -625,9 +708,23 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
     case "equipmentChoice":
       if (next.phase.choice.playerId !== playerId) return state;
       chooseEquipment(next);
+      {
+        const phaseAfterChoice = next.phase as GameState["phase"];
+        if (
+          phaseAfterChoice.kind === "pveReward" &&
+          phaseAfterChoice.notice.playerId === playerId
+        ) {
+          acknowledgePveReward(next);
+        }
+      }
       if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
         advanceCompletedTurn(next);
       }
+      return next;
+    case "pveReward":
+      if (next.phase.notice.playerId !== playerId) return state;
+      acknowledgePveReward(next);
+      if (next.activePlayerId === playerId) advanceCompletedTurn(next);
       return next;
     case "gameOver":
       return state;
@@ -667,7 +764,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       next.lastMovementRoll = roll;
       const positionBefore = player.position;
       next.movementOrigin = positionBefore;
-      player.position = Math.min(next.map.tiles.length - 1, player.position + roll);
+      const region = regionForPosition(next.map, player.position);
+      let interceptedAtGate = false;
+      for (let step = 0; step < roll; step += 1) {
+        const local = player.position - region.startIndex;
+        const nextLocal = (local + 1) % MAP_REGION_SIZE;
+        player.position = region.startIndex + nextLocal;
+        if (player.position !== region.gateIndex) continue;
+        player.stageProgress[region.id].laps += 1;
+        if (stageBossUnlocked(player, region)) {
+          interceptedAtGate = true;
+          break;
+        }
+      }
       emit(next, {
         type: "movementRolled",
         playerId: player.id,
@@ -681,8 +790,24 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         to: player.position,
       });
       const targetTile = next.map.tiles[player.position];
-      addHistory(next, `${player.name}掷出 ${roll}，抵达「${targetTile.label}」。`);
-      resolveTile(next, targetTile);
+      if (interceptedAtGate) {
+        next.phase = {
+          kind: "bossGateChoice",
+          choice: {
+            playerId: player.id,
+            stageId: region.id,
+            gateTileIndex: region.gateIndex,
+            bossEnemyId: region.bossEnemyId,
+          },
+        };
+        addHistory(
+          next,
+          `${player.name}掷出 ${roll}，抵达「${targetTile.label}」，已满足首领挑战条件。`,
+        );
+      } else {
+        addHistory(next, `${player.name}掷出 ${roll}，抵达「${targetTile.label}」。`);
+        resolveTile(next, targetTile);
+      }
       return next;
     }
     case "useMapScroll":
@@ -694,8 +819,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "chooseEncounterOpponent":
       return chooseEncounterOpponent(next, action.opponentId) ? next : state;
+    case "chooseBossChallenge":
+      return chooseBossChallenge(next, action.challenge) ? next : state;
     case "chooseBlessing":
       return chooseBlessing(next, action.replace) ? next : state;
+    case "acknowledgePveReward":
+      return acknowledgePveReward(next) ? next : state;
     case "submitScrollChoice":
       if (!submitScrollChoice(next, action.side, action.instanceIds)) return state;
       settleWaivedPvpPenalty(next);
@@ -716,6 +845,5 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 export {
   getBattleParticipants,
   getSidePlayer,
-  PVP_RETREAT_TILES,
 } from "./battle";
 export { createInitialGame, PLAYER_IDS } from "./state";

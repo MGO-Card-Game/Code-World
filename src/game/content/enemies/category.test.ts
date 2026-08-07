@@ -87,6 +87,19 @@ describe("怪物档位表", () => {
     }
   });
 
+  it("声明的玩家可见能力都有名字和说明，三个阶段首领都提供情报", () => {
+    for (const kind of Object.keys(ENEMIES) as EnemyKind[]) {
+      const definition = enemyDefinition(kind);
+      for (const ability of definition.abilities ?? []) {
+        expect(ability.name).toBeTruthy();
+        expect(ability.description).toBeTruthy();
+      }
+    }
+    for (const region of MAP_REGIONS) {
+      expect(enemyDefinition(region.bossEnemyId).abilities?.length ?? 0).toBeGreaterThan(0);
+    }
+  });
+
   it("每个区域都有漫游怪可投放——空池会让抽取直接抛", () => {
     for (const region of REGIONS) {
       expect(hasRegionPool("roaming", region as MapRegionId)).toBe(true);

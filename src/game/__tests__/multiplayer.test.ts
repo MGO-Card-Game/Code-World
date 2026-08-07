@@ -87,6 +87,32 @@ describe("动作授权 canAct", () => {
     expect(canAct(state, { type: "chooseEquipment" }, "player1")).toBe(false);
   });
 
+  it("战斗奖励只能由获奖玩家确认", () => {
+    const state = createInitialGame(20260807);
+    state.phase = {
+      kind: "pveReward",
+      notice: {
+        playerId: "player2",
+        enemyName: "狂暴的山狼",
+        elite: true,
+        rewards: [{
+          source: "elite",
+          resourceType: "scroll",
+          name: "力量卷轴",
+          publicName: "一张卷轴",
+        }],
+      },
+    };
+
+    expect(canAct(state, { type: "acknowledgePveReward" }, "player2")).toBe(true);
+    expect(canAct(state, { type: "acknowledgePveReward" }, "player1")).toBe(false);
+    expect(viewFor(state, "player2").phase).toEqual(state.phase);
+    const opponentView = viewFor(state, "player1");
+    if (opponentView.phase.kind !== "pveReward") throw new Error("应保留奖励阶段");
+    expect(opponentView.phase.notice.rewards[0].name).toBe("一张卷轴");
+    expect(JSON.stringify(opponentView.phase)).not.toContain("力量卷轴");
+  });
+
   it("只能提交自己那一侧的卷轴选择", () => {
     const state = withBattle();
 
@@ -292,6 +318,9 @@ describe("暗牌裁剪 viewFor", () => {
         case "blessingChoice":
           state = gameReducer(state, { type: "chooseBlessing", replace: false });
           break;
+        case "bossGateChoice":
+          state = gameReducer(state, { type: "chooseBossChallenge", challenge: true });
+          break;
         case "battle": {
           const battle = state.phase.battle;
           const attackerId = battle.attacker === "a"
@@ -334,12 +363,14 @@ describe("暗牌裁剪 viewFor", () => {
                     resourceType: "equipment",
                     instanceId: equipment.instanceId,
                   })
-                // 后退永远付得出，兜底选它，整局才不会卡在代价阶段
-                : gameReducer(state, { type: "choosePvpPenalty", choice: "retreat" });
+                : (() => { throw new Error("无可支付代价时不应停留在 pvpPenalty 阶段"); })();
           break;
         }
         case "equipmentChoice":
           state = gameReducer(state, { type: "chooseEquipment" });
+          break;
+        case "pveReward":
+          state = gameReducer(state, { type: "acknowledgePveReward" });
           break;
         default: break;
       }

@@ -14,6 +14,10 @@ export const APEX_ENEMIES = defineEnemies("apex", {
     attack: 5,
     defense: 3,
     regions: { foothill: 1 },
+    abilities: [{
+      name: "重斧",
+      description: "攻击骰中出现最高点时，额外造成 2 点无视防御的伤害。",
+    }],
     effects: {
       // 取本次实际骰面上限而不是盯着 6，理由同旧骑士长剑：
       // 骰面会被别的效果改，盯死数字会越加越偏。多骰时只加一次。
@@ -32,6 +36,10 @@ export const APEX_ENEMIES = defineEnemies("apex", {
     attack: 5,
     defense: 4,
     regions: { mountainside: 1 },
+    abilities: [{
+      name: "霜息",
+      description: "自身生命高于一半时，本次攻击 +2。",
+    }],
     effects: {
       /*
         越健康越凶，和精英词缀「濒死反扑」正好相反：这只怪要求玩家速攻，

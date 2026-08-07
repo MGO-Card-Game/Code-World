@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { visualPosition } from "../anim/visualState";
 import { TILE_ICON } from "../game/content/tiles";
-import type { GameStateView, MapTile } from "../game/types";
+import { enemyDefinition } from "../game/content/enemies";
+import { requirementValueForRegion, stageBossUnlocked } from "../game/stages";
+import type { GameStateView, MapRegionId, MapTile } from "../game/types";
 import type { Playback } from "./shared";
 import { playerSigil } from "./PlayerPanel";
 
@@ -18,6 +20,7 @@ const tileClassNames: Record<MapTile["type"], string> = {
   blessing: "blessing",
   spring: "spring",
   event: "event",
+  gate: "gate",
   boss: "boss",
 };
 
@@ -30,10 +33,22 @@ interface BoardTransform {
   scale: number;
 }
 
+/** 9×5 外框的顺时针坐标：顶 9、右 3、底 9、左 3，共 24 格。 */
+function ringGridPosition(index: number) {
+  if (index < 9) return { gridColumn: index + 1, gridRow: 1 };
+  if (index < 12) return { gridColumn: 9, gridRow: index - 7 };
+  if (index < 21) return { gridColumn: 21 - index, gridRow: 5 };
+  return { gridColumn: 1, gridRow: 25 - index };
+}
+
 /**
- * 三地区蛇形棋盘。整图不要求一屏放下，放在裁切视口里支持拖动与缩放（规格 4.3）。
+ * 三阶段分页环形棋盘。每次只渲染一个阶段，仍支持拖动与缩放（规格 4.3）。
  */
-export function Board({ state, playback }: { state: GameStateView; playback: Playback }) {
+export function Board({ state, playback, onInspectBoss }: {
+  state: GameStateView;
+  playback: Playback;
+  onInspectBoss: (regionId: MapRegionId) => void;
+}) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
@@ -44,11 +59,19 @@ export function Board({ state, playback }: { state: GameStateView; playback: Pla
     originY: number;
   } | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [transform, setTransform] = useState<BoardTransform>({ x: 0, y: 0, scale: 0.85 });
+  const [transform, setTransform] = useState<BoardTransform>({ x: 0, y: 0, scale: 0.92 });
   const players = Object.values(state.players);
   const positions = Object.fromEntries(
     players.map((player) => [player.id, visualPosition(player, playback.pending)]),
   ) as Record<keyof typeof state.players, number>;
+  const activePosition = positions[state.activePlayerId];
+  const activeRegionId = state.map.tiles[activePosition].region;
+  const [selectedRegionId, setSelectedRegionId] = useState<MapRegionId>(activeRegionId);
+  const selectedRegion = state.map.regions.find((region) => region.id === selectedRegionId)!;
+  const selectedTiles = state.map.tiles.slice(selectedRegion.startIndex, selectedRegion.endIndex + 1);
+  const selectedPlayers = players.filter(
+    (player) => state.map.tiles[positions[player.id]].region === selectedRegionId,
+  );
 
   const constrain = useCallback((candidate: BoardTransform): BoardTransform => {
     const viewport = viewportRef.current;
@@ -95,9 +118,37 @@ export function Board({ state, playback }: { state: GameStateView; playback: Pla
     });
   }, [constrain]);
 
+  const fitBoard = useCallback(() => {
+    const viewport = viewportRef.current;
+    const world = worldRef.current;
+    if (!viewport || !world) return;
+    const padding = 20;
+    const scale = Math.min(
+      MAX_BOARD_ZOOM,
+      Math.max(
+        MIN_BOARD_ZOOM,
+        Math.min(
+          (viewport.clientWidth - padding * 2) / world.offsetWidth,
+          (viewport.clientHeight - padding * 2) / world.offsetHeight,
+        ),
+      ),
+    );
+    setTransform({
+      scale,
+      x: (viewport.clientWidth - world.offsetWidth * scale) / 2,
+      y: (viewport.clientHeight - world.offsetHeight * scale) / 2,
+    });
+  }, []);
+
   useEffect(() => {
-    focusTile(positions[state.activePlayerId]);
-  }, [focusTile, positions[state.activePlayerId], state.map.seed]);
+    setSelectedRegionId(activeRegionId);
+  }, [activeRegionId, state.activePlayerId, state.map.seed]);
+
+  useEffect(() => {
+    if (selectedRegionId !== activeRegionId) return;
+    const frame = requestAnimationFrame(() => focusTile(activePosition));
+    return () => cancelAnimationFrame(frame);
+  }, [activePosition, activeRegionId, focusTile, selectedRegionId, state.map.seed]);
 
   useEffect(() => {
     const handleResize = () => setTransform((current) => constrain(current));
@@ -149,21 +200,50 @@ export function Board({ state, playback }: { state: GameStateView; playback: Pla
     }
   };
 
-  const regionIndex = Math.min(
-    state.map.regions.length - 1,
-    Math.floor(positions[state.activePlayerId] / state.map.columns),
-  );
-  const currentRegion = state.map.regions[regionIndex];
+  const followActivePlayer = () => {
+    setSelectedRegionId(activeRegionId);
+    if (selectedRegionId === activeRegionId) focusTile(activePosition);
+  };
 
   return (
     <section className="board-shell">
       <div className="mountain-glow" />
+      <nav className="board-stage-tabs" aria-label="阶段地图分页">
+        {state.map.regions.map((region, index) => {
+          const regionPlayers = players.filter(
+            (player) => state.map.tiles[positions[player.id]].region === region.id,
+          );
+          return (
+            <button
+              type="button"
+              className={`${selectedRegionId === region.id ? "selected" : ""} ${activeRegionId === region.id ? "active-stage" : ""}`}
+              onClick={() => setSelectedRegionId(region.id)}
+              aria-current={selectedRegionId === region.id ? "page" : undefined}
+              key={region.id}
+            >
+              <span>阶段 {index + 1}</span>
+              <strong>{region.name}</strong>
+              <i className="stage-tab-pieces" aria-label={`${regionPlayers.length} 名玩家`}>
+                {regionPlayers.map((player) => (
+                  <b
+                    style={{ "--piece-color": player.color } as React.CSSProperties}
+                    title={player.name}
+                    key={player.id}
+                  >
+                    {playerSigil(player)}
+                  </b>
+                ))}
+              </i>
+            </button>
+          );
+        })}
+      </nav>
       <div className="board-toolbar" aria-label="棋盘视图控制">
-        <span>{currentRegion.name}</span>
+        <span>{selectedRegion.name}</span>
         <button type="button" onClick={() => zoomAt(transform.scale - 0.15)} aria-label="缩小棋盘">−</button>
         <button type="button" onClick={() => zoomAt(transform.scale + 0.15)} aria-label="放大棋盘">＋</button>
-        <button type="button" onClick={() => zoomAt(MIN_BOARD_ZOOM)} title="显示完整棋盘">总览</button>
-        <button type="button" onClick={() => focusTile(positions[state.activePlayerId])}>定位</button>
+        <button type="button" onClick={fitBoard} title="让当前阶段填满可用区域">总览</button>
+        <button type="button" onClick={followActivePlayer}>行动者</button>
       </div>
       <div
         ref={viewportRef}
@@ -176,52 +256,78 @@ export function Board({ state, playback }: { state: GameStateView; playback: Pla
         <div
           ref={worldRef}
           className="board-world"
-          aria-label="三地区登山棋盘"
+          aria-label="三阶段循环棋盘"
           style={{
-            gridTemplateColumns: `repeat(${state.map.columns}, var(--tile-width))`,
-            gridTemplateRows: `repeat(${state.map.regions.length}, var(--tile-height))`,
             transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
           }}
         >
-          {state.map.tiles.map((tile) => {
-            const tileRegionIndex = Math.floor(tile.id / state.map.columns);
-            const indexInRegion = tile.id % state.map.columns;
-            const column = tileRegionIndex % 2 === 0
-              ? indexInRegion + 1
-              : state.map.columns - indexInRegion;
-            const row = state.map.regions.length - tileRegionIndex;
-            const isRegionEnd = indexInRegion === state.map.columns - 1;
-            const routeClass = tileRegionIndex % 2 === 0 ? "route-forward" : "route-reverse";
-            const turnClass = isRegionEnd && tile.id < state.map.tiles.length - 1 ? "route-turn" : "";
-            const playersHere = players.filter((player) => positions[player.id] === tile.id);
-            return (
-              <article
-                className={`tile region-${tile.region} ${routeClass} ${turnClass} ${tileClassNames[tile.type]} ${positions[state.activePlayerId] === tile.id ? "current" : ""}`}
-                style={{ gridColumn: column, gridRow: row }}
-                data-tile-id={tile.id}
-                key={tile.id}
+          <section className={`stage-board region-${selectedRegion.id} ${activeRegionId === selectedRegion.id ? "active" : ""}`}>
+            <div className="stage-board-heading">
+              <span>{selectedRegion.name}</span>
+              <strong>{selectedPlayers.length} 名玩家在此阶段</strong>
+            </div>
+            <div className="stage-ring">
+              {selectedTiles.map((tile, index) => {
+                const playersHere = players.filter((player) => positions[player.id] === tile.id);
+                return (
+                  <article
+                    className={`tile region-${tile.region} ${tileClassNames[tile.type]} ${activePosition === tile.id ? "current" : ""}`}
+                    style={ringGridPosition(index)}
+                    data-tile-id={tile.id}
+                    key={tile.id}
+                  >
+                    <span className="tile-number">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="tile-icon">{TILE_ICON[tile.type]}</span>
+                    <strong>{tile.label}</strong>
+                    <div className="pieces">
+                      {playersHere.map((player) => (
+                        <motion.span
+                          layoutId={`piece-${player.id}`}
+                          className={`piece ${player.id === state.activePlayerId ? "active" : ""}`}
+                          style={{ "--piece-color": player.color } as React.CSSProperties}
+                          title={player.name}
+                          key={player.id}
+                          transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                        >
+                          {playerSigil(player)}
+                        </motion.span>
+                      ))}
+                    </div>
+                  </article>
+                );
+              })}
+              <button
+                type="button"
+                className={`stage-boss-card ${selectedPlayers.some((player) => stageBossUnlocked(player, selectedRegion)) ? "unlocked" : ""}`}
+                onClick={() => onInspectBoss(selectedRegion.id)}
+                aria-label={`查看${enemyDefinition(selectedRegion.bossEnemyId).name}情报`}
               >
-                <span className="tile-number">{String(tile.id).padStart(3, "0")}</span>
-                <span className="tile-icon">{TILE_ICON[tile.type]}</span>
-                <strong>{tile.label}</strong>
-                <div className="pieces">
-                  {playersHere.map((player) => (
-                    // layoutId 让棋子在换格子时做共享元素过渡，而不是瞬移
-                    <motion.span
-                      layoutId={`piece-${player.id}`}
-                      className={`piece ${player.id === state.activePlayerId ? "active" : ""}`}
-                      style={{ "--piece-color": player.color } as React.CSSProperties}
-                      title={player.name}
-                      key={player.id}
-                      transition={{ type: "spring", stiffness: 260, damping: 26 }}
-                    >
-                      {playerSigil(player)}
-                    </motion.span>
-                  ))}
+                <span>阶段首领</span>
+                <strong>{enemyDefinition(selectedRegion.bossEnemyId).name}</strong>
+                {selectedRegion.requirements.map((requirement) => (
+                  <small key={`${requirement.type}-${requirement.target}`}>{requirement.label}</small>
+                ))}
+                <div className="boss-player-progress">
+                  {selectedPlayers.length === 0 && <small>暂无玩家进入本阶段</small>}
+                  {selectedPlayers.map((player) => {
+                    const defeated = player.stageProgress[selectedRegion.id].bossDefeated;
+                    const unlocked = stageBossUnlocked(player, selectedRegion);
+                    const progress = selectedRegion.requirements.map((requirement) => (
+                      `${Math.min(requirementValueForRegion(player, selectedRegion.id, requirement), requirement.target)}/${requirement.target}`
+                    )).join(" · ");
+                    return (
+                      <div key={player.id}>
+                        <i style={{ "--piece-color": player.color } as React.CSSProperties}>{playerSigil(player)}</i>
+                        <span>{player.name}</span>
+                        <b>{defeated ? "已通过" : unlocked ? "可挑战" : progress}</b>
+                      </div>
+                    );
+                  })}
                 </div>
-              </article>
-            );
-          })}
+                <em className="boss-detail-hint">点击查看首领属性</em>
+              </button>
+            </div>
+          </section>
         </div>
       </div>
       <div className="board-legend">

@@ -67,7 +67,32 @@ describe("三至四人回合顺序", () => {
     expect(next.history.some((entry) => entry.text.includes("掉线超时"))).toBe(true);
   });
 
-  it("PvP 参与者掉线超时按战败并后退处理", () => {
+  it("奖励确认阶段获奖玩家掉线后自动确认并轮转", () => {
+    const state = createInitialGame(78, {}, FOUR_PLAYERS);
+    const timedOut = state.activePlayerId;
+    state.unavailablePlayerIds = [timedOut];
+    state.phase = {
+      kind: "pveReward",
+      notice: {
+        playerId: timedOut,
+        enemyName: "狂暴的山狼",
+        elite: true,
+        rewards: [{
+          source: "elite",
+          resourceType: "scroll",
+          name: "力量卷轴",
+          publicName: "一张卷轴",
+        }],
+      },
+    };
+
+    const next = handleDisconnectTimeout(state, timedOut);
+
+    expect(next.phase.kind).toBe("awaitingRoll");
+    expect(next.activePlayerId).not.toBe(timedOut);
+  });
+
+  it("PvP 参与者掉线超时按战败处理，但不再后退", () => {
     const state = createInitialGame(88, {}, ["player1", "player2", "player3"]);
     const timedOut = state.activePlayerId;
     const opponent = state.turnOrder.find((id) => id !== timedOut)!;
@@ -82,7 +107,7 @@ describe("三至四人回合顺序", () => {
     const next = handleDisconnectTimeout(state, timedOut);
 
     expect(next.phase.kind).not.toBe("battle");
-    expect(next.players[timedOut].position).toBe(15);
+    expect(next.players[timedOut].position).toBe(20);
     expect(next.activePlayerId).not.toBe(timedOut);
   });
 });

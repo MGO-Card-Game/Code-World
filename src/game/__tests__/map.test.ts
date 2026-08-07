@@ -26,15 +26,17 @@ describe("受约束随机地图", () => {
     expect(generateMap(20260805)).not.toEqual(generateMap(20260806));
   });
 
-  it("每个区域固定 36 格，起点和 Boss 位于两端", () => {
+  it("每个区域固定 24 格，守关门与营地占据环路开头", () => {
     const map = generateMap(4242);
 
     expect(map.regions).toHaveLength(3);
     expect(map.tiles).toHaveLength(MAP_REGION_SIZE * 3);
-    expect(map.tiles[0]).toMatchObject({ id: 0, type: "start", safeZone: true });
-    expect(map.tiles.at(-1)).toMatchObject({ id: 107, type: "boss", safeZone: true });
     for (const region of map.regions) {
       expect(region.endIndex - region.startIndex + 1).toBe(MAP_REGION_SIZE);
+      expect(map.tiles[region.gateIndex]).toMatchObject({ type: "gate", safeZone: true });
+      expect(map.tiles[region.entryIndex]).toMatchObject({ type: "start", safeZone: true });
+      expect(map.tiles.slice(region.startIndex, region.endIndex + 1))
+        .not.toContainEqual(expect.objectContaining({ type: "boss" }));
     }
   });
 
@@ -68,8 +70,7 @@ describe("受约束随机地图", () => {
   it("战斗类格子都绑定了怪物，精英格还带词缀", () => {
     for (const seed of [1, 7, 42, 4242, 20260805]) {
       for (const tile of generateMap(seed).tiles) {
-        // Boss 格也绑定了怪物，只是它不算"战斗类"——那个判定管的是三连约束
-        if (!isCombatTile(tile.type) && tile.type !== "boss") {
+        if (!isCombatTile(tile.type)) {
           expect(tile.enemyId).toBeUndefined();
           expect(tile.eliteAffix).toBeUndefined();
           continue;
@@ -78,7 +79,7 @@ describe("受约束随机地图", () => {
         if (tile.type === "elite") {
           expect(Object.keys(ELITE_AFFIXES)).toContain(tile.eliteAffix);
         } else {
-          // 词缀只贴在精英格上，普通战斗格和 Boss 格都不该有
+          // 词缀只贴在精英格上，普通战斗格不该有
           expect(tile.eliteAffix).toBeUndefined();
         }
       }

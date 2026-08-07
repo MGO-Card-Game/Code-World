@@ -49,7 +49,7 @@ export function visualBaseStat(
   return stat === "attack" ? player.baseAttack : player.baseDefense;
 }
 
-/** 玩家在棋盘上的位置。移动和战败后退都会改 */
+/** 玩家在棋盘上的位置。移动和 PvE 战败回退都会改。 */
 export function visualPosition(player: PlayerStats, pending: readonly GameEvent[]) {
   const held = pending.find(
     (event) =>

@@ -55,10 +55,22 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
         state.phase.choice.challengerId === actor
       );
 
+    case "chooseBossChallenge":
+      return (
+        state.phase.kind === "bossGateChoice" &&
+        state.phase.choice.playerId === actor
+      );
+
     case "chooseBlessing":
       return (
         state.phase.kind === "blessingChoice" &&
         state.phase.choice.winnerId === actor
+      );
+
+    case "acknowledgePveReward":
+      return (
+        state.phase.kind === "pveReward" &&
+        state.phase.notice.playerId === actor
       );
 
     case "choosePvpPenalty":
@@ -131,16 +143,48 @@ function redactChoice(
 }
 
 function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
-  if (phase.kind !== "battle") return phase;
-  const battle = phase.battle;
-  return {
-    kind: "battle",
-    battle: {
-      ...battle,
-      choiceA: redactChoice(battle.choiceA, battle.aPlayerId, viewer),
-      choiceB: redactChoice(battle.choiceB, battle.bPlayerId, viewer),
-    },
-  };
+  const redactRewardNotice = (
+    notice: Extract<GamePhase, { kind: "pveReward" }>["notice"],
+  ) => notice.playerId === viewer
+    ? notice
+    : {
+        ...notice,
+        rewards: notice.rewards.map((reward) => ({
+          ...reward,
+          name: reward.publicName,
+        })),
+      };
+
+  switch (phase.kind) {
+    case "battle": {
+      const battle = phase.battle;
+      return {
+        kind: "battle",
+        battle: {
+          ...battle,
+          choiceA: redactChoice(battle.choiceA, battle.aPlayerId, viewer),
+          choiceB: redactChoice(battle.choiceB, battle.bPlayerId, viewer),
+        },
+      };
+    }
+    case "pveReward":
+      return { kind: "pveReward", notice: redactRewardNotice(phase.notice) };
+    case "equipmentChoice":
+      return phase.choice.resume.kind === "showPveReward"
+        ? {
+            kind: "equipmentChoice",
+            choice: {
+              ...phase.choice,
+              resume: {
+                kind: "showPveReward",
+                notice: redactRewardNotice(phase.choice.resume.notice),
+              },
+            },
+          }
+        : phase;
+    default:
+      return phase;
+  }
 }
 
 /**
@@ -182,12 +226,16 @@ export function currentActor(state: GameState): PlayerId {
   switch (state.phase.kind) {
     case "encounterChoice":
       return state.phase.choice.challengerId;
+    case "bossGateChoice":
+      return state.phase.choice.playerId;
     case "blessingChoice":
       return state.phase.choice.winnerId;
     case "pvpPenalty":
       return state.phase.penalty.loserId;
     case "equipmentChoice":
       return state.phase.choice.playerId;
+    case "pveReward":
+      return state.phase.notice.playerId;
     case "battle": {
       const battle = state.phase.battle;
       const attacker = battle.attacker;

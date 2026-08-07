@@ -6,6 +6,7 @@ import type {
   LogEntry,
   Player,
   PlayerId,
+  StageProgress,
 } from "./types";
 
 /**
@@ -78,7 +79,16 @@ export function addHistory(
   emit(state, secret ? { type: "narration", text, secret } : { type: "narration", text });
 }
 
-function newPlayer(id: PlayerId, name: string, color: string): Player {
+function newStageProgress(): StageProgress {
+  return {
+    laps: 0,
+    defeatedEliteTileIds: [],
+    openedTreasureTileIds: [],
+    bossDefeated: false,
+  };
+}
+
+function newPlayer(id: PlayerId, name: string, color: string, entryTileId: number): Player {
   return {
     id,
     name,
@@ -87,7 +97,13 @@ function newPlayer(id: PlayerId, name: string, color: string): Player {
     maxHp: 20,
     baseAttack: 5,
     baseDefense: 2,
-    position: 0,
+    position: entryTileId,
+    checkpointTileId: entryTileId,
+    stageProgress: {
+      foothill: newStageProgress(),
+      mountainside: newStageProgress(),
+      summit: newStageProgress(),
+    },
     scrolls: [],
     equipment: [],
     blessings: [],
@@ -111,15 +127,17 @@ export function createInitialGame(
     player3: { name: "岚风旅者", color: "#8fc58a" },
     player4: { name: "星辉旅者", color: "#c89bff" },
   };
+  const map = generateMap(normalized);
+  const entryTileId = map.regions[0].entryIndex;
   const players = Object.fromEntries(uniquePlayerIds.map((id) => [
     id,
-    newPlayer(id, playerNames[id] ?? defaults[id].name, defaults[id].color),
+    newPlayer(id, playerNames[id] ?? defaults[id].name, defaults[id].color, entryTileId),
   ])) as Record<string, Player>;
   const state: GameState = {
     players,
     turnOrder: [...uniquePlayerIds],
     unavailablePlayerIds: [],
-    map: generateMap(normalized),
+    map,
     activePlayerId: uniquePlayerIds[0],
     startingPlayerId: uniquePlayerIds[0],
     turn: 1,

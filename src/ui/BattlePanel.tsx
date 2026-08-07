@@ -10,6 +10,7 @@ import {
   visualBattleRound,
   visualRoll,
 } from "../anim/visualState";
+import { eliteAffixDefinition } from "../game/content/enemies/affixes";
 import { SCROLLS, scrollCategory } from "../game/content/scrolls";
 import { getBattleParticipants, getSidePlayer } from "../game/engine";
 import type {
@@ -187,6 +188,9 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
     ));
   }, []);
   const { a, b } = getBattleParticipants(state, battle);
+  const enemyAffix = battle.enemyAffix
+    ? eliteAffixDefinition(battle.enemyAffix)
+    : undefined;
   const attackerSide = battle.attacker;
 
   /*
@@ -303,6 +307,13 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
             <h3>{b.name}</h3>
             <strong>{hpB}/{hpMaxB}</strong>
             <HealthBar value={hpB} max={hpMaxB} />
+            {enemyAffix && (
+              <div className={`elite-affix rarity-${enemyAffix.rarity.toLowerCase()}`}>
+                <span>{enemyAffix.rarity} · 精英词条</span>
+                <b>{enemyAffix.name}</b>
+                <small>{enemyAffix.description}</small>
+              </div>
+            )}
             <AnimatePresence>
               {damage?.targetSide === "b" && damage.amount > 0 && (
                 <motion.span

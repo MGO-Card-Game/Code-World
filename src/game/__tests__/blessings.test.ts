@@ -251,7 +251,7 @@ describe("赐福持有与 PvP 覆盖", () => {
 
     expect(resolved.players[winner.id].blessings[0].kind).toBe("dragonScale");
     expect(resolved.players[loser.id].blessings).toEqual([]);
-    expect(resolved.phase.kind).toBe("pvpPenalty");
+    expect(resolved.phase.kind).toBe("turnComplete");
   });
 
   it("赢家选择覆盖时，原赐福消失并接纳败方赐福", () => {
@@ -263,7 +263,7 @@ describe("赐福持有与 PvP 覆盖", () => {
     expect(resolved.players[loser.id].blessings).toEqual([]);
     expect(getAttack(resolved.players[winner.id])).toBe(8);
     expect(getDefense(resolved.players[winner.id])).toBe(2);
-    expect(resolved.phase.kind).toBe("pvpPenalty");
+    expect(resolved.phase.kind).toBe("turnComplete");
   });
 
   it("不屈意志遇到赐福覆盖选择时，选择后仍跳过正常惩罚", () => {
@@ -293,6 +293,6 @@ describe("赐福持有与 PvP 覆盖", () => {
     const resolved = handleDisconnectTimeout(state, winner.id);
 
     expect(resolved.players[winner.id].blessings[0].kind).toBe("dragonScale");
-    expect(resolved.phase.kind).toBe("pvpPenalty");
+    expect(resolved.phase.kind).toBe("turnComplete");
   });
 });

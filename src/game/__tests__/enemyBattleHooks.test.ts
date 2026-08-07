@@ -125,12 +125,12 @@ describe("怪物战斗钩子", () => {
   });
 
   it("濒死反扑：低于一半才触发，正好一半不算", () => {
-    // 山狼 8 + 精英基础 4 = 12，半血正好是 6
-    expect(enemyStats("wolf", "cornered").maxHp).toBe(12);
+    // 史莱姆当前 6 + 精英基础 4 = 10，半血正好是 5
+    expect(enemyStats("slime", "cornered").maxHp).toBe(10);
 
-    for (const [hpB, expected] of [[6, 0], [5, 3]] as const) {
+    for (const [hpB, expected] of [[5, 0], [4, 3]] as const) {
       const state = resolveRound(
-        pveBattle(20260805, "wolf", "cornered", { attacker: "b", hpB }),
+        pveBattle(20260805, "slime", "cornered", { attacker: "b", hpB }),
       );
       expect(attackBonusOf(state)).toBe(expected);
     }
@@ -141,6 +141,27 @@ describe("怪物战斗钩子", () => {
     for (const [hpB, expected] of [[11, 0], [12, 2]] as const) {
       const state = resolveRound(
         pveBattle(20260805, "frostFang", undefined, { attacker: "b", hpB }),
+      );
+      expect(attackBonusOf(state)).toBe(expected);
+    }
+  });
+
+  it("龙鳞：峰顶巨龙的防御骰由 D6 提升为 D8", () => {
+    const state = resolveRound(
+      pveBattle(20260805, "dragon", undefined, { kind: "boss", attacker: "a" }),
+    );
+    expect(only(state.lastEvents, "defenseRolled").sides).toBe(8);
+  });
+
+  it("暴怒：峰顶巨龙低于一半血时攻击 +2，正好一半不触发", () => {
+    const halfHp = enemyStats("dragon").maxHp / 2;
+    for (const [hpB, expected] of [[halfHp, 0], [halfHp - 1, 2]] as const) {
+      const state = resolveRound(
+        pveBattle(20260805, "dragon", undefined, {
+          kind: "boss",
+          attacker: "b",
+          hpB,
+        }),
       );
       expect(attackBonusOf(state)).toBe(expected);
     }
@@ -194,16 +215,16 @@ describe("怪物战斗钩子", () => {
 
 describe("精英怪属性折算", () => {
   it("词缀的加成叠在本体之上，名字带上前缀", () => {
-    expect(enemyStats("wolf")).toMatchObject({
+    const wolf = enemyStats("wolf");
+    expect(wolf).toMatchObject({
       name: "山狼",
-      maxHp: 8,
       attack: 2,
       defense: 1,
     });
     // 精英基础只 +4 血，攻防全交给词缀；狂暴 +1 攻
     expect(enemyStats("wolf", "frenzied")).toMatchObject({
       name: "狂暴的山狼",
-      maxHp: 12,
+      maxHp: wolf.maxHp + 4,
       attack: 3,
       defense: 1,
     });
@@ -232,7 +253,6 @@ describe("精英怪属性折算", () => {
 
     if (next.phase.kind !== "battle") throw new Error("应当进入战斗");
     expect(next.phase.battle.enemyAffix).toBe("frenzied");
-    // 史莱姆 5 + 精英基础 4 = 9，不是本体的 5
-    expect(next.phase.battle.hpB).toBe(9);
+    expect(next.phase.battle.hpB).toBe(enemyStats("slime", "frenzied").maxHp);
   });
 });

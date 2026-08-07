@@ -6,15 +6,18 @@ import {
 } from "../game/content/equipment";
 import { SCROLLS } from "../game/content/scrolls";
 import { blessingDefinition } from "../game/content/blessings";
-import { PVP_RETREAT_TILES } from "../game/engine";
+import { enemyDefinition } from "../game/content/enemies";
+import { requirementValueForRegion } from "../game/stages";
 import { getAttack, getDefense, pvpHpTransferAmount } from "../game/selectors";
 import type {
   BlessingChoiceState,
+  BossGateChoiceState,
   EquipmentChoiceState,
   EncounterChoiceState,
   GameStateView,
   PlayerId,
   PlayerView,
+  PveRewardNoticeState,
   PvpPenaltyState,
 } from "../game/types";
 import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
@@ -23,6 +26,116 @@ import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
  * 战斗之后的规则弹层：赐福覆盖、相遇战代价、装备槽已满、终局。
  * 它们共享同一个 AnimatePresence，都要等战斗演出播完才登场。
  */
+
+export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
+  state: GameStateView;
+  choice: BossGateChoiceState;
+  dispatch: Dispatch;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[choice.playerId];
+  const region = state.map.regions.find((candidate) => candidate.id === choice.stageId)!;
+  const boss = enemyDefinition(choice.bossEnemyId);
+  const canChoose = viewerSeat === choice.playerId;
+  return (
+    <ModalBackdrop className="boss-gate-backdrop">
+      <motion.section
+        className="boss-gate-modal"
+        initial={{ opacity: 0, scale: 0.9, y: 18 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 8 }}
+        transition={SPRING}
+      >
+        <div className="boss-gate-emblem">♛</div>
+        <div className="modal-kicker">{region.name} · 守关挑战</div>
+        <h2>{boss.name}正在门后等待</h2>
+        <p>{player.name}已经完成本阶段目标，可以立即挑战首领，也可以继续绕行整备。</p>
+        <div className="boss-requirements">
+          {region.requirements.map((requirement) => {
+            const value = requirementValueForRegion(player, region.id, requirement);
+            return (
+              <div key={`${requirement.type}-${requirement.target}`}>
+                <span>{requirement.label}</span>
+                <strong>{Math.min(value, requirement.target)}/{requirement.target}</strong>
+              </div>
+            );
+          })}
+        </div>
+        {canChoose ? (
+          <div className="boss-gate-actions">
+            <button className="primary-button" onClick={() => dispatch({ type: "chooseBossChallenge", challenge: true })}>
+              挑战{boss.name}
+            </button>
+            <button className="primary-button secondary" onClick={() => dispatch({ type: "chooseBossChallenge", challenge: false })}>
+              继续整备
+            </button>
+          </div>
+        ) : (
+          <p className="waiting-notice">等待{player.name}决定是否挑战……</p>
+        )}
+      </motion.section>
+    </ModalBackdrop>
+  );
+}
+
+export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
+  state: GameStateView;
+  notice: PveRewardNoticeState;
+  dispatch: Dispatch;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[notice.playerId];
+  const canAcknowledge = viewerSeat === notice.playerId;
+  const sourceNames = {
+    battle: "战斗奖励",
+    elite: "精英额外奖励",
+    blessing: "战争财阀",
+  } as const;
+
+  return (
+    <ModalBackdrop className="reward-backdrop">
+      <motion.section
+        className="pve-reward-modal"
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 10 }}
+        transition={SPRING}
+      >
+        <motion.div
+          className="reward-emblem"
+          initial={{ scale: 0.5, rotate: -18 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 0.12, type: "spring", stiffness: 280, damping: 16 }}
+        >{notice.elite ? "✦" : "◆"}</motion.div>
+        <div className="modal-kicker">{notice.elite ? "精英讨伐成功" : "战斗胜利"}</div>
+        <h2>{player.name}击败了{notice.enemyName}</h2>
+        <p>{notice.elite ? "强敌倒下，额外战利品已经收入行囊。" : "战利品已经收入行囊。"}</p>
+        <div className="pve-reward-list">
+          {notice.rewards.map((reward, index) => (
+            <motion.div
+              key={`${reward.source}-${index}-${reward.name}`}
+              className={`pve-reward-item source-${reward.source}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.16 + index * 0.08 }}
+            >
+              <span>{sourceNames[reward.source]}</span>
+              <strong>{reward.name}</strong>
+              <small>{reward.resourceType === "scroll" ? "卷轴" : "装备"}</small>
+            </motion.div>
+          ))}
+        </div>
+        {canAcknowledge ? (
+          <button className="primary-button" onClick={() => dispatch({ type: "acknowledgePveReward" })}>
+            收下奖励
+          </button>
+        ) : (
+          <p className="waiting-notice">等待{player.name}确认奖励……</p>
+        )}
+      </motion.section>
+    </ModalBackdrop>
+  );
+}
 
 export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: {
   state: GameStateView;
@@ -35,8 +148,6 @@ export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: 
   const loser = state.players[penalty.loserId];
   // 和引擎共用同一个算法，界面画出的选项必然是引擎接受的选项
   const hpAmount = pvpHpTransferAmount(winner, loser);
-  // 快到起点时退不满，按实际能退的格数显示
-  const retreatTiles = Math.min(PVP_RETREAT_TILES, loser.position);
   const canChoose = viewerSeat === penalty.loserId;
   return (
     <ModalBackdrop>
@@ -67,10 +178,6 @@ export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: 
               <span>转移生命</span><strong>{hpAmount} 点生命</strong>
             </button>
           )}
-          {/* 后退永远付得出，所以这个按钮无条件存在——代价阶段不会出现无路可走 */}
-          <button disabled={playing} onClick={() => dispatch({ type: "choosePvpPenalty", choice: "retreat" })}>
-            <span>后退</span><strong>{retreatTiles} 格</strong>
-          </button>
         </div> : <p className="waiting-notice">等待{loser.name}选择代价……</p>}
       </motion.section>
     </ModalBackdrop>

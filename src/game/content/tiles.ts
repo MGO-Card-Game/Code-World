@@ -9,5 +9,6 @@ export const TILE_ICON: Record<MapTile["type"], string> = {
   blessing: "✧",
   spring: "✦",
   event: "?",
+  gate: "♜",
   boss: "♛",
 };

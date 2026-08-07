@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGame, gameReducer, PVP_RETREAT_TILES } from "../engine";
+import { createInitialGame, gameReducer } from "../engine";
 import { pvpHpTransferAmount } from "../selectors";
 import { makeBattle, resolveRound } from "../testSupport";
 import type { GameState } from "../types";
 
 /**
  * 造一场 a 侧稳赢的相遇战：b 侧只剩 1 点战斗生命，a 侧攻击拉满。
- * 结算完就会进入代价阶段（或者按规则直接后退）。
+ * 结算完会进入代价阶段；确实没有可支付内容时直接免除。
  */
 function decidedPvp(seed: number, setup: (state: GameState) => void): GameState {
   const state = createInitialGame(seed);
@@ -47,31 +47,15 @@ describe("可转移生命的计算", () => {
 });
 
 describe("相遇战代价阶段", () => {
-  it("一无所有也照样进代价阶段，后退就是那条永远付得出的路", () => {
-    // 旧规则在这里会绕过代价阶段自动后退 3 格；现在后退是三个选项之一
-    let state = decidedPvp(20260805, (draft) => {
+  it("资源和生命都无法支付时直接免除，不再后退", () => {
+    const state = decidedPvp(20260805, (draft) => {
       // 赢家满血 → 转不了生命；败方两手空空 → 没有资源可交
       draft.players.player1.hp = draft.players.player1.maxHp;
       draft.players.player2.scrolls = [];
       draft.players.player2.equipment = [];
       draft.players.player2.position = 20;
     });
-    expect(state.phase.kind).toBe("pvpPenalty");
-
-    state = gameReducer(state, { type: "choosePvpPenalty", choice: "retreat" });
-
-    expect(state.players.player2.position).toBe(20 - PVP_RETREAT_TILES);
-    expect(state.phase.kind).not.toBe("pvpPenalty");
-  });
-
-  it("站在起点附近退不满，也不会退到负数", () => {
-    let state = decidedPvp(20260805, (draft) => {
-      draft.players.player2.position = 2;
-    });
-
-    state = gameReducer(state, { type: "choosePvpPenalty", choice: "retreat" });
-
-    expect(state.players.player2.position).toBe(0);
+    expect(state.players.player2.position).toBe(20);
     expect(state.phase.kind).not.toBe("pvpPenalty");
   });
 
@@ -80,7 +64,7 @@ describe("相遇战代价阶段", () => {
       界面按同一个函数算，压根不会画出交生命那个按钮，走到这里意味着客户端越权。
       引擎沿用"拒绝无效动作"的惯例，关键有两点：
       拒绝时返回的必须是**传入的那个对象**（服务器靠引用相等判断要不要回错误），
-      以及拒绝之后不能把人卡死——后退永远可选。
+      以及拒绝之后仍可改交资源。
     */
     const before = decidedPvp(20260805, (draft) => {
       draft.players.player1.hp = draft.players.player1.maxHp;
@@ -102,22 +86,6 @@ describe("相遇战代价阶段", () => {
     expect(after.phase.kind).not.toBe("pvpPenalty");
     expect(after.players.player1.scrolls.map((item) => item.instanceId)).toContain("s-1");
     expect(after.players.player2.scrolls).toHaveLength(0);
-  });
-
-  it("退走的人如果就是本回合行动的人，格子内容不再结算", () => {
-    // 他已经不站在那格上了。反过来，退走的是对手时，行动方还站着，格子照常结算
-    let state = decidedPvp(20260805, (draft) => {
-      // 让 player2（败方）成为行动方
-      draft.activePlayerId = "player2";
-      draft.players.player2.position = 20;
-      draft.players.player1.position = 20;
-    });
-    expect(state.phase.kind).toBe("pvpPenalty");
-
-    state = gameReducer(state, { type: "choosePvpPenalty", choice: "retreat" });
-
-    expect(state.players.player2.position).toBe(20 - PVP_RETREAT_TILES);
-    expect(state.phase.kind).toBe("turnComplete");
   });
 
   it("交生命付得出时正常转移，且不会把败方打到 0", () => {

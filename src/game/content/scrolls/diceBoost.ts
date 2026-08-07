@@ -45,6 +45,25 @@ export const DICE_BOOST_SCROLLS = {
     drawable: false,
   },
 
+  /*
+    裂纹骰面（饰品·N）在每场战斗开始时发一张这个，战斗结束回收。
+
+    「改为 4」写成 fixedRoll 而不是 minimumRoll：后者抬的是**每一颗**骰子的下限，
+    配上满载骰池会把三颗一起拉到 4，那是另一个强度。理由同下面的命运王冠。
+
+    定死一个中间值看着像削弱，实际是这张卡的全部内容：引擎里所有卷轴决策都在
+    投骰之前，打出去就等于用 5、6、7 的可能性换掉 1、2、3。差距不大的攻防对拼里
+    这笔买卖很划算，需要爆发的时候则完全不该打。
+  */
+  crackedDieFaceLock: {
+    name: "裂纹骰面",
+    description: "本场战斗限定 · 本次攻或防的第一颗骰直接定为 4",
+    rarity: "N",
+    timings: ["beforeAttackRoll", "beforeDefenseRoll"],
+    effects: [{ type: "fixedRoll", count: 1, value: 4 }],
+    drawable: false,
+  },
+
   fateCrownDecree: {
     name: "命运王冠",
     description: "本场战斗限定 · 本次攻或防的第一颗骰直接视为最高面",

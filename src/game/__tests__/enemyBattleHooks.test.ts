@@ -3,7 +3,8 @@ import {
   ELITE_AFFIXES,
   type EliteAffixDefinition,
 } from "../content/enemies";
-import type { BattleHookContext, RollModifiers } from "../effects/battleHooks";
+import { newRollModifiers } from "../battleRound";
+import type { BattleHookContext } from "../effects/battleHooks";
 import { enemyEffects, enemyStats } from "../selectors";
 import { createInitialGame, gameReducer } from "../engine";
 import { makeBattle, resolveRound } from "../testSupport";
@@ -150,13 +151,8 @@ describe("怪物战斗钩子", () => {
     钩子能不能被调用已经由上面几条经引擎的用例守住了，这里只单独验效果本身。
   */
   it("重斧：攻击骰掷出上限时追加 2 点伤害，多骰只加一次", () => {
-    const modifiers: RollModifiers = {
-      flatBonus: 0,
-      extraDice: 0,
-      minimumRoll: 1,
-      maxRollDice: 0,
-      bonusDamage: 0,
-    };
+    // 走引擎那份构造，RollModifiers 加字段时这里不用跟着改
+    const modifiers = newRollModifiers();
     const context = {
       dieKind: "attack",
       modifiers,
@@ -180,13 +176,8 @@ describe("怪物战斗钩子", () => {
   });
 
   it("雾毒蜘蛛：攻击骰掷出上限时追加 1 点毒伤", () => {
-    const modifiers: RollModifiers = {
-      flatBonus: 0,
-      extraDice: 0,
-      minimumRoll: 1,
-      maxRollDice: 0,
-      bonusDamage: 0,
-    };
+    // 走引擎那份构造，RollModifiers 加字段时这里不用跟着改
+    const modifiers = newRollModifiers();
     const context = {
       dieKind: "attack",
       modifiers,

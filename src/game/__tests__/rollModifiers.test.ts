@@ -160,7 +160,9 @@ describe("一回合多张卷轴", () => {
       漏登记会在这里失败，而不是等到数值算错才被发现。
       commutative：换顺序结果不变；sequential：带副作用，按提交顺序结算。
       */
-    const COMMUTATIVE = ["flatBonus", "dieSides", "extraDice", "minimumRoll", "maxRoll"];
+    const COMMUTATIVE = [
+      "flatBonus", "dieSides", "extraDice", "minimumRoll", "maxRoll", "fixedRoll",
+    ];
     const SEQUENTIAL = ["directDamage", "heal", "forfeitMovement", "custom"];
 
     for (const kind of Object.keys(SCROLLS) as ScrollKind[]) {

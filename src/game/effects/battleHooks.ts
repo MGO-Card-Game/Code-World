@@ -38,6 +38,17 @@ export interface RollModifiers {
    */
   maxRollDice: number;
   /**
+   * 本次投骰中有几颗直接定为 fixedRollValue，以及定成几点。
+   *
+   * 和 maxRollDice 是一对：那个把骰子拉到上限，只赚不亏；这个把骰子**钉死**在一个
+   * 具体点数上，可能比随机结果更差。所以它不是 minimumRoll 的变体——引擎里所有决策
+   * 都在投骰之前，钉死一个中间值是真取舍，用 5、6、7 的可能性换掉 1、2、3。
+   *
+   * 落在哪几颗上见 rollForSide：先给 maxRollDice，再给这个，两者不抢同一颗。
+   */
+  fixedRollDice: number;
+  fixedRollValue: number;
+  /**
    * 攻防差算完之后再追加的伤害，不被防御吸收。
    *
    * 只有攻击方的这一份会被结算，别在防守侧写它。防守方的反伤（荆棘铠甲那类）

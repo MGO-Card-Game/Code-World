@@ -38,6 +38,20 @@ export const ACCESSORIES = defineEquipment("accessory", {
     },
   },
 
+  crackedDieFace: {
+    name: "裂纹骰面",
+    description: "每场战斗开始时获得一张「裂纹骰面」卷轴，可将一颗骰定为 4",
+    rarity: "N",
+    modifiers: [],
+    effects: {
+      // 和命运王冠、王座破坏者同一套路：每场战斗一次的主动技 = 开战时发一张战斗限定牌。
+      // 这张是三者里最便宜的一版，所以只值 N——换掉的是骰子的两头，不是把它拉满。
+      onBattleStart({ grantBattleScroll }) {
+        grantBattleScroll("crackedDieFaceLock");
+      },
+    },
+  },
+
   huntersPointer: {
     name: "猎人的指针",
     description: "地图移动骰上限 +1",

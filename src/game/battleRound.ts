@@ -58,6 +58,8 @@ export function newRollModifiers(): RollModifiers {
     extraDice: 0,
     minimumRoll: 1,
     maxRollDice: 0,
+    fixedRollDice: 0,
+    fixedRollValue: 0,
     bonusDamage: 0,
   };
 }
@@ -94,6 +96,12 @@ export function applyScrollEffect(
       return false;
     case "maxRoll":
       modifiers.maxRollDice += effect.count;
+      return false;
+    case "fixedRoll":
+      modifiers.fixedRollDice += effect.count;
+      // 颗数累加、点数取最大，理由同上面的 dieSides：一回合可以打任意多张牌，
+      // 两张钉点数的卷轴撞在一起时，"谁生效"不能取决于提交顺序
+      modifiers.fixedRollValue = Math.max(modifiers.fixedRollValue, effect.value);
       return false;
     case "directDamage":
       return applyDirectScrollDamage(
@@ -208,9 +216,19 @@ export function rollForSide(
     这样消耗的随机数个数只取决于骰子数量，与本次生效了哪些效果无关，
     同种子重放和对照调试才不会因为多了一张牌就整条随机流错位。
   */
+  /*
+    覆盖按 maxRollDice → fixedRollDice 的顺序分配骰子，两者不抢同一颗：
+    拉满上限只赚不亏，钉死点数则可能更差，把好的那份先发出去，
+    玩家同时打出两张时拿到的是唯一说得通的分配。
+  */
+  const fixedUntil = modifiers.maxRollDice + modifiers.fixedRollDice;
+  const fixedValue = Math.min(sides, modifiers.fixedRollValue);
   const dice = Array.from({ length: count }, (_unused, index) => {
     const roll = Math.min(sides, Math.max(modifiers.minimumRoll, rollDie(state, sides)));
-    return index < modifiers.maxRollDice ? sides : roll;
+    if (index < modifiers.maxRollDice) return sides;
+    // 钉死就是钉死，不再受 minimumRoll 抬举——这张牌的代价就是放弃上下两头
+    if (index < fixedUntil) return fixedValue;
+    return roll;
   });
   return {
     sides,

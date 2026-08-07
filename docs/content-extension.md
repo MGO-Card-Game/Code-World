@@ -64,9 +64,21 @@ export const COMBAT_SWING_SCROLLS = {
 } satisfies Record<string, ScrollDefinition>;
 ```
 
-`effects` 可以组合多个通用效果，目前支持：固定加值、替换骰面、增加骰子、设置最低骰值、视为最高面和掷骰前直接伤害。引擎按数组顺序执行。
+`effects` 可以组合多个通用效果，目前支持：固定加值、替换骰面、增加骰子、设置最低骰值、视为最高面、钉死点数和掷骰前直接伤害。引擎按数组顺序执行。
 
-**一回合可以打任意张卷轴**（GameRule 8.5），所以新增效果类型时必须先想清楚它多张叠加怎么合并。累加类求和、`dieSides` 与 `minimumRoll` 取最大——这几种换顺序结果都不变，因此不需要给卡牌配优先级。只有 `directDamage` 和 `custom` 带副作用，按提交顺序结算。`rollModifiers.test.ts` 有一条排列测试和一条登记表测试挡着漏项。
+**一回合可以打任意张卷轴**（GameRule 8.5），所以新增效果类型时必须先想清楚它多张叠加怎么合并。累加类求和，`dieSides`、`minimumRoll` 与 `fixedRoll` 的点数取最大——这几种换顺序结果都不变，因此不需要给卡牌配优先级。只有 `directDamage` 和 `custom` 带副作用，按提交顺序结算。`rollModifiers.test.ts` 有一条排列测试和一条登记表测试挡着漏项。
+
+改单颗骰子的三种效果容易混，分工是这样的：
+
+| 效果 | 作用范围 | 结果 |
+| --- | --- | --- |
+| `minimumRoll` | **每一颗**骰子 | 抬高下限，配上满载骰池会把三颗一起拉起来 |
+| `maxRoll` | 前 `count` 颗 | 视为骰面上限，只赚不亏 |
+| `fixedRoll` | 接着的 `count` 颗 | 钉死在 `value`，**可能比随机结果更差** |
+
+`fixedRoll` 不是 `minimumRoll` 的变体：引擎里所有卷轴决策都发生在投骰**之前**，所以钉死一个中间值是真取舍——用 5、6、7 的可能性换掉 1、2、3。它也不受 `minimumRoll` 抬举，否则「改为 4」就退化成一张只赚不亏的牌。骰面比 `value` 还小时会钳到骰面上限。
+
+`maxRoll` 与 `fixedRoll` 同场时按这个顺序分配骰子，不抢同一颗：好的那份先发出去，玩家两张一起打时拿到的是唯一说得通的分配。
 
 牌面左上角圆圈里的攻／防／通由 `scrollCategory()` 从 `timings` 推导，不要单独配置：只声明 `beforeAttackRoll` 是攻击牌，只声明 `beforeDefenseRoll` 是防守牌，两个都声明是通用牌。
 

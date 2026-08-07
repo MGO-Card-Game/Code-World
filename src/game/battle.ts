@@ -2,7 +2,7 @@ import { equipmentDefinition } from "./content/equipment";
 import { findPreviousRestTile, findRestTileAtOrBefore } from "./map";
 import { grantRandomResourceReward, rewardSecret } from "./resources";
 import { enemyStats, getAttack, getDefense } from "./selectors";
-import { addHistory, emit, makeInstanceId, rollDie } from "./state";
+import { addHistory, emit, makeInstanceId, nextRandom, rollDie } from "./state";
 import type {
   EquipmentDamageContext,
   EquipmentEffects,
@@ -441,6 +441,11 @@ export function applyEquipmentBattleStart(
           instanceId: scroll.instanceId,
           kind,
         });
+      },
+      random: () => nextRandom(state),
+      addBattleLog(text) {
+        battle.log.unshift(text);
+        battle.log = battle.log.slice(0, 8);
       },
     });
   });

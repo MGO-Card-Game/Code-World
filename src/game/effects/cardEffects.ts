@@ -87,6 +87,15 @@ export interface EquipmentBattleStartContext {
   player: Player;
   item: OwnedEquipment;
   grantBattleScroll: (kind: OwnedScroll["kind"]) => void;
+  /**
+   * 开战时的随机源，用于"随机二选一"这类效果。
+   *
+   * 由上下文给出而不是让卡牌自己 import：这里必须是 GameState 上那条种子流，
+   * 换成 Math.random 的话同一局在两台机器上会分叉，replay 和联机都对不上。
+   * 地图事件抽取走的也是同一个套路（`pickMapEvent(region, () => nextRandom(state))`）。
+   */
+  random: () => number;
+  addBattleLog: (text: string) => void;
 }
 
 /**

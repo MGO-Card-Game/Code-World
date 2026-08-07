@@ -218,6 +218,27 @@ fateCrownDecree: {
 * **`drawable: false` 不能忘**，否则宝箱和战斗奖励会把这张战斗限定牌当普通卷轴发出去，变成永久卡。
 * 发出的牌带 `temporary: true`，由 `dropTemporaryScrolls` 在 `finishBattle` **开头**统一回收——必须早于任何阶段切换。晚一步的话，相遇战代价阶段里败方就能把这张本不属于他的牌交给赢家，凭空变成一张常驻卡。
 
+### 开战时抽签：onBattleStart 的 random
+
+「每场战斗开始时随机 X」这类卡从上下文拿随机源，**不要自己 import**：
+
+```ts
+// equipment/accessories.ts —— 空白护符
+onBattleStart({ item, random, addBattleLog }) {
+  const engraved = random() < 0.5 ? TALISMAN_ATTACK : TALISMAN_DEFENSE;
+  item.battleMemo = engraved;
+  addBattleLog("空白护符浮现出攻击的纹路，本场攻击骰上限 +2。");
+},
+beforeRoll({ dieKind, item, modifiers }) {
+  if (item.battleMemo !== (dieKind === "attack" ? TALISMAN_ATTACK : TALISMAN_DEFENSE)) return;
+  modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + 2;
+},
+```
+
+`random` 就是 `GameState` 上那条种子流（`nextRandom`），和地图事件抽取用的是同一条。换成 `Math.random` 的话同一局在两台机器上会分叉，重放与联机都对不上。
+
+抽到的结果存进[暗格](#跨回合效果装备实例的战斗内暗格)，整场按它算——抽签只发生一次，不是每轮重抽，`clearBattleMemos` 会在战斗结束时把它清掉。**抽完立刻 `addBattleLog`**，别等第一次投骰时才说：抽到攻击那一面的对局里，防御骰从头到尾没有任何变化，玩家不该只能靠"没动静"反推抽到了什么。
+
 ## 稀有度与抽取
 
 卷轴和装备共用 `src/game/content/rarity.ts` 的四档权重：**N 50 / R 30 / SR 15 / PR 5**。先抽稀有度，再在该稀有度的内容中等概率抽取。增加同稀有度卡牌不会改变其他稀有度的总概率。

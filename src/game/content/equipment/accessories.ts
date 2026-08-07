@@ -1,5 +1,14 @@
 import { defineEquipment } from "./definition";
 
+/**
+ * 空白护符开战时抽到的那一面，存进 `OwnedEquipment.battleMemo`。
+ *
+ * 暗格只能放数字，所以这里给两个取值起了名字，而不是在代码里散落 0 和 1。
+ * 具体数值无所谓，只要写和读用的是同一个常量。
+ */
+const TALISMAN_ATTACK = 1;
+const TALISMAN_DEFENSE = 2;
+
 /** 饰品：骰子控制、探索与条件效果。槽位有两个，是唯一能叠的分类。 */
 export const ACCESSORIES = defineEquipment("accessory", {
   charm: {
@@ -46,6 +55,38 @@ export const ACCESSORIES = defineEquipment("accessory", {
         if (ownHp * 2 >= ownMaxHp) return;
         modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + 1;
         addBattleLog("血誓指环回应伤势，本次骰面上限 +1。");
+      },
+    },
+  },
+
+  blankTalisman: {
+    name: "空白护符",
+    description: "每场战斗开始时，随机将攻击或防御骰上限 +2，持续整场",
+    rarity: "R",
+    modifiers: [],
+    effects: {
+      /*
+        抽到哪一面写进暗格，整场都按它算——牌面写的是「每场战斗开始时」，
+        所以抽签只发生一次，不是每轮重抽。暗格由 clearBattleMemos 在战斗结束时
+        统一回收，下一场自然重新抽。
+
+        开战就立刻上一条战报，而不是等第一次投骰时再说：抽到攻击的那一局，
+        防御骰从头到尾没有任何变化，玩家不该只能靠"没动静"反推抽到了哪面。
+      */
+      onBattleStart({ item, random, addBattleLog }) {
+        const engraved = random() < 0.5 ? TALISMAN_ATTACK : TALISMAN_DEFENSE;
+        item.battleMemo = engraved;
+        addBattleLog(
+          engraved === TALISMAN_ATTACK
+            ? "空白护符浮现出攻击的纹路，本场攻击骰上限 +2。"
+            : "空白护符浮现出防御的纹路，本场防御骰上限 +2。",
+        );
+      },
+      beforeRoll({ dieKind, item, modifiers }) {
+        const engraved =
+          dieKind === "attack" ? TALISMAN_ATTACK : TALISMAN_DEFENSE;
+        if (item.battleMemo !== engraved) return;
+        modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + 2;
       },
     },
   },

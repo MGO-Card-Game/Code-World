@@ -1,181 +1,41 @@
-import { EQUIPMENT, equipmentCategory, equipmentDefinition } from "./content/equipment";
+import { equipmentDefinition } from "./content/equipment";
 import { scrollDefinition } from "./content/scrolls";
-import { getDieSidesBonus, pvpHpTransferAmount } from "./selectors";
+import { getDieSidesBonus } from "./selectors";
 import { finishBattle, startBattle } from "./battle";
 import { submitScrollChoice } from "./battleRound";
-import {
-  blessingName,
-  blessingMovementRollBonus,
-  bonusTreasureEquipment,
-  detachBlessing,
-  grantRandomBlessing,
-  receiveTransferredBlessing,
-} from "./blessings";
-import { resolveRandomMapEvent } from "./mapEvents";
+import { blessingMovementRollBonus } from "./blessings";
 import { MAP_REGION_SIZE, regionForPosition } from "./map";
-import {
-  applyEquipmentStats,
-  consumeScroll,
-  grantEquipment,
-  grantRandomResourceReward,
-  hasFreeEquipmentSlot,
-  removeEquipmentStats,
-  rewardSecret,
-} from "./resources";
-import { addHistory, createInitialGame, emit, nextPlayerId, rollDie } from "./state";
-import { applyStatGrowth, STAT_GROWTH } from "./growth";
+import { consumeScroll } from "./resources";
+import { addHistory, createInitialGame, emit, rollDie } from "./state";
 import { restAtStageCamp, stageBossUnlocked } from "./stages";
-import {
-  buyShopItem,
-  ECONOMY,
-  grantGold,
-  pvpGoldTransferAmount,
-  salvageEquipment,
-  transferPvpGold,
-} from "./economy";
+import { buyShopItem } from "./economy";
 import { cancelTrade, confirmTrade, submitTradeOffer } from "./trading";
+import { acknowledgePveReward, chooseEquipment, chooseStatGrowth } from "./rewards";
+import { chooseEncounterIntent, chooseEncounterOpponent } from "./encounters";
 import {
-  acknowledgePveReward,
-  chooseEquipment,
-  chooseStatGrowth,
-  grantTreasureEquipmentReward,
-} from "./rewards";
-import {
-  chooseEncounterIntent,
-  chooseEncounterOpponent,
-  startEncounterDecision,
-} from "./encounters";
+  chooseBlessing,
+  choosePvpPenalty,
+  settleUnavailablePvpPenalty,
+  settleWaivedPvpPenalty,
+} from "./pvpPenalty";
+import { resolveTile, settleTileDebt } from "./tiles";
+import { advanceCompletedTurn, rebaseEventIds } from "./turns";
 import type {
   ActionResult,
   GameAction,
   GameState,
-  MapTile,
   OwnedScroll,
   Player,
-  StatGrowthOption,
 } from "./types";
 
 /**
- * 回合与格子流程、动作分发，以及规则层的对外门面。
+ * 动作分发，以及规则层的对外门面。
  *
- * 具体规则都在旁边的模块里：state 是地基，resources 管背包，mapEvents 管事件格，
- * battle 与 battleRound 管战斗。这里只回答两个问题——踩到一格会发生什么，
- * 以及一个 action 该派给谁。
+ * 具体规则都在旁边的模块里：state 是地基，tiles 回答「踩到一格会发生什么」，
+ * resources 管背包，battle 与 battleRound 管战斗，encounters / trading /
+ * pvpPenalty / rewards 各管一段相遇之后的流程。这里只回答一个问题——
+ * 一个 action 该派给谁，以及掉线时替谁兜底。
  */
-
-function resolveTile(state: GameState, tile: MapTile, checkEncounter = true) {
-  const player = state.players[state.activePlayerId];
-  const opponents = Object.values(state.players).filter(
-    (candidate) =>
-      candidate.id !== player.id &&
-      candidate.position === player.position &&
-      !state.unavailablePlayerIds.includes(candidate.id),
-  );
-
-  if (checkEncounter && !tile.safeZone && opponents.length > 0) {
-    if (opponents.length === 1) {
-      startEncounterDecision(state, player.id, opponents[0].id, tile.id);
-    } else {
-      state.phase = {
-        kind: "encounterChoice",
-        choice: {
-          challengerId: player.id,
-          opponentIds: opponents.map((opponent) => opponent.id),
-          tileIndex: tile.id,
-        },
-      };
-      addHistory(state, `${player.name}遇到多名旅者，需要选择一名对手。`);
-    }
-    return;
-  }
-
-  switch (tile.type) {
-    case "battle":
-    case "elite":
-      // 精英格和普通战斗格走同一条 PvE 结算，差别只在那只怪身上贴了词缀
-      startBattle(
-        state,
-        "pve",
-        player.id,
-        tile.enemyId,
-        undefined,
-        tile.eliteAffix,
-        { stageId: tile.region, tileIndex: tile.id, retreatTo: player.checkpointTileId },
-      );
-      return;
-    case "boss":
-      startBattle(state, "boss", player.id, tile.enemyId);
-      return;
-    case "spring": {
-      const hpBefore = player.hp;
-      const healed = Math.min(5, player.maxHp - player.hp);
-      player.hp += healed;
-      player.checkpointTileId = tile.id;
-      state.phase = { kind: "turnComplete" };
-      if (healed > 0) {
-        emit(state, {
-          type: "playerHpChanged",
-          playerId: player.id,
-          from: hpBefore,
-          to: player.hp,
-          maxHp: player.maxHp,
-          reason: "spring",
-        });
-      }
-      addHistory(state, `${player.name}在泉水恢复了 ${healed} 点生命。`);
-      return;
-    }
-    case "treasure": {
-      const progress = player.stageProgress[tile.region];
-      if (progress.openedTreasureTileIds.includes(tile.id)) {
-        state.phase = { kind: "turnComplete" };
-        addHistory(state, `${player.name}检查「${tile.label}」，这里已经被搜空了。`);
-        return;
-      }
-      progress.openedTreasureTileIds.push(tile.id);
-      const gold = grantGold(state, player, ECONOMY.treasureGold, "treasure");
-      const bonusEquipment = bonusTreasureEquipment(player);
-      const reward = grantRandomResourceReward(
-        state,
-        player,
-        bonusEquipment > 0
-          ? { kind: "grantTreasureEquipment", remaining: bonusEquipment }
-          : undefined,
-      );
-      const line = (what: string) => `${player.name}打开宝箱，获得${what}和 ${gold} 金币。`;
-      addHistory(state, line(reward.name), rewardSecret(player, line, reward));
-      if (!reward.pendingEquipmentChoice) {
-        if (bonusEquipment > 0) grantTreasureEquipmentReward(state, player, bonusEquipment);
-        else state.phase = { kind: "turnComplete" };
-      }
-      return;
-    }
-    case "blessing": {
-      if (player.blessings.length > 0) {
-        state.phase = { kind: "turnComplete" };
-        addHistory(state, `${player.name}已经拥有赐福，没有从「${tile.label}」重复获得。`);
-        return;
-      }
-      const blessing = grantRandomBlessing(state, player);
-      state.phase = { kind: "turnComplete" };
-      addHistory(
-        state,
-        blessing
-          ? `${player.name}在「${tile.label}」获得永久赐福：${blessingName(blessing)}。`
-          : `${player.name}来到「${tile.label}」，但赐福内容尚未配置。`,
-      );
-      return;
-    }
-    case "event": {
-      resolveRandomMapEvent(state, player, tile.region);
-      return;
-    }
-    case "start":
-    case "gate":
-      state.phase = { kind: "turnComplete" };
-      addHistory(state, `${player.name}来到「${tile.label}」。`);
-  }
-}
 
 function chooseBossChallenge(state: GameState, challenge: boolean) {
   if (state.phase.kind !== "bossGateChoice") return false;
@@ -295,15 +155,11 @@ function useMapScroll(state: GameState, instanceId: string) {
   return true;
 }
 
-function finishPenaltyAndResolveTile(state: GameState, tileIndex: number) {
-  resolveTile(state, state.map.tiles[tileIndex], false);
-}
-
 /**
- * 解释拆出去的模块交回来的 ActionResult。
+ * 把下游模块交回来的 ActionResult 折算成 reducer 的返回值。
  *
- * 格子结算只有这里做得了，所以「还欠一次结算」这件事由各模块作为数据交回，
- * 在这一处统一兑现——相遇、交易、相遇战代价都走这条路。
+ * false 时退回旧状态，维持「非法动作不产生新状态」的约定；欠下的那次格子结算
+ * 交给 tiles 兑现。相遇、交易、装备选择都走这条路。
  */
 function settleActionResult(
   next: GameState,
@@ -311,251 +167,8 @@ function settleActionResult(
   result: ActionResult,
 ): GameState {
   if (result === false) return previous;
-  if (result !== true) resolveTile(next, next.map.tiles[result.resolveTile], false);
+  settleTileDebt(next, result);
   return next;
-}
-
-function settleWaivedPvpPenalty(state: GameState) {
-  if (state.phase.kind !== "pvpPenalty" || !state.phase.penalty.waived) return false;
-  const { loserId, tileIndex } = state.phase.penalty;
-  if (
-    state.unavailablePlayerIds.includes(loserId) &&
-    state.activePlayerId === loserId
-  ) {
-    state.phase = { kind: "turnComplete" };
-    advanceCompletedTurn(state);
-    return true;
-  }
-  finishPenaltyAndResolveTile(state, tileIndex);
-  return true;
-}
-
-/** 赢家在已有赐福时，选择保留原赐福或用败方赐福覆盖。 */
-function chooseBlessing(state: GameState, replace: boolean) {
-  if (state.phase.kind !== "blessingChoice") return false;
-  const {
-    winnerId,
-    loserId,
-    offered,
-    tileIndex,
-    penaltyWaived,
-    penaltyWaiveReason,
-  } = state.phase.choice;
-  const winner = state.players[winnerId];
-  const loser = state.players[loserId];
-  const existing = winner.blessings[0];
-
-  if (replace) {
-    const existingName = existing ? blessingName(existing) : undefined;
-    if (existing) detachBlessing(state, winner);
-    if (!receiveTransferredBlessing(state, winner, loserId, offered)) return false;
-    addHistory(
-      state,
-      existingName
-        ? `${winner.name}放弃${existingName}，接纳了${loser.name}的${blessingName(offered)}。`
-        : `${winner.name}接纳了${loser.name}的${blessingName(offered)}。`,
-    );
-  } else {
-    addHistory(
-      state,
-      `${winner.name}保留自己的赐福，${loser.name}失去的${blessingName(offered)}随之消散。`,
-    );
-  }
-
-  state.phase = {
-    kind: "pvpPenalty",
-    penalty: {
-      winnerId,
-      loserId,
-      tileIndex,
-      waived: penaltyWaived,
-      waiveReason: penaltyWaiveReason,
-    },
-  };
-  if (penaltyWaived) {
-    settleWaivedPvpPenalty(state);
-    return true;
-  }
-  // 败方可能早已掉线超时；赢家作出选择后不能再等待一个已经不会触发的计时器。
-  if (state.unavailablePlayerIds.includes(loserId)) {
-    settleUnavailablePvpPenalty(state);
-    if (
-      (state.phase as GameState["phase"]).kind === "turnComplete" &&
-      state.activePlayerId === loserId
-    ) {
-      advanceCompletedTurn(state);
-    }
-  }
-  return true;
-}
-
-function choosePvpPenalty(
-  state: GameState,
-  action: Extract<GameAction, { type: "choosePvpPenalty" }>,
-) {
-  if (state.phase.kind !== "pvpPenalty" || state.phase.penalty.waived) return false;
-  const { winnerId, loserId, tileIndex } = state.phase.penalty;
-  const winner = state.players[winnerId];
-  const loser = state.players[loserId];
-
-  if (action.choice === "gold") {
-    const amount = transferPvpGold(state, loser, winner);
-    if (amount <= 0) return false;
-    addHistory(state, `${loser.name}支付 ${amount} 金币给${winner.name}。`);
-    finishPenaltyAndResolveTile(state, tileIndex);
-    return true;
-  }
-
-  if (action.choice === "hp") {
-    const amount = pvpHpTransferAmount(winner, loser);
-    // 付不出就忽略这次提交，阶段留在原地让他重选。
-    // 界面本来就不会画出这个按钮（同一个函数算的），走到这里说明是客户端越权，
-    // 仍有资源项可选；两项都付不起的状态会在战斗结束时直接跳过本阶段。
-    if (amount <= 0) return false;
-    const loserBefore = loser.hp;
-    const winnerBefore = winner.hp;
-    loser.hp -= amount;
-    winner.hp += amount;
-    emit(state, {
-      type: "playerHpChanged",
-      playerId: loser.id,
-      from: loserBefore,
-      to: loser.hp,
-      maxHp: loser.maxHp,
-      reason: "pvpTransfer",
-    });
-    emit(state, {
-      type: "playerHpChanged",
-      playerId: winner.id,
-      from: winnerBefore,
-      to: winner.hp,
-      maxHp: winner.maxHp,
-      reason: "pvpTransfer",
-    });
-    addHistory(state, `${loser.name}转移 ${amount} 点生命给${winner.name}。`);
-    finishPenaltyAndResolveTile(state, tileIndex);
-    return true;
-  }
-
-  if (!action.instanceId || !action.resourceType) return false;
-  if (action.resourceType === "scroll") {
-    const index = loser.scrolls.findIndex((item) => item.instanceId === action.instanceId);
-    if (index < 0) return false;
-    const [item] = loser.scrolls.splice(index, 1);
-    winner.scrolls.push(item);
-    emit(state, {
-      type: "scrollTransferred",
-      fromId: loser.id,
-      toId: winner.id,
-      instanceId: item.instanceId,
-      kind: item.kind,
-    });
-  } else {
-    const item = removeEquipmentStats(state, loser, action.instanceId);
-    if (!item) return false;
-    emit(state, {
-      type: "equipmentTransferred",
-      fromId: loser.id,
-      toId: winner.id,
-      instanceId: item.instanceId,
-      kind: item.kind,
-    });
-    if (!hasFreeEquipmentSlot(winner, item.kind)) {
-      state.phase = {
-        kind: "equipmentChoice",
-        choice: {
-          playerId: winner.id,
-          offered: item,
-          source: "transfer",
-          resume: { kind: "resolveTile", tileIndex },
-        },
-      };
-      addHistory(
-        state,
-        `${loser.name}交出${EQUIPMENT[item.kind].name}；${winner.name}需要选择是否替换同类装备。`,
-      );
-      return true;
-    }
-    applyEquipmentStats(state, winner, item);
-  }
-  addHistory(state, `${loser.name}交出一件资源给${winner.name}。`);
-  finishPenaltyAndResolveTile(state, tileIndex);
-  return true;
-}
-
-/**
- * 让新开一局的事件 id 接着上一局往后排。
- *
- * 播放队列靠“id 水位线”给事件去重，而 createInitialGame 每次都从 1 开始。
- * 如果重开后的 id 与上一局重叠，新开局的事件就会被当成重复丢掉。
- * 保证整个会话内 id 单调递增，去重逻辑才始终成立。
- */
-function rebaseEventIds(state: GameState, startId: number): GameState {
-  const offset = startId - 1;
-  if (offset <= 0) return state;
-  state.lastEvents = state.lastEvents.map((event) => ({ ...event, id: event.id + offset }));
-  state.nextEventId += offset;
-  return state;
-}
-
-/** 掉线玩家无法选择时按固定顺序自动支付；确实付不起则直接继续。 */
-function settleUnavailablePvpPenalty(state: GameState) {
-  if (state.phase.kind !== "pvpPenalty") return false;
-  const { winnerId, loserId, tileIndex } = state.phase.penalty;
-  const winner = state.players[winnerId];
-  const loser = state.players[loserId];
-  if (state.phase.penalty.waived) return settleWaivedPvpPenalty(state);
-  if (pvpGoldTransferAmount(loser) > 0) {
-    return choosePvpPenalty(state, { type: "choosePvpPenalty", choice: "gold" });
-  }
-  if (pvpHpTransferAmount(winner, loser) > 0) {
-    return choosePvpPenalty(state, { type: "choosePvpPenalty", choice: "hp" });
-  }
-  const scroll = loser.scrolls[0];
-  if (scroll) {
-    return choosePvpPenalty(state, {
-      type: "choosePvpPenalty",
-      choice: "resource",
-      resourceType: "scroll",
-      instanceId: scroll.instanceId,
-    });
-  }
-  const equipment = loser.equipment[0];
-  if (equipment) {
-    return choosePvpPenalty(state, {
-      type: "choosePvpPenalty",
-      choice: "resource",
-      resourceType: "equipment",
-      instanceId: equipment.instanceId,
-    });
-  }
-  finishPenaltyAndResolveTile(state, tileIndex);
-  return true;
-}
-
-function advanceCompletedTurn(state: GameState) {
-  state.activePlayerId = nextPlayerId(state);
-  state.turn += 1;
-  state.lastMovementRoll = undefined;
-  state.movementOrigin = undefined;
-  const incoming = state.players[state.activePlayerId];
-  if (incoming.skipNextMovement) {
-    delete incoming.skipNextMovement;
-    state.phase = { kind: "turnComplete" };
-  } else {
-    state.phase = { kind: "awaitingRoll" };
-  }
-  emit(state, {
-    type: "turnStarted",
-    playerId: state.activePlayerId,
-    turn: state.turn,
-  });
-  addHistory(
-    state,
-    state.phase.kind === "turnComplete"
-      ? `${incoming.name}受战地药剂影响，本回合无法移动。`
-      : `轮到${incoming.name}行动。`,
-  );
 }
 
 /**

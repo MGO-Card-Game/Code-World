@@ -444,6 +444,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .equipment-choice-options strong { font-size: 12px; }
 .equipment-choice-options small { color: #998b76; font-size: 9px; }
 .equipment-choice-options .discard-equipment { border-color: #593b35; color: #be8a7c; }
+.equipment-choice-options .salvage-value { align-self: end; color: #d2a85c; font-size: 9px; font-style: normal; }
 .boss-gate-backdrop { background: radial-gradient(circle, #642b1dcc, #080706ed 58%); }
 .boss-gate-modal { width: min(570px, 100%); border-color: #a85e3d; background: radial-gradient(circle at 50% 0, #4a2419, #241713 38%, #11100e 78%); }
 .boss-gate-modal > p { color: #af9b88; font-size: 11px; line-height: 1.7; }

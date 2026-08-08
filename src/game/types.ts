@@ -321,6 +321,7 @@ export type GoldChangeReason =
   | "pveReward"
   | "treasure"
   | "event"
+  | "salvage"
   | "shop"
   | "trade"
   | "pvpTransfer";

@@ -9,7 +9,7 @@ import { blessingDefinition } from "../game/content/blessings";
 import { enemyDefinition } from "../game/content/enemies";
 import { requirementValueForRegion } from "../game/stages";
 import { getAttack, getDefense, pvpHpTransferAmount } from "../game/selectors";
-import { pvpGoldTransferAmount } from "../game/economy";
+import { equipmentSalvageValue, pvpGoldTransferAmount } from "../game/economy";
 import type {
   BlessingChoiceState,
   BossGateChoiceState,
@@ -337,7 +337,7 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
         </div>
         {canChoose ? (
           <>
-            <p>选择一件同类装备替换，或放弃这件新装备。</p>
+            <p>选择一件同类装备替换，或放弃这件新装备。离场的那一件按品质折算成金币。</p>
             <div className="equipment-choice-options">
               {replaceable.map((item) => (
                 <button
@@ -351,6 +351,9 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
                   <span>替换</span>
                   <strong>{EQUIPMENT[item.kind].name}</strong>
                   <small>{EQUIPMENT[item.kind].description}</small>
+                  <em className="salvage-value">
+                    折算 +{equipmentSalvageValue(player, item.kind)} 金币
+                  </em>
                 </button>
               ))}
               <button
@@ -360,6 +363,9 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
               >
                 <span>不替换</span>
                 <strong>放弃新装备</strong>
+                <em className="salvage-value">
+                  折算 +{equipmentSalvageValue(player, choice.offered.kind)} 金币
+                </em>
               </button>
             </div>
           </>

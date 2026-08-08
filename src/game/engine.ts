@@ -29,6 +29,7 @@ import {
   ECONOMY,
   grantGold,
   pvpGoldTransferAmount,
+  salvageEquipment,
   transferPvpGold,
 } from "./economy";
 import {
@@ -551,7 +552,11 @@ function chooseEquipment(
   const offeredDefinition = EQUIPMENT[offered.kind];
 
   if (!replaceInstanceId) {
-    addHistory(state, `${player.name}放弃了${offeredDefinition.name}。`);
+    const salvaged = salvageEquipment(state, player, offered.kind);
+    addHistory(
+      state,
+      `${player.name}放弃了${offeredDefinition.name}，折算为 ${salvaged} 金币。`,
+    );
     resumeAfterEquipmentChoice(state, choice.playerId, choice.resume);
     return true;
   }
@@ -577,9 +582,12 @@ function chooseEquipment(
     });
   }
   applyEquipmentStats(state, player, offered);
+  // 折算放在装上新装备之后：换下来的旧件此时才真正离场，事件顺序也和玩家看到的一致
+  const salvaged = salvageEquipment(state, player, removed.kind);
   addHistory(
     state,
-    `${player.name}用${offeredDefinition.name}替换了${EQUIPMENT[removed.kind].name}。`,
+    `${player.name}用${offeredDefinition.name}替换了${EQUIPMENT[removed.kind].name}，`
+      + `旧装备折算为 ${salvaged} 金币。`,
   );
   resumeAfterEquipmentChoice(state, choice.playerId, choice.resume);
   return true;

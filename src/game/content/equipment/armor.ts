@@ -88,4 +88,68 @@ export const ARMOR = defineEquipment("armor", {
       },
     },
   },
+
+  wornIronArmor: {
+    name: "磨损铁甲",
+    description: "防御骰上限 +1；每次受到伤害都会减少 1",
+    rarity: "R",
+    modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
+    effects: {
+      /*
+        和灰铁胸甲的分工：那张是「只咬第一口」，这张是「每口都磨」，
+        所以不占用暗格，也就没有次数上限——量级压低到只减 1 点，
+        换的是不设「本场第一次」这道门槛。
+      */
+      beforeDamage({ incoming, reduceDamage, addBattleLog }) {
+        if (incoming <= 0) return;
+        reduceDamage(1);
+        addBattleLog("磨损铁甲卸掉了一部分冲击，伤害减少 1。");
+      },
+    },
+  },
+
+  stoneheartArmor: {
+    name: "岩心甲",
+    description: "防御骰上限 +1；防御骰掷出最高面时，本次伤害减少 3",
+    rarity: "R",
+    modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
+    effects: {
+      /*
+        与旧骑士长剑对称：那把武器在攻击骰打出上限时追加伤害，这件护甲在
+        防御骰打出上限时减免伤害。damageReduction 直接写在 afterRoll 里就够了——
+        它和 beforeDamage 一样会被计入最终伤害公式，不需要另开一个钩子。
+        取本次实际骰面上限而不是写死 6，理由同旧骑士长剑：叠了骰面装备后
+        「6」就不再是这次投骰真正的上限。
+      */
+      afterRoll({ dieKind, roll, modifiers, addBattleLog }) {
+        if (dieKind !== "defense") return;
+        if (!roll.dice.includes(roll.sides)) return;
+        modifiers.damageReduction += 3;
+        addBattleLog(`岩心甲挡下防御骰的 ${roll.sides}，本次伤害减少 3。`);
+      },
+    },
+  },
+
+  waningMoonCuirass: {
+    name: "残月胸甲",
+    description: "防御骰上限 +2；本场战斗第一次受到伤害时，伤害减半（向下取整）",
+    rarity: "SR",
+    modifiers: [{ type: "dieSides", die: "defense", value: 2 }],
+    effects: {
+      /*
+        「本场第一次」用暗格占位，套路同灰铁胸甲；区别是那张扣固定 1 点，
+        这张按比例减免，SR 档需要在大额伤害面前也站得住。减掉的部分是
+        incoming - 向下取整后的一半，写成 reduceDamage(实际减免量) 而不是
+        直接 keepAtLeast，因为这里关心的是"这一下"本身，不是剩余血量。
+      */
+      beforeDamage({ incoming, item, reduceDamage, addBattleLog }) {
+        if (item.battleMemo !== undefined) return;
+        if (incoming <= 0) return;
+        item.battleMemo = 1;
+        const halved = Math.floor(incoming / 2);
+        reduceDamage(incoming - halved);
+        addBattleLog(`残月胸甲吸收了这一击的余势，伤害减半至 ${halved}。`);
+      },
+    },
+  },
 });

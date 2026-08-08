@@ -2,6 +2,14 @@ import type { ScrollDefinition } from "./definition";
 
 /** 疗牌：可在地图阶段使用，也可以在任意一侧战斗选牌时使用。 */
 export const RECOVERY_SCROLLS = {
+  regenerativeTonic: {
+    name: "再生秘药",
+    description: "恢复 7 点生命",
+    rarity: "R",
+    timings: ["map", "beforeAttackRoll", "beforeDefenseRoll"],
+    effects: [{ type: "heal", amount: 7 }],
+  },
+
   firstAidBandage: {
     name: "急救绷带",
     description: "恢复 3 点生命",

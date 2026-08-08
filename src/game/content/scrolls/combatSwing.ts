@@ -20,10 +20,18 @@ export const COMBAT_SWING_SCROLLS = {
 
   dragonStrike: {
     name: "巨龙打击",
-    description: "掷骰前造成 7 点伤害，减去其当前防御",
-    rarity: "R",
+    description: "掷骰前造成 10 点伤害，减去其当前防御",
+    rarity: "SR",
     timings: ["beforeAttackRoll", "beforeDefenseRoll"],
-    effects: [{ type: "directDamage", amount: 7 }],
+    effects: [{ type: "directDamage", amount: 10 }],
+  },
+
+  heavyStrike: {
+    name: "痛击",
+    description: "掷骰前造成 6 点伤害，减去其当前防御",
+    rarity: "R",
+    timings: ["beforeAttackRoll"],
+    effects: [{ type: "directDamage", amount: 6 }],
   },
 
   ironWallOrder: {
@@ -32,6 +40,59 @@ export const COMBAT_SWING_SCROLLS = {
     rarity: "N",
     timings: ["beforeDefenseRoll"],
     effects: [{ type: "minimumRoll", value: 3 }],
+  },
+
+  precision: {
+    name: "精准卷轴",
+    description: "本次攻击中，每个攻击骰最低视为 4",
+    rarity: "N",
+    timings: ["beforeAttackRoll"],
+    effects: [{ type: "minimumRoll", value: 4 }],
+  },
+
+  steadfast: {
+    name: "坚守卷轴",
+    description: "本次防御中，每个防御骰最低视为 4",
+    rarity: "N",
+    timings: ["beforeDefenseRoll"],
+    effects: [{ type: "minimumRoll", value: 4 }],
+  },
+
+  frenzy: {
+    name: "狂暴卷轴",
+    description: "本次每个攻击骰投掷两次，取较高结果",
+    rarity: "R",
+    timings: ["beforeAttackRoll"],
+    effects: [{ type: "rollTwice" }],
+  },
+
+  dodge: {
+    name: "闪避卷轴",
+    description: "本次攻防结算的最终伤害减少 3，最低减至 0",
+    rarity: "R",
+    timings: ["beforeDefenseRoll"],
+    effects: [{ type: "damageReduction", amount: 3 }],
+  },
+
+  breachDrum: {
+    name: "破阵战鼓",
+    description: "本次攻击额外投 1 个攻击骰，结果求和",
+    rarity: "R",
+    timings: ["beforeAttackRoll"],
+    effects: [{ type: "extraDice", count: 1 }],
+  },
+
+  /*
+    逐日靴（鞋具·PR）在每场战斗开始时发一张这个，战斗结束回收。
+    套路同命运王冠/王座破坏者，区别是攻防都能打、效果是单纯加值。
+  */
+  sunchaserBootsBoost: {
+    name: "逐日靴",
+    description: "本场战斗限定 · 本次攻击或防御 +2",
+    rarity: "PR",
+    timings: ["beforeAttackRoll", "beforeDefenseRoll"],
+    effects: [{ type: "flatBonus", value: 2 }],
+    drawable: false,
   },
 
   decapitationOrder: {

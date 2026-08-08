@@ -2,6 +2,14 @@ import type { ScrollDefinition } from "./definition";
 
 /** 骰子强化类：直接改本次投骰的骰面、骰数或结果。 */
 export const DICE_BOOST_SCROLLS = {
+  mithrilDieSeal: {
+    name: "D10",
+    description: "本次攻击或防御骰改为 D10",
+    rarity: "R",
+    timings: ["beforeAttackRoll", "beforeDefenseRoll"],
+    effects: [{ type: "dieSides", sides: 10 }],
+  },
+
   fate: {
     name: "D20",
     description: "本次攻击或防御骰由 D6 变为 D20",
@@ -16,6 +24,17 @@ export const DICE_BOOST_SCROLLS = {
     rarity: "SR",
     timings: ["beforeAttackRoll", "beforeDefenseRoll"],
     effects: [{ type: "extraDice", count: 2 }],
+  },
+
+  rewriteFate: {
+    name: "突破",
+    description: "本次攻或防额外投 1 个骰子，第一颗骰直接视为最高面",
+    rarity: "PR",
+    timings: ["beforeAttackRoll", "beforeDefenseRoll"],
+    effects: [
+      { type: "extraDice", count: 1 },
+      { type: "maxRoll", count: 1 },
+    ],
   },
 
   /*

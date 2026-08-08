@@ -157,19 +157,21 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     expect(SCROLL_RARITY_WEIGHTS).toEqual({ N: 50, R: 30, SR: 15, PR: 5 });
     expect(SCROLLS.might.rarity).toBe("N");
     expect(SCROLLS.guard.rarity).toBe("N");
-    expect(SCROLLS.dragonStrike.rarity).toBe("R");
+    expect(SCROLLS.dragonStrike.rarity).toBe("SR");
     expect(SCROLLS.fate.rarity).toBe("SR");
 
-    // 卷轴池目前没有 PR，PR 的 5 点权重由前三档按比例分掉，总权重是 95
+    // 四档均有可抽卷轴，边界与声明的 50 / 30 / 15 / 5 完全一致。
     const commonRolls = [0, 0];
-    expect(pickScrollKind(() => commonRolls.shift() ?? 0)).toBe("might");
+    expect(SCROLLS[pickScrollKind(() => commonRolls.shift() ?? 0)].rarity).toBe("N");
     const rareRolls = [0.6, 0];
-    expect(pickScrollKind(() => rareRolls.shift() ?? 0)).toBe("dragonStrike");
-    const superRareRolls = [0.95, 0];
-    expect(pickScrollKind(() => superRareRolls.shift() ?? 0)).toBe("fate");
+    expect(SCROLLS[pickScrollKind(() => rareRolls.shift() ?? 0)].rarity).toBe("R");
+    const superRareRolls = [0.9, 0];
+    expect(SCROLLS[pickScrollKind(() => superRareRolls.shift() ?? 0)].rarity).toBe("SR");
+    const premiumRolls = [0.97, 0];
+    expect(SCROLLS[pickScrollKind(() => premiumRolls.shift() ?? 0)].rarity).toBe("PR");
   });
 
-  it("巨龙打击在掷骰前造成 7 减当前总防御的直接伤害", () => {
+  it("巨龙打击在掷骰前造成 10 减当前总防御的直接伤害", () => {
     let state = stagedPvpBattle(20260805);
     state.players.player1.scrolls = [{ instanceId: "dragon-attack", kind: "dragonStrike" }];
     state.players.player2.baseDefense = 2;
@@ -181,10 +183,10 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
 
     const directDamage = pick(state.lastEvents, "battleDamage")[0];
     expect(directDamage.targetSide).toBe("b");
-    // 基础防御 2 + 一件木盾 1，最终受到 7 - 3 = 4 点。
-    expect(directDamage.amount).toBe(4);
+    // 基础防御 2 + 一件木盾 1，最终受到 10 - 3 = 7 点。
+    expect(directDamage.amount).toBe(7);
     expect(directDamage.hpBefore).toBe(18);
-    expect(directDamage.hpAfter).toBe(14);
+    expect(directDamage.hpAfter).toBe(11);
     expect(pick(state.lastEvents, "scrollConsumed")[0].kind).toBe("dragonStrike");
   });
 
@@ -202,7 +204,7 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
     expect(only(state.lastEvents, "battleEnded").winnerSide).toBe("b");
     const directDamage = only(state.lastEvents, "battleDamage");
     expect(directDamage.targetSide).toBe("a");
-    expect(directDamage.amount).toBe(7);
+    expect(directDamage.amount).toBe(10);
     expect(directDamage.hpAfter).toBe(0);
   });
 

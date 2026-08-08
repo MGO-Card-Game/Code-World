@@ -157,8 +157,8 @@ describe("伤害落地前的装备钩子", () => {
     // 直伤没打死人，本轮的攻防照常继续，所以取第一条——卷轴那一下
     const damages = state.lastEvents.filter((event) => event.type === "battleDamage");
     expect(damages.length).toBeGreaterThan(1);
-    // 巨龙打击 7 点，减去防御 0，灰铁胸甲再挡掉 1
-    expect(damages[0].amount).toBe(6);
+    // 巨龙打击 10 点，减去防御 0，灰铁胸甲再挡掉 1
+    expect(damages[0].amount).toBe(9);
   });
 });
 

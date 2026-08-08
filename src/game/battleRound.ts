@@ -58,11 +58,13 @@ export function newRollModifiers(): RollModifiers {
   return {
     flatBonus: 0,
     extraDice: 0,
+    rollAttempts: 1,
     minimumRoll: 1,
     maxRollDice: 0,
     fixedRollDice: 0,
     fixedRollValue: 0,
     bonusDamage: 0,
+    damageReduction: 0,
   };
 }
 
@@ -93,6 +95,9 @@ export function applyScrollEffect(
     case "extraDice":
       modifiers.extraDice += effect.count;
       return false;
+    case "rollTwice":
+      modifiers.rollAttempts = Math.max(modifiers.rollAttempts, 2);
+      return false;
     case "minimumRoll":
       modifiers.minimumRoll = Math.max(modifiers.minimumRoll, effect.value);
       return false;
@@ -114,6 +119,9 @@ export function applyScrollEffect(
         effect.amount,
         effectName,
       );
+    case "damageReduction":
+      modifiers.damageReduction += Math.max(0, effect.amount);
+      return false;
     case "heal":
       applyBattleHealing(state, battle, sourceSide, effect.amount, effectName);
       return false;
@@ -226,7 +234,14 @@ export function rollForSide(
   const fixedUntil = modifiers.maxRollDice + modifiers.fixedRollDice;
   const fixedValue = Math.min(sides, modifiers.fixedRollValue);
   const dice = Array.from({ length: count }, (_unused, index) => {
-    const roll = Math.min(sides, Math.max(modifiers.minimumRoll, rollDie(state, sides)));
+    const attempts = Array.from(
+      { length: Math.max(1, modifiers.rollAttempts) },
+      () => rollDie(state, sides),
+    );
+    const roll = Math.min(
+      sides,
+      Math.max(modifiers.minimumRoll, ...attempts),
+    );
     if (index < modifiers.maxRollDice) return sides;
     // 钉死就是钉死，不再受 minimumRoll 抬举——这张牌的代价就是放弃上下两头
     if (index < fixedUntil) return fixedValue;
@@ -508,8 +523,13 @@ export function resolveBattleRound(state: GameState) {
   const defenseBonus = defenseModifiers.flatBonus;
   const attackTotal = attackBase + attackRoll.sum + attackBonus;
   const defenseTotal = defenseBase + defenseRoll.sum + defenseBonus;
-  // bonusDamage 是攻防差之外的追加伤害，防御挡不住它
-  const damage = Math.max(0, attackTotal - defenseTotal) + attackModifiers.bonusDamage;
+  // bonusDamage 不吃防御值，但仍属于本次最终伤害，可以被闪避类效果减免
+  const damage = Math.max(
+    0,
+    Math.max(0, attackTotal - defenseTotal)
+      + attackModifiers.bonusDamage
+      - defenseModifiers.damageReduction,
+  );
 
   emit(state, {
     type: "attackRolled",

@@ -31,12 +31,14 @@ export type ScrollEffectDefinition =
   | { type: "flatBonus"; value: number }
   | { type: "dieSides"; sides: number }
   | { type: "extraDice"; count: number }
+  | { type: "rollTwice" }
   | { type: "minimumRoll"; value: number }
   /** 把本次投骰中的前 count 颗直接视为最高面，不影响其余骰子 */
   | { type: "maxRoll"; count: number }
   /** 把本次投骰中的 count 颗直接定为 value，不影响其余骰子 */
   | { type: "fixedRoll"; count: number; value: number }
   | { type: "directDamage"; amount: number }
+  | { type: "damageReduction"; amount: number }
   | { type: "heal"; amount: number }
   /** 地图阶段放弃本次移动；战斗中使用则失去下一次地图移动。 */
   | { type: "forfeitMovement" }

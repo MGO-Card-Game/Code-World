@@ -22,8 +22,7 @@ export const SCROLLS_BY_GROUP = {
 } as const satisfies Record<string, Record<string, ScrollDefinition>>;
 
 /**
- * 全部卷轴。GameRule 8.8 还规划了精准、坚守、狂暴、闪避等，
- * 新增一张卡只要改对应的主题表，这里不用动。
+ * 全部卷轴。新增一张卡只要改对应的主题表，这里不用动。
  *
  * 各主题表之间的键必须互不重复，否则展开时后者会静默覆盖前者；
  * scrolls.test.ts 里有一条数量断言守着这件事。

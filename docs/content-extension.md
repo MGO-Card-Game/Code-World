@@ -73,9 +73,9 @@ export const COMBAT_SWING_SCROLLS = {
 } satisfies Record<string, ScrollDefinition>;
 ```
 
-`effects` 可以组合多个通用效果，目前支持：固定加值、替换骰面、增加骰子、设置最低骰值、视为最高面、钉死点数和掷骰前直接伤害。引擎按数组顺序执行。
+`effects` 可以组合多个通用效果，目前支持：固定加值、替换骰面、增加骰子、投两次取高、设置最低骰值、视为最高面、钉死点数、最终伤害减免和掷骰前直接伤害。引擎按数组顺序执行。
 
-**一回合可以打任意张卷轴**（GameRule 8.5），所以新增效果类型时必须先想清楚它多张叠加怎么合并。累加类求和，`dieSides`、`minimumRoll` 与 `fixedRoll` 的点数取最大——这几种换顺序结果都不变，因此不需要给卡牌配优先级。只有 `directDamage` 和 `custom` 带副作用，按提交顺序结算。`rollModifiers.test.ts` 有一条排列测试和一条登记表测试挡着漏项。
+**一回合可以打任意张卷轴**（GameRule 8.5），所以新增效果类型时必须先想清楚它多张叠加怎么合并。累加类求和，`dieSides`、`minimumRoll` 与 `fixedRoll` 的点数取最大，`rollTwice` 只启用一次——这几种换顺序结果都不变，因此不需要给卡牌配优先级。只有 `directDamage` 和 `custom` 带副作用，按提交顺序结算。`rollModifiers.test.ts` 有一条排列测试和一条登记表测试挡着漏项。
 
 改单颗骰子的三种效果容易混，分工是这样的：
 
@@ -285,7 +285,7 @@ beforeRoll({ dieKind, item, modifiers }) {
 
 `CARD_RARITY_WEIGHTS` 的**键序就是由低到高的档位顺序**，抽取按这个顺序走票，`CARD_RARITY_ORDER` 导出同一份顺序供展示排序使用。
 
-空档不参加抽取，其权重由剩下的档位按比例承接——所以上面四个数字只有在每一档都至少有一张卡时才等于实际概率。装备四档现已齐全，正好是 50 / 30 / 15 / 5；卷轴的 PR 档只有 `drawable: false` 的命运王冠，不参与抽取，因此实际是 N 52.6% / R 31.6% / SR 15.8%。
+空档不参加抽取，其权重由剩下的档位按比例承接——所以上面四个数字只有在每一档都至少有一张卡时才等于实际概率。装备与卷轴四档现已齐全，当前都正好是 50 / 30 / 15 / 5；装备发放的临时卷轴继续用 `drawable: false` 排除在随机卡池外。
 
 > 改权重会打乱整个随机流。「整局跑通」类测试（`engine.test.ts`、`events.test.ts`、`multiplayer.test.ts`）用的是 `testSupport.ts` 里的 `PLAYTHROUGH_SEED` / `PLAYTHROUGH_CAP`，同一颗种子的对局长度可能从一千多步跳到一万六。跑挂了先确认是不是这个原因，再决定是换种子还是抬上限。
 

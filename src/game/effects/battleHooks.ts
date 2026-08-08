@@ -29,6 +29,8 @@ export interface RollModifiers {
   flatBonus: number;
   sidesOverride?: number;
   extraDice: number;
+  /** 每颗骰子投几次并取最高；多张同类牌取最大次数，不按张数累加。 */
+  rollAttempts: number;
   minimumRoll: number;
   /**
    * 本次投骰中有几颗直接视为最高面。
@@ -56,6 +58,8 @@ export interface RollModifiers {
    * 攻击者、同一回合防守方自己也倒下"该判谁赢还没有规则，得先定了再做。
    */
   bonusDamage: number;
+  /** 攻防差与追加伤害合计后再减免；只读取防守方这一份。 */
+  damageReduction: number;
 }
 
 /** 传给掷骰后钩子的那一次投骰结果。 */

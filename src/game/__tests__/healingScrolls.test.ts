@@ -19,7 +19,11 @@ function giveScroll(state: GameState, kind: ScrollKind, instanceId = `${kind}-1`
 
 describe("疗牌分类", () => {
   it("两张疗牌在地图、攻击和防御阶段都可使用", () => {
-    for (const kind of ["firstAidBandage", "battlefieldMedicine"] as const) {
+    for (const kind of [
+      "firstAidBandage",
+      "battlefieldMedicine",
+      "regenerativeTonic",
+    ] as const) {
       expect(scrollCategory(SCROLLS[kind])).toBe("healing");
       expect(SCROLLS[kind].timings).toEqual([
         "map",

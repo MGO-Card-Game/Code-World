@@ -23,7 +23,7 @@ import { SCROLLS } from "./content/scrolls";
  * 界面入口另有 import.meta.env.DEV 包裹，生产构建里不会出现。
  */
 
-/** 目前已实现的全部卷轴种类。GameRule 8.8 还规划了另外四种 */
+/** 目前已实现的全部卷轴种类。 */
 export const ALL_SCROLL_KINDS = Object.keys(SCROLLS) as ScrollKind[];
 export const ALL_EQUIPMENT_KINDS = Object.keys(EQUIPMENT) as EquipmentKind[];
 

@@ -66,8 +66,9 @@ describe("相遇战代价阶段", () => {
 
   it("资源和生命都无法支付时直接免除，不再后退", () => {
     const state = decidedPvp(20260805, (draft) => {
-      // 赢家满血 → 转不了生命；败方两手空空 → 没有资源可交
+      // 赢家满血 → 转不了生命；败方两手空空 → 没有资源可交，金币也得清零
       draft.players.player1.hp = draft.players.player1.maxHp;
+      draft.players.player2.gold = 0;
       draft.players.player2.scrolls = [];
       draft.players.player2.equipment = [];
       draft.players.player2.position = 20;

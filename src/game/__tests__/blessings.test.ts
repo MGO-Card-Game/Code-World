@@ -27,6 +27,9 @@ function reachBlessingChoice() {
   const state = createInitialGame(77);
   const loser = state.players.player1;
   const winner = state.players.player2;
+  // 这组用例要测的是“赐福覆盖选择完就直接回到 turnComplete”，代价必须免除；
+  // 玩家现在开局自带金币，得手动清零才能保住“败方一无所有”这个前提。
+  loser.gold = 0;
   const offered = giveBlessing(loser, "giantStrength", "loser-blessing");
   giveBlessing(winner, "dragonScale", "winner-blessing");
   finishPvp(state, makeBattle({

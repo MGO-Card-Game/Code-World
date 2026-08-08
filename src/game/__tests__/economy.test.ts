@@ -17,18 +17,18 @@ function atSafeCamp(seed = 20260808) {
 }
 
 describe("金币奖励", () => {
-  it("新玩家从 0 金币开始，奖励金币产生结构化事件", () => {
+  it("新玩家从 50 金币开始，奖励金币产生结构化事件", () => {
     const state = createInitialGame(1);
     const player = state.players.player1;
 
-    expect(player.gold).toBe(0);
-    expect(grantGold(state, player, ECONOMY.pveGold, "pveReward")).toBe(50);
     expect(player.gold).toBe(50);
+    expect(grantGold(state, player, ECONOMY.pveGold, "pveReward")).toBe(50);
+    expect(player.gold).toBe(100);
     expect(state.lastEvents.at(-1)).toMatchObject({
       type: "goldChanged",
       playerId: player.id,
-      from: 0,
-      to: 50,
+      from: 50,
+      to: 100,
       reason: "pveReward",
     });
   });
@@ -36,6 +36,7 @@ describe("金币奖励", () => {
   it("点石成金只放大奖励，50 金币变为 60 金币", () => {
     const state = createInitialGame(2);
     const player = state.players.player1;
+    player.gold = 0;
     player.blessings = [{ instanceId: "midas-1", kind: "midasTouch" }];
 
     expect(grantGold(state, player, 50, "event")).toBe(60);
@@ -50,6 +51,8 @@ function facingEquipmentChoice(
   source: EquipmentChoiceState["source"] = "reward",
 ): GameState {
   const state = createInitialGame(20260809);
+  // 这组用例断言的是折算价本身，开局自带的金币会把绝对值断言糊掉，先清零。
+  state.players.player1.gold = 0;
   state.players.player1.equipment = [...owned];
   state.phase = {
     kind: "equipmentChoice",

@@ -11,6 +11,8 @@ import type { GameState, MapRegion } from "../types";
 /** 打赢山脚首领，停在奖励弹层上。 */
 function afterStageBossVictory(seed = 20260810): { state: GameState; region: MapRegion } {
   const state = createInitialGame(seed);
+  // 断言的是首领这一档单独发了多少金币；玩家开局自带的金币会把它糊掉，先清零。
+  state.players.player1.gold = 0;
   const region = state.map.regions[0];
   finishBattle(
     state,

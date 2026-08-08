@@ -9,6 +9,8 @@ function landOnEvent(seed: number) {
   const opponent = Object.values(state.players).find((candidate) => candidate.id !== player.id)!;
   player.position = 10;
   player.hp = 10;
+  // 金币事件的断言按“从 0 到 50”核对；玩家开局自带的金币会把这个基准糊掉。
+  player.gold = 0;
   opponent.position = 0;
 
   // 先用克隆出来的状态预读移动值；原 state 的随机流没有被消费。

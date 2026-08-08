@@ -97,7 +97,7 @@ function newPlayer(id: PlayerId, name: string, color: string, entryTileId: numbe
     maxHp: 20,
     baseAttack: 5,
     baseDefense: 2,
-    gold: 0,
+    gold: 50,
     statPurchases: 0,
     position: entryTileId,
     checkpointTileId: entryTileId,

@@ -32,6 +32,20 @@ import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
  * 它们共享同一个 AnimatePresence，都要等战斗演出播完才登场。
  */
 
+function DecisionMinimizeButton({ onMinimize }: { onMinimize: () => void }) {
+  return (
+    <button
+      type="button"
+      className="decision-minimize-button"
+      onClick={onMinimize}
+      aria-label="暂时隐藏选择界面以查看其他信息"
+    >
+      <span aria-hidden="true">—</span>
+      暂时隐藏
+    </button>
+  );
+}
+
 export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
   state: GameStateView;
   choice: BossGateChoiceState;
@@ -83,11 +97,12 @@ export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
   );
 }
 
-export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
+export function PveRewardPanel({ state, notice, dispatch, viewerSeat, onMinimize }: {
   state: GameStateView;
   notice: PveRewardNoticeState;
   dispatch: Dispatch;
   viewerSeat: PlayerId;
+  onMinimize: () => void;
 }) {
   const player = state.players[notice.playerId];
   const canAcknowledge = viewerSeat === notice.playerId;
@@ -102,12 +117,13 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
   return (
     <ModalBackdrop className="reward-backdrop">
       <motion.section
-        className="pve-reward-modal"
+        className="pve-reward-modal decision-modal"
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 10 }}
         transition={SPRING}
       >
+        <DecisionMinimizeButton onMinimize={onMinimize} />
         <motion.div
           className="reward-emblem"
           initial={{ scale: 0.5, rotate: -18 }}
@@ -211,12 +227,13 @@ export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: 
   );
 }
 
-export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSeat, onMinimize }: {
   state: GameStateView;
   choice: BlessingChoiceState;
   dispatch: Dispatch;
   playing: boolean;
   viewerSeat: PlayerId;
+  onMinimize: () => void;
 }) {
   const winner = state.players[choice.winnerId];
   const loser = choice.source === "pvp" ? state.players[choice.loserId] : undefined;
@@ -228,12 +245,13 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
   return (
     <ModalBackdrop>
       <motion.section
-        className="blessing-choice-modal"
+        className="blessing-choice-modal decision-modal"
         initial={{ opacity: 0, scale: 0.94, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={SPRING}
       >
+        <DecisionMinimizeButton onMinimize={onMinimize} />
         <div className="modal-kicker">赐福抉择</div>
         <h2>
           {choice.source === "pvp"
@@ -322,12 +340,13 @@ export function EncounterChoicePanel({ state, choice, dispatch, playing, viewerS
   );
 }
 
-export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerSeat, onMinimize }: {
   state: GameStateView;
   choice: EquipmentChoiceState;
   dispatch: Dispatch;
   playing: boolean;
   viewerSeat: PlayerId;
+  onMinimize: () => void;
 }) {
   const player = state.players[choice.playerId];
   const definition = EQUIPMENT[choice.offered.kind];
@@ -340,12 +359,13 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
   return (
     <ModalBackdrop>
       <motion.section
-        className="equipment-choice-modal"
+        className="equipment-choice-modal decision-modal"
         initial={{ opacity: 0, scale: 0.94, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={SPRING}
       >
+        <DecisionMinimizeButton onMinimize={onMinimize} />
         <div className="modal-kicker">装备槽已满</div>
         <h2>{player.name}获得了{definition.name}</h2>
         <div className="offered-equipment">
@@ -395,12 +415,13 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
   );
 }
 
-export function StatGrowthPanel({ state, choice, dispatch, playing, viewerSeat }: {
+export function StatGrowthPanel({ state, choice, dispatch, playing, viewerSeat, onMinimize }: {
   state: GameStateView;
   choice: StatGrowthChoiceState;
   dispatch: Dispatch;
   playing: boolean;
   viewerSeat: PlayerId;
+  onMinimize: () => void;
 }) {
   const player = state.players[choice.playerId];
   const region = state.map.regions.find((candidate) => candidate.id === choice.stageId);
@@ -414,12 +435,13 @@ export function StatGrowthPanel({ state, choice, dispatch, playing, viewerSeat }
   return (
     <ModalBackdrop className="reward-backdrop">
       <motion.section
-        className="stat-growth-modal"
+        className="stat-growth-modal decision-modal"
         initial={{ opacity: 0, scale: 0.94, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={SPRING}
       >
+        <DecisionMinimizeButton onMinimize={onMinimize} />
         <div className="modal-kicker">{region ? `${region.name}·登顶之证` : "登顶之证"}</div>
         <h2>{player.name}的永久成长</h2>
         <p>击败阶段首领的奖赏，一局只有两次，选定后不可更改。</p>

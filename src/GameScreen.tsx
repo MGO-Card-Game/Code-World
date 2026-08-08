@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useEventQueue } from "./anim/useEventQueue";
 import type { EquipmentKind } from "./game/content/equipment";
 import type { GameStateView, MapRegionId, PlayerId } from "./game/types";
@@ -31,6 +31,33 @@ import {
 } from "./ui/TradePanels";
 import type { Dispatch } from "./ui/shared";
 
+function pendingDecision(state: GameStateView) {
+  switch (state.phase.kind) {
+    case "equipmentChoice":
+      return {
+        key: `equipment-${state.phase.choice.offered.instanceId}`,
+        label: "继续装备取舍",
+      };
+    case "blessingChoice":
+      return {
+        key: `blessing-${state.phase.choice.offered.instanceId}`,
+        label: "继续赐福抉择",
+      };
+    case "pveReward":
+      return {
+        key: `reward-${state.turn}-${state.phase.notice.playerId}-${state.phase.notice.enemyName}`,
+        label: "查看战斗奖励",
+      };
+    case "statGrowthChoice":
+      return {
+        key: `growth-${state.phase.choice.playerId}-${state.phase.choice.stageId}`,
+        label: "继续永久成长",
+      };
+    default:
+      return null;
+  }
+}
+
 /**
  * 对局界面。本地热座与联机共用同一套——两者的差别只在于：
  * 状态从哪来（本地 reducer / 服务器推送）、以及观看者是谁。
@@ -56,6 +83,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
   const [shopOpen, setShopOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<"player" | "history" | null>(null);
   const [boardFocused, setBoardFocused] = useState(false);
+  const [hiddenDecisionKey, setHiddenDecisionKey] = useState<string | null>(null);
   const activePlayer = state.players[state.activePlayerId];
   const lingeringBattle = useLingeringBattle(state, playback);
   const players = state.turnOrder.map((id) => state.players[id]);
@@ -75,6 +103,8 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
   };
   const selectedStage = stagePresentation(selectedPlayer);
   const activeStage = stagePresentation(activePlayer);
+  const decision = pendingDecision(state);
+  const decisionHidden = decision !== null && hiddenDecisionKey === decision.key;
   const mapUsePhase =
     inspecting === viewerSeat &&
     inspecting === state.activePlayerId &&
@@ -215,6 +245,31 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
         </aside>
       </div>
 
+      <AnimatePresence>
+        {decisionHidden && decision && (
+          <motion.aside
+            className="decision-restore-bar"
+            initial={{ opacity: 0, x: 24, y: 10 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            exit={{ opacity: 0, x: 16 }}
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            role="status"
+          >
+            <div>
+              <span>选择尚未完成</span>
+              <strong>现在可以查看角色、资源与棋盘信息</strong>
+            </div>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => setHiddenDecisionKey(null)}
+            >
+              {decision.label}
+            </button>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
       {/*
         所有规则阶段弹层放在同一个 AnimatePresence 下，阶段切换时才有进退场衔接。
         战后的弹层都要等 lingeringBattle 让位——否则决出胜负的那一瞬间，
@@ -235,7 +290,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
         {!lingeringBattle && state.phase.kind === "pvpPenalty" && (
           <PenaltyPanel key="penalty" state={state} penalty={state.phase.penalty} dispatch={dispatch} playing={playback.playing} viewerSeat={viewerSeat} />
         )}
-        {!lingeringBattle && state.phase.kind === "blessingChoice" && (
+        {!lingeringBattle && !decisionHidden && state.phase.kind === "blessingChoice" && (
           <BlessingChoicePanel
             key="blessing-choice"
             state={state}
@@ -243,6 +298,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             dispatch={dispatch}
             playing={playback.playing}
             viewerSeat={viewerSeat}
+            onMinimize={() => setHiddenDecisionKey(decision?.key ?? null)}
           />
         )}
         {!lingeringBattle && !playback.playing && state.phase.kind === "encounterChoice" && (
@@ -309,7 +365,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             dispatch={dispatch}
           />
         )}
-        {!lingeringBattle && state.phase.kind === "equipmentChoice" && (
+        {!lingeringBattle && !decisionHidden && state.phase.kind === "equipmentChoice" && (
           <EquipmentChoicePanel
             key="equipment-choice"
             state={state}
@@ -317,18 +373,20 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             dispatch={dispatch}
             playing={playback.playing}
             viewerSeat={viewerSeat}
+            onMinimize={() => setHiddenDecisionKey(decision?.key ?? null)}
           />
         )}
-        {!lingeringBattle && !playback.playing && state.phase.kind === "pveReward" && (
+        {!lingeringBattle && !decisionHidden && !playback.playing && state.phase.kind === "pveReward" && (
           <PveRewardPanel
             key="pve-reward"
             state={state}
             notice={state.phase.notice}
             dispatch={dispatch}
             viewerSeat={viewerSeat}
+            onMinimize={() => setHiddenDecisionKey(decision?.key ?? null)}
           />
         )}
-        {!lingeringBattle && state.phase.kind === "statGrowthChoice" && (
+        {!lingeringBattle && !decisionHidden && state.phase.kind === "statGrowthChoice" && (
           <StatGrowthPanel
             key="stat-growth"
             state={state}
@@ -336,6 +394,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             dispatch={dispatch}
             playing={playback.playing}
             viewerSeat={viewerSeat}
+            onMinimize={() => setHiddenDecisionKey(decision?.key ?? null)}
           />
         )}
         {!lingeringBattle && state.phase.kind === "gameOver" && (

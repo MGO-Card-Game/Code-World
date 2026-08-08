@@ -50,7 +50,7 @@ button:disabled:hover { transform: none; filter: saturate(.5); }
 .player-summary.unavailable:hover { opacity: .62; }
 .player-summary.selected:not(.active) { opacity: .92; border-color: color-mix(in srgb, var(--player-color) 43%, #544b40); background: color-mix(in srgb, var(--player-color) 5%, #171411); box-shadow: inset 2px 0 color-mix(in srgb, var(--player-color) 72%, #8b7c67); }
 .player-summary.active.selected { border-color: color-mix(in srgb, var(--player-color) 72%, #b28a4e); }
-.player-summary-sigil { width: 33px; height: 33px; font-size: 13px; }
+.player-summary .player-summary-sigil { width: 33px; height: 33px; font-size: 13px; }
 .player-summary-body { min-width: 0; display: grid; gap: 6px; }
 .player-summary-name { min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 5px; }
 .player-summary-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e4d7c4; font: 700 12px "Noto Serif SC", serif; }
@@ -161,15 +161,16 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .hand-card-use:hover:not(:disabled) { border-color: #8dd9a5; background: #203a29; }
 
 /* 战斗骰面与伤害飘字 */
-.combat-dice { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: stretch; gap: 13px; margin: 4px 0 14px; }
-.combat-dice-divider { display: grid; place-items: center; color: #635747; font: 700 16px "Noto Serif SC", serif; }
-.combat-slot { display: grid; justify-items: center; gap: 7px; border: 1px solid #433b32; background: #100f0d; padding: 10px 6px 12px; }
+.combat-dice { display: grid; grid-template-columns: 1fr 66px 1fr; align-items: stretch; gap: 12px; margin: -1px 0 13px; }
+.combat-dice-divider { display: grid; place-items: center; color: #665a4a; font: 700 15px "Noto Serif SC", serif; }
+.combat-slot { min-height: 103px; display: grid; grid-template-columns: minmax(92px, .85fr) 1fr minmax(70px, .65fr); align-items: center; justify-items: center; gap: 10px; border: 1px solid #433b32; border-top: 0; background: linear-gradient(180deg, #11100ee8, #0d0c0b); padding: 10px 14px; }
 /* 攻防两栏沿用力量／护盾卷轴的配色，两个合计并排时不用读字也分得清 */
-.combat-slot.attack { border-color: #6b3a2b; }
-.combat-slot.defense { border-color: #2b4f60; }
-.combat-slot-label { min-height: 29px; display: grid; justify-items: center; align-content: center; gap: 2px; color: #8a7a63; }
-.combat-slot-label strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 9px "Noto Serif SC", serif; color: #c4b49e; }
-.combat-slot-label em { font-size: 10px; font-style: normal; letter-spacing: .1em; }
+.combat-slot.attack { border-color: #6b3a2b; box-shadow: inset 3px 0 #9d4f35; }
+.combat-slot.defense { border-color: #2b4f60; box-shadow: inset 3px 0 #46798f; }
+.combat-slot-label { min-width: 0; display: grid; grid-template-columns: 25px 1fr; justify-items: start; align-items: center; gap: 1px 7px; color: #8a7a63; text-align: left; }
+.combat-slot-label i { grid-row: 1 / 3; width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; font: 700 10px "Noto Serif SC", serif; font-style: normal; }
+.combat-slot-label strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 10px "Noto Serif SC", serif; color: #c4b49e; }
+.combat-slot-label em { font-size: 9px; font-style: normal; letter-spacing: .1em; }
 .combat-slot.attack .combat-slot-label { color: #b9765a; }
 .combat-slot.defense .combat-slot-label { color: #6a9cb3; }
 /* Georgia 用的是老式数字，3/4/5/7/9 会沉到基线以下、6/8 会顶上去，
@@ -178,7 +179,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .combat-rolls { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .combat-die.idle { background: #211e1a; color: #5d564c; box-shadow: inset 0 0 0 1px #ffffff0a; }
 /* 合计决定本轮伤害，做成这一栏的视觉落点；min-height 占住位置，出数时不跳版 */
-.combat-slot-total { display: flex; align-items: baseline; justify-content: center; gap: 7px; min-height: 30px; }
+.combat-slot-total { display: grid; justify-items: center; gap: 3px; min-height: 44px; padding-left: 12px; border-left: 1px solid #332e28; }
 .combat-total-label { font-size: 10px; color: #948570; letter-spacing: .1em; }
 .combat-total-value { font: 900 28px/1 "Noto Serif SC", Georgia, serif; font-variant-numeric: lining-nums tabular-nums; }
 .combat-slot.attack .combat-total-value { color: #f0a47d; text-shadow: 0 0 18px #d0603066, 0 2px 4px #000; }
@@ -361,16 +362,38 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 /* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
 .battle-modal, .penalty-modal, .encounter-choice-modal, .encounter-decision-modal, .trade-offer-modal, .trade-confirmation-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .stat-growth-modal, .shop-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; font-size: 12px; }
+.battle-modal { position: relative; width: min(920px, 100%); padding: 24px 30px 21px; overflow-x: hidden; background:
+  radial-gradient(circle at 50% -8%, #7c4b2824, transparent 34%),
+  linear-gradient(155deg, #27211b 0, #171411 46%, #0f0e0c 100%); box-shadow: 0 34px 110px #000, 0 0 0 1px #000, inset 0 1px #ffffff12; }
+.battle-modal::before { content: ""; position: absolute; inset: 7px; border: 1px solid #d0a45a17; pointer-events: none; }
 .modal-kicker { color: #caa45f; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; }
 .battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .encounter-decision-modal h2, .trade-offer-modal h2, .trade-confirmation-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .stat-growth-modal h2, .shop-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
-.battle-modal > h2 span { color: #a45a43; font: 900 14px Georgia, serif; padding: 0 12px; }
-.initiative-line { color: #9f907c; font-size: 11px; }
-.combatants { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: center; gap: 13px; margin: 21px 0 17px; }
-.combatants > div:not(.clash-mark) { border: 1px solid #4b4238; background: #11100e; padding: 13px 16px; }
-.combatants > div.attacking { border-color: #a9773d; box-shadow: 0 0 20px #bc7e3020; }
-.combatants h3 { margin: 4px 0; font: 700 15px "Noto Serif SC", serif; }
-.combatants strong { font-size: 11px; color: #d8c5aa; }
-.combat-role { font-size: 10px; color: #ad8e65; letter-spacing: .1em; }
+.battle-header { position: relative; display: grid; justify-items: center; padding-bottom: 14px; }
+.battle-title-rule { width: min(410px, 70%); height: 9px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.battle-title-rule::before, .battle-title-rule::after { content: ""; height: 1px; flex: 1; background: linear-gradient(90deg, transparent, #b98948); }
+.battle-title-rule::after { background: linear-gradient(90deg, #b98948, transparent); }
+.battle-title-rule span { width: 7px; height: 7px; border: 1px solid #d0a55f; transform: rotate(45deg); }
+.battle-header h2 { margin: 5px 0 7px; color: #eee4d5; font: 900 28px "Noto Serif SC", serif; letter-spacing: .04em; text-shadow: 0 2px 12px #000; }
+.battle-header h2 span { display: inline-block; color: #b76749; font: 900 12px Georgia, serif; padding: 0 15px; transform: translateY(-2px); }
+.initiative-line { display: flex; align-items: center; gap: 9px; color: #877965; font-size: 10px; letter-spacing: .05em; }
+.initiative-line span { padding-right: 9px; border-right: 1px solid #4a4035; }
+.initiative-line b { color: #c8a96d; font-weight: 600; }
+.combatants { display: grid; grid-template-columns: 1fr 66px 1fr; align-items: stretch; gap: 12px; margin: 3px 0 0; }
+.combatants > .combatant { min-height: 152px; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-rows: auto auto 1fr auto; align-items: center; gap: 2px 13px; padding: 16px 17px 13px; border: 1px solid #4b4238; background:
+  linear-gradient(135deg, #ffffff06, transparent 35%), #11100eea; text-align: left; overflow: hidden; }
+.combatants > .combatant::after { content: ""; position: absolute; width: 150px; height: 150px; right: -62px; top: -85px; border: 1px solid #ffffff08; border-radius: 50%; box-shadow: 0 0 0 18px #ffffff02, 0 0 0 38px #ffffff015; pointer-events: none; }
+.combatants > .combatant.attacking { border-color: #a66c38; background: linear-gradient(105deg, #7c3a181d, transparent 55%), #15110e; box-shadow: inset 3px 0 #c27a3c, 0 0 26px #bc6d2823; }
+.combatants > .combatant.defending { border-color: #46535a; background: linear-gradient(105deg, #31566b16, transparent 55%), #101112; box-shadow: inset 3px 0 #53798b; }
+.combatant-sigil { grid-row: 1 / 4; width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid #705b42; border-radius: 50%; background: radial-gradient(circle at 38% 30%, #423221, #17130f 65%); color: #e1bd7a; font: 900 20px "Noto Serif SC", serif; box-shadow: inset 0 0 0 4px #0d0c0a, 0 5px 14px #0008; }
+.combatant.defending .combatant-sigil { border-color: #3f6677; color: #8abbd0; background: radial-gradient(circle at 38% 30%, #233844, #11171a 65%); }
+.combatants h3 { grid-column: 2; margin: 2px 0; color: #e5d7c3; font: 700 16px "Noto Serif SC", serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.combat-role { grid-column: 2; width: fit-content; padding: 3px 7px; border: 1px solid #8c6136; color: #d29658; background: #55301933; font-size: 9px; letter-spacing: .13em; }
+.combatant.defending .combat-role { border-color: #426678; color: #7cadc3; background: #294b5b2e; }
+.combatant-hp { grid-column: 3; grid-row: 1 / 4; display: grid; justify-items: end; gap: 2px; }
+.combatant-hp > span { color: #776b5d; font-size: 9px; letter-spacing: .12em; }
+.combatants .combatant-hp strong { color: #e8d5ba; font: 800 22px/1 "Noto Serif SC", serif; font-variant-numeric: tabular-nums; }
+.combatant-hp small { color: #7f7466; font-size: 10px; }
+.combatant > .health-track { grid-column: 1 / -1; grid-row: 4; width: 100%; height: 5px; margin-top: 10px; }
 .elite-affix { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; margin-top: 10px; padding: 7px 9px; border: 1px solid #755837; background: #21170f; text-align: left; }
 .elite-affix > span { grid-row: 1 / 3; padding: 4px 5px; border: 1px solid currentColor; color: #c49b58; font-size: 9px; letter-spacing: .06em; white-space: nowrap; }
 .elite-affix > b { color: #e2bd78; font: 700 11px "Noto Serif SC", serif; }
@@ -379,18 +402,43 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .elite-affix.rarity-r > span, .elite-affix.rarity-r > b { color: #83b9d8; }
 .elite-affix.rarity-sr { border-color: #775993; background: #1d1525; }
 .elite-affix.rarity-sr > span, .elite-affix.rarity-sr > b { color: #c39be7; }
-.clash-mark { color: #b76b4f; font-size: 21px; }
-.turn-callout { font-size: 12px; color: #c4b49e; }
-/* 战斗中的可用卷轴（规格 25.5）。投骰前决定，每方最多一张（8.3 / 8.5） */
-.scroll-notice { color: #a99a84; font-size: 11px; margin: 12px 0 4px; letter-spacing: .03em; }
+.clash-mark { position: relative; display: grid; place-items: center; color: #b76b4f; font-size: 20px; }
+.clash-mark::before, .clash-mark::after { content: ""; position: absolute; left: 50%; width: 1px; height: 42px; background: linear-gradient(transparent, #584839); }
+.clash-mark::before { top: 0; }.clash-mark::after { bottom: 0; transform: rotate(180deg); }
+.clash-mark span { position: relative; z-index: 1; width: 41px; height: 41px; display: grid; place-items: center; border: 1px solid #6d4434; border-radius: 50%; background: #17110e; box-shadow: 0 0 22px #9e45282a; }
+.clash-mark i { position: absolute; width: 54px; height: 1px; background: #5f493a; }
+.turn-callout { min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px; margin: 0 0 10px; border-bottom: 1px solid #3b332a; color: #968875; font-size: 11px; }
+.turn-callout > span { color: #b6874d; font-size: 8px; }
+.turn-callout strong { color: #e0c69a; font: 700 12px "Noto Serif SC", serif; }
+.turn-callout i { color: #6e5942; font-style: normal; }
+/* 战斗中的可用卷轴（规格 25.5）。投骰前决定，可多选。 */
+.scroll-notice { position: relative; display: flex; align-items: center; justify-content: center; gap: 5px; color: #a99a84; font-size: 11px; margin: 10px 0 8px; letter-spacing: .03em; }
+.scroll-notice > span:first-child { margin-right: 7px; padding: 3px 7px; border: 1px solid #755c39; color: #d4ad6b; background: #3b2d1b66; font-size: 9px; letter-spacing: .14em; }
+.scroll-notice strong { color: #e1c58e; }
 .battle-hands { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0 16px; }
-.battle-hand { border: 1px solid #433b32; background: #100f0d; padding: 10px 8px 12px; min-height: 108px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.battle-hand-label { font-size: 10px; color: #ad9d86; letter-spacing: .06em; }
-.battle-hand-empty { font-size: 10px; color: #635b50; font-style: normal; margin: auto 0; }
-.battle-hand-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
-.battle-card { position: relative; width: 86px; min-height: 68px; padding: 8px 7px; display: flex; flex-direction: column; gap: 4px; text-align: left; border: 1px solid #5b4e40; border-radius: 4px; background: linear-gradient(165deg, #2e2620, #1a1613); box-shadow: inset 0 1px #ffffff10, 0 4px 12px #0007; }
-.battle-card-name { font: 700 11px "Noto Serif SC", serif; line-height: 1.2; padding-right: 24px; }
-.battle-card-effect { font-size: 10px; color: #ad9e89; line-height: 1.4; }
+.battle-hand { position: relative; min-height: 224px; display: flex; flex-direction: column; align-items: stretch; border: 1px solid #4a4035; background:
+  radial-gradient(ellipse at 50% 115%, #8f5c2622, transparent 48%),
+  linear-gradient(180deg, #0e0d0bd9, #0b0a09f2); overflow: hidden; }
+.battle-hand::after { content: ""; position: absolute; left: 10%; right: 10%; bottom: 13px; height: 21px; border-radius: 50%; background: #000; filter: blur(12px); opacity: .72; pointer-events: none; }
+.battle-hand.empty { min-height: 112px; }
+.battle-hand-heading { position: relative; z-index: 3; min-height: 39px; display: flex; align-items: center; justify-content: space-between; padding: 0 13px; border-bottom: 1px solid #332e28; background: #171411d9; }
+.battle-hand-label { color: #c1aa86; font: 700 10px "Noto Serif SC", serif; letter-spacing: .09em; }
+.battle-hand-count { color: #776b5d; font-size: 9px; }
+.battle-hand-empty { position: relative; z-index: 2; flex: 1; display: grid; grid-template-columns: 25px auto; grid-template-rows: auto auto; place-content: center; align-items: center; gap: 1px 10px; font-style: normal; text-align: left; }
+.battle-hand-empty > span { grid-row: 1 / 3; color: #6f5b41; font-size: 22px; }
+.battle-hand-empty strong { color: #857969; font: 600 11px "Noto Serif SC", serif; }
+.battle-hand-empty em { color: #554f47; font-size: 9px; font-style: normal; }
+.battle-hand-cards { position: relative; z-index: 2; flex: 1; display: flex; justify-content: center; align-items: flex-start; padding: 29px 14px 8px; }
+.battle-card { position: relative; flex: 0 0 auto; width: 118px; height: 154px; padding: 12px 10px 9px; display: flex; flex-direction: column; gap: 6px; text-align: left; border: 1px solid #5b4e40; border-radius: 6px; background: linear-gradient(165deg, #2e2620, #171310); color: #d8c8b2; box-shadow: inset 0 1px #ffffff12, 0 10px 24px #000b; transform-origin: 50% 138%; overflow: hidden; }
+.battle-card::after { content: ""; position: absolute; inset: 5px; border: 1px solid #ffffff0a; border-radius: 3px; pointer-events: none; }
+.battle-card-sigil { position: relative; z-index: 1; width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; font: 700 11px "Noto Serif SC", serif; }
+.battle-card-sigil.type-attack { color: #f0a47d; background: #f0a47d14; }
+.battle-card-sigil.type-defense { color: #8fcce5; background: #8fcce514; }
+.battle-card-sigil.type-universal { color: #e3c787; background: #e3c78714; }
+.battle-card-sigil.type-healing { color: #8dd9a5; background: #8dd9a514; }
+.battle-card-name { position: relative; z-index: 1; color: #e7d5ba; font: 700 13px "Noto Serif SC", serif; line-height: 1.2; padding-right: 19px; }
+.battle-card-effect { position: relative; z-index: 1; flex: 1; color: #ad9e89; font-size: 9px; line-height: 1.45; }
+.battle-card-select-hint { position: relative; z-index: 1; padding-top: 6px; border-top: 1px solid #ffffff0c; color: #6e6458; font-size: 8px; letter-spacing: .08em; }
 .battle-card.scroll-might { border-color: #8b4a36; background: linear-gradient(165deg, #35221b, #1c1512); }
 .battle-card.scroll-might .battle-card-name { color: #f0a47d; }
 .battle-card.scroll-guard { border-color: #35647a; background: linear-gradient(165deg, #1a2b34, #131a1d); }
@@ -403,9 +451,14 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .battle-card.scroll-fateCrownDecree .battle-card-name { color: #ffcf6b; }
 .battle-card.card-healing { border-color: #477a58; background: linear-gradient(165deg, #1c3023, #111a14); }
 .battle-card.card-healing .battle-card-name { color: #9be0b0; }
-.battle-card.selected { border-color: #e5bd6d; box-shadow: 0 0 0 1px #e5bd6d, 0 0 18px #d9a54c40, inset 0 1px #ffffff18; }
-.battle-card.selected::after { content: "已选"; position: absolute; top: -7px; right: -6px; background: #e3c787; color: #2b2115; font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 2px; }
-.battle-button { margin: 2px 0 14px; }
+.battle-card.selected { border-color: #e5bd6d; box-shadow: 0 0 0 1px #e5bd6d, 0 0 24px #d9a54c55, inset 0 1px #ffffff18; }
+.battle-card.selected::before { content: "✓"; position: absolute; z-index: 4; top: 37px; right: 9px; width: 19px; height: 19px; display: grid; place-items: center; border-radius: 50%; background: #e3c787; color: #2b2115; font-size: 10px; font-weight: 900; box-shadow: 0 2px 8px #0008; }
+.battle-card.selected .battle-card-select-hint { color: #e3c787; }
+.battle-decision-bar { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 8px 10px 8px 16px; border: 1px solid #4a4035; border-top: 0; background: linear-gradient(90deg, #15120f, #1d1812); text-align: left; }
+.battle-decision-bar > span { color: #756b5d; font-size: 9px; }
+.battle-decision-bar > span strong { color: #e0ba70; font: 800 14px "Noto Serif SC", serif; }
+.battle-button { min-width: 178px; display: flex; align-items: center; justify-content: center; gap: 13px; margin: 0; padding: 11px 17px; }
+.battle-button i { color: #49351d; font-style: normal; font-size: 14px; }
 .battle-log { min-height: 57px; max-height: 110px; overflow-y: auto; text-align: left; border-top: 1px solid #3e362e; padding-top: 8px; }
 .battle-log p { color: #9e907d; font-size: 11px; line-height: 1.45; margin: 4px 0; }
 .penalty-modal { width: min(600px, 100%); }
@@ -584,7 +637,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 @media (max-width: 1100px) {
   .game-layout { grid-template-columns: 124px minmax(0, 1fr) 46px; gap: 9px; }
   .player-summary { grid-template-columns: 29px minmax(0, 1fr); gap: 6px; padding: 8px 6px; }
-  .player-summary-sigil { width: 29px; height: 29px; font-size: 12px; }
+  .player-summary .player-summary-sigil { width: 29px; height: 29px; font-size: 12px; }
   .player-summary-meta { grid-template-columns: 1fr; }
   .player-summary-meta span:nth-child(even) { text-align: left; }
   .inspector-drawer { right: calc(100% + 7px); width: 258px; }
@@ -628,7 +681,33 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   .hand-card { width: 84px; height: 116px; }
   .battle-hands { grid-template-columns: 1fr; }
   .resource-modal { padding: 22px 15px; }
-  .battle-modal { padding: 22px 15px; }.battle-modal > h2 { font-size: 19px; }
+  .battle-modal { padding: 18px 12px 16px; }
+  .battle-header h2 { font-size: 20px; }
+  .battle-header h2 span { padding: 0 7px; font-size: 9px; }
+  .combatants, .combat-dice { grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr); gap: 4px; }
+  .combatants > .combatant { min-height: 126px; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto 1fr auto; gap: 2px 5px; padding: 12px 9px 10px; }
+  .combatant-sigil { display: none; }
+  .combatants h3, .combat-role { grid-column: 1; }
+  .combatants h3 { font-size: 12px; }
+  .combatant-hp { grid-column: 2; font-size: 9px; }
+  .combatants .combatant-hp strong { font-size: 16px; }
+  .combatant-hp small { font-size: 8px; }
+  .clash-mark span { width: 28px; height: 28px; font-size: 13px; }
+  .clash-mark i { width: 34px; }
+  .combat-slot { min-height: 132px; grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; gap: 5px; padding: 8px 4px; }
+  .combat-slot-label { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .combat-slot-label i { display: none; }
+  .combat-slot-total { width: 80%; grid-template-columns: auto auto; align-items: baseline; padding: 6px 0 0; border-top: 1px solid #332e28; border-left: 0; }
+  .combat-total-value { font-size: 22px; }
+  .turn-callout { font-size: 9px; gap: 4px; }
+  .turn-callout strong { font-size: 10px; }
+  .scroll-notice { flex-wrap: wrap; font-size: 9px; }
+  .battle-hand { min-height: 209px; }
+  .battle-hand-cards { justify-content: flex-start; overflow-x: auto; overflow-y: hidden; padding: 29px 10px 12px; }
+  .battle-card { width: 104px; height: 142px; margin-left: 8px !important; }
+  .battle-card:first-child { margin-left: 0 !important; }
+  .battle-decision-bar { flex-direction: column; align-items: stretch; gap: 7px; padding: 10px; text-align: center; }
+  .battle-button { width: 100%; min-width: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

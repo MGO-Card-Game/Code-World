@@ -10,8 +10,14 @@ import {
   visualBattleRound,
   visualRoll,
 } from "../anim/visualState";
+import { handCardLayout, handSpacing } from "../anim/handLayout";
 import { eliteAffixDefinition } from "../game/content/enemies/affixes";
-import { SCROLLS, scrollCategory } from "../game/content/scrolls";
+import {
+  SCROLL_CATEGORY_NAMES,
+  SCROLL_CATEGORY_SIGILS,
+  SCROLLS,
+  scrollCategory,
+} from "../game/content/scrolls";
 import { getBattleParticipants, getSidePlayer } from "../game/engine";
 import type {
   BattleState,
@@ -61,18 +67,27 @@ function BattleHand({ player, timing, label, selectedIds, onToggle, disabled }: 
   disabled: boolean;
 }) {
   const cards = playableFromView(player, timing);
+  const spacing = handSpacing(cards.length, 760, 118);
 
   return (
-    <div className="battle-hand">
-      <span className="battle-hand-label">{label}</span>
+    <div className={`battle-hand ${cards.length === 0 ? "empty" : ""}`}>
+      <div className="battle-hand-heading">
+        <span className="battle-hand-label">{label} · 战术手牌</span>
+        <span className="battle-hand-count">{cards.length} 张可用</span>
+      </div>
       {cards.length === 0 ? (
-        <em className="battle-hand-empty">无可用卷轴</em>
+        <div className="battle-hand-empty">
+          <span aria-hidden="true">◇</span>
+          <strong>本轮无可用卷轴</strong>
+          <em>直接确认，进入投骰</em>
+        </div>
       ) : (
         <div className="battle-hand-cards">
           <AnimatePresence initial={false} mode="popLayout">
-            {cards.map((scroll) => {
+            {cards.map((scroll, index) => {
               const selected = selectedIds.includes(scroll.instanceId);
               const category = scrollCategory(SCROLLS[scroll.kind]);
+              const { rotate, lift, zIndex } = handCardLayout(index, cards.length);
               return (
                 <motion.button
                   key={scroll.instanceId}
@@ -80,19 +95,41 @@ function BattleHand({ player, timing, label, selectedIds, onToggle, disabled }: 
                   type="button"
                   disabled={disabled}
                   aria-pressed={selected}
+                  aria-label={`${SCROLLS[scroll.kind].name}：${SCROLLS[scroll.kind].description}`}
                   className={`battle-card scroll-${scroll.kind} card-${category} ${selected ? "selected" : ""}`}
+                  style={{ marginLeft: index === 0 ? 0 : spacing, zIndex }}
                   onClick={() => onToggle(scroll.instanceId)}
-                  initial={{ opacity: 0, y: 18, scale: 0.8 }}
-                  animate={{ opacity: 1, y: selected ? -9 : 0, scale: selected ? 1.05 : 1 }}
+                  initial={{ opacity: 0, y: 52, scale: 0.72, rotate: 0 }}
+                  animate={{
+                    opacity: 1,
+                    y: selected ? lift - 24 : lift,
+                    scale: selected ? 1.06 : 1,
+                    rotate: selected ? 0 : rotate,
+                    zIndex: selected ? 70 : zIndex,
+                  }}
                   exit={{ opacity: 0, y: -26, scale: 0.6, transition: { duration: 0.24 } }}
-                  whileHover={disabled ? undefined : { y: selected ? -13 : -6 }}
+                  whileHover={disabled ? undefined : {
+                    y: selected ? lift - 30 : lift - 26,
+                    rotate: 0,
+                    scale: 1.07,
+                    zIndex: 80,
+                  }}
                   transition={SPRING}
                 >
                   <span className={`card-rarity rarity-${SCROLLS[scroll.kind].rarity.toLowerCase()}`}>
                     {SCROLLS[scroll.kind].rarity}
                   </span>
+                  <span
+                    className={`battle-card-sigil type-${category}`}
+                    title={SCROLL_CATEGORY_NAMES[category]}
+                  >
+                    {SCROLL_CATEGORY_SIGILS[category]}
+                  </span>
                   <span className="battle-card-name">{SCROLLS[scroll.kind].name}</span>
                   <span className="battle-card-effect">{SCROLLS[scroll.kind].description}</span>
+                  <span className="battle-card-select-hint">
+                    {selected ? "已加入本轮" : "点击选择"}
+                  </span>
                 </motion.button>
               );
             })}
@@ -115,6 +152,7 @@ function CombatSlot({ ownerName, role, dice, sides = 6, total }: {
   return (
     <div className={`combat-slot ${role}`}>
       <span className="combat-slot-label">
+        <i aria-hidden="true">{role === "attack" ? "刃" : "盾"}</i>
         <strong>{ownerName}</strong>
         <em>{roleLabel} · D{sides}</em>
       </span>
@@ -255,6 +293,11 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
   };
   const aRoll = displayedRollFor("a");
   const bRoll = displayedRollFor("b");
+  const battleKindLabel = battle.kind === "pvp"
+    ? "旅者相遇战"
+    : battle.kind === "boss"
+      ? "最终决战"
+      : "山路遭遇";
 
   return (
     <ModalBackdrop>
@@ -265,14 +308,24 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={SPRING}
       >
-        <div className="modal-kicker">{battle.kind === "pvp" ? "旅者相遇战" : battle.kind === "boss" ? "最终决战" : "山路遭遇"}</div>
-        <h2>{a.name} <span>VS</span> {b.name}</h2>
-        <div className="initiative-line">先攻投骰 {battle.initiativeA} : {battle.initiativeB} · 第 {shownRound} 轮</div>
+        <header className="battle-header">
+          <div className="battle-title-rule" aria-hidden="true"><span /></div>
+          <div className="modal-kicker">{battleKindLabel}</div>
+          <h2>{a.name} <span>VS</span> {b.name}</h2>
+          <div className="initiative-line">
+            <span>先攻 {battle.initiativeA} : {battle.initiativeB}</span>
+            <b>第 {shownRound} 轮</b>
+          </div>
+        </header>
         <div className="combatants">
-          <div className={shownAttacker === "a" ? "attacking" : ""}>
-            <span className="combat-role">{shownAttacker === "a" ? "正在攻击" : "防守"}</span>
+          <div className={`combatant side-a ${shownAttacker === "a" ? "attacking" : "defending"}`}>
+            <div className="combatant-sigil" aria-hidden="true">{a.name.slice(0, 1)}</div>
+            <span className="combat-role">{shownAttacker === "a" ? "攻击方" : "防守方"}</span>
             <h3>{a.name}</h3>
-            <strong>{hpA}/{a.maxHp}</strong>
+            <div className="combatant-hp">
+              <span>生命</span>
+              <strong>{hpA}<small> / {a.maxHp}</small></strong>
+            </div>
             <HealthBar value={hpA} max={a.maxHp} />
             <AnimatePresence>
               {damage?.targetSide === "a" && damage.amount > 0 && (
@@ -301,11 +354,18 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
               )}
             </AnimatePresence>
           </div>
-          <div className="clash-mark">⚔</div>
-          <div className={shownAttacker === "b" ? "attacking" : ""}>
-            <span className="combat-role">{shownAttacker === "b" ? "正在攻击" : "防守"}</span>
+          <div className="clash-mark" aria-hidden="true">
+            <span>⚔</span>
+            <i />
+          </div>
+          <div className={`combatant side-b ${shownAttacker === "b" ? "attacking" : "defending"}`}>
+            <div className="combatant-sigil" aria-hidden="true">{b.name.slice(0, 1)}</div>
+            <span className="combat-role">{shownAttacker === "b" ? "攻击方" : "防守方"}</span>
             <h3>{b.name}</h3>
-            <strong>{hpB}/{hpMaxB}</strong>
+            <div className="combatant-hp">
+              <span>生命</span>
+              <strong>{hpB}<small> / {hpMaxB}</small></strong>
+            </div>
             <HealthBar value={hpB} max={hpMaxB} />
             {enemyAffix && (
               <div className={`elite-affix rarity-${enemyAffix.rarity.toLowerCase()}`}>
@@ -349,7 +409,12 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
           <CombatSlot ownerName={b.name} {...bRoll} />
         </div>
 
-        <p className="turn-callout"><strong>{nameOf(shownAttacker)}</strong>发动攻击，{nameOf(shownDefender)}进行防御。</p>
+        <p className="turn-callout">
+          <span aria-hidden="true">◆</span>
+          <strong>{nameOf(shownAttacker)}</strong>发动攻击
+          <i aria-hidden="true">→</i>
+          {nameOf(shownDefender)}进行防御
+        </p>
 
         {/*
           规格 8.3：双方必须在看到骰子结果之前决定是否使用卷轴。
@@ -359,7 +424,8 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
         {choosingPlayer && choosingSide && myTurnToChoose && (
           <>
             <p className="scroll-notice">
-              轮到<strong>{choosingPlayer.name}</strong>决定使用哪些卷轴，张数不限。
+              <span>战术决策</span>
+              轮到<strong>{choosingPlayer.name}</strong>选择本轮卷轴，可多选。
               {otherSideSubmitted && <span className="submitted-hint">对方已提交</span>}
             </p>
             <BattleHand
@@ -370,19 +436,27 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
               onToggle={togglePendingChoice}
               disabled={playback.playing}
             />
-            <button
-              className="primary-button battle-button"
-              disabled={playback.playing}
-              onClick={() => dispatch({
-                type: "submitScrollChoice",
-                side: choosingSide,
-                instanceIds: pendingChoiceIds,
-              })}
-            >
-              {pendingChoiceIds.length > 0
-                ? `使用 ${pendingChoiceIds.length} 张并确认`
-                : "不使用，确认"}
-            </button>
+            <div className="battle-decision-bar">
+              <span>
+                {pendingChoiceIds.length > 0
+                  ? <>已选择 <strong>{pendingChoiceIds.length}</strong> 张卷轴</>
+                  : "不使用卷轴也可以直接行动"}
+              </span>
+              <button
+                className="primary-button battle-button"
+                disabled={playback.playing}
+                onClick={() => dispatch({
+                  type: "submitScrollChoice",
+                  side: choosingSide,
+                  instanceIds: pendingChoiceIds,
+                })}
+              >
+                {pendingChoiceIds.length > 0
+                  ? `打出并确认 · ${pendingChoiceIds.length}`
+                  : "直接投骰"}
+                <i aria-hidden="true">→</i>
+              </button>
+            </div>
           </>
         )}
         {choosingPlayer && !myTurnToChoose && (

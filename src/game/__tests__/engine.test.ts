@@ -256,6 +256,34 @@ describe("game engine", () => {
       .toEqual(["leather-new"]);
   });
 
+  it("装备选择完成后，resolveTile 那条 resume 会真的回去结算那一格", () => {
+    // 相遇战败方交出装备、赢家槽位已满时走的就是这条 resume：
+    // 选完装备还欠一次格子结算，漏掉的话踩中的宝箱会被静默跳过
+    const state = createInitialGame(78);
+    const treasure = state.map.tiles.find(
+      (tile) => tile.region === "foothill" && tile.type === "treasure",
+    )!;
+    state.activePlayerId = "player1";
+    state.players.player1.position = treasure.id;
+    state.players.player1.equipment = [{ instanceId: "shield-old", kind: "shield" }];
+    state.phase = {
+      kind: "equipmentChoice",
+      choice: {
+        playerId: "player1",
+        offered: { instanceId: "leather-looted", kind: "borderLeather" },
+        source: "transfer",
+        resume: { kind: "resolveTile", tileIndex: treasure.id },
+      },
+    };
+
+    const resolved = gameReducer(state, { type: "chooseEquipment" });
+
+    // 宝箱被记为已开、金币到账，才说明这一格确实结算过了
+    expect(resolved.players.player1.stageProgress.foothill.openedTreasureTileIds)
+      .toContain(treasure.id);
+    expect(resolved.players.player1.gold).toBeGreaterThan(0);
+  });
+
   it("旅行者短靴把移动骰从 D6 提高到 D7", () => {
     let state = createInitialGame(123);
     state.players[state.activePlayerId].equipment = [

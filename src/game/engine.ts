@@ -35,6 +35,12 @@ import {
 } from "./economy";
 import { cancelTrade, confirmTrade, submitTradeOffer } from "./trading";
 import {
+  acknowledgePveReward,
+  chooseEquipment,
+  chooseStatGrowth,
+  grantTreasureEquipmentReward,
+} from "./rewards";
+import {
   chooseEncounterIntent,
   chooseEncounterOpponent,
   startEncounterDecision,
@@ -321,131 +327,6 @@ function settleWaivedPvpPenalty(state: GameState) {
     return true;
   }
   finishPenaltyAndResolveTile(state, tileIndex);
-  return true;
-}
-
-function grantTreasureEquipmentReward(
-  state: GameState,
-  player: Player,
-  remaining: number,
-) {
-  if (remaining <= 0) {
-    state.phase = { kind: "turnComplete" };
-    return;
-  }
-  const reward = grantEquipment(
-    state,
-    player,
-    undefined,
-    remaining > 1
-      ? { kind: "grantTreasureEquipment", remaining: remaining - 1 }
-      : { kind: "turnComplete" },
-  );
-  if (!reward.pendingEquipmentChoice) {
-    if (remaining > 1) grantTreasureEquipmentReward(state, player, remaining - 1);
-    else state.phase = { kind: "turnComplete" };
-  }
-  addHistory(state, `${player.name}因宝物猎人额外获得${reward.name}。`);
-}
-
-function resumeAfterEquipmentChoice(
-  state: GameState,
-  playerId: Player["id"],
-  resume: Extract<GameState["phase"], { kind: "equipmentChoice" }>["choice"]["resume"],
-) {
-  switch (resume.kind) {
-    case "turnComplete":
-      state.phase = { kind: "turnComplete" };
-      return;
-    case "resolveTile":
-      resolveTile(state, state.map.tiles[resume.tileIndex], false);
-      return;
-    case "grantTreasureEquipment": {
-      grantTreasureEquipmentReward(state, state.players[playerId], resume.remaining);
-      return;
-    }
-    case "showPveReward":
-      state.phase = { kind: "pveReward", notice: resume.notice };
-      return;
-  }
-}
-
-function acknowledgePveReward(state: GameState) {
-  if (state.phase.kind !== "pveReward") return false;
-  const notice = state.phase.notice;
-  if (!notice.statGrowth) {
-    state.phase = { kind: "turnComplete" };
-    return true;
-  }
-  const stageId = regionForPosition(state.map, state.players[notice.playerId].position).id;
-  state.phase = {
-    kind: "statGrowthChoice",
-    choice: { playerId: notice.playerId, stageId },
-  };
-  return true;
-}
-
-/** 击败阶段首领后的三选一加点。 */
-function chooseStatGrowth(state: GameState, option: StatGrowthOption) {
-  if (state.phase.kind !== "statGrowthChoice") return false;
-  const player = state.players[state.phase.choice.playerId];
-  if (!player) return false;
-  applyStatGrowth(state, player, option);
-  state.phase = { kind: "turnComplete" };
-  addHistory(state, `${player.name}选择了${STAT_GROWTH[option].name}。`);
-  return true;
-}
-
-/** 装备槽满时，由获得装备的玩家选择替换同类装备，或放弃新装备。 */
-function chooseEquipment(
-  state: GameState,
-  replaceInstanceId?: string,
-) {
-  if (state.phase.kind !== "equipmentChoice") return false;
-  const choice = state.phase.choice;
-  const player = state.players[choice.playerId];
-  const offered = choice.offered;
-  const offeredDefinition = EQUIPMENT[offered.kind];
-
-  if (!replaceInstanceId) {
-    const salvaged = salvageEquipment(state, player, offered.kind);
-    addHistory(
-      state,
-      `${player.name}放弃了${offeredDefinition.name}，折算为 ${salvaged} 金币。`,
-    );
-    resumeAfterEquipmentChoice(state, choice.playerId, choice.resume);
-    return true;
-  }
-
-  const existing = player.equipment.find(
-    (item) => item.instanceId === replaceInstanceId,
-  );
-  if (
-    !existing ||
-    equipmentCategory(existing.kind) !== equipmentCategory(offered.kind)
-  ) {
-    return false;
-  }
-
-  const removed = removeEquipmentStats(state, player, existing.instanceId);
-  if (!removed) return false;
-  if (choice.source === "reward") {
-    emit(state, {
-      type: "equipmentGranted",
-      playerId: player.id,
-      instanceId: offered.instanceId,
-      kind: offered.kind,
-    });
-  }
-  applyEquipmentStats(state, player, offered);
-  // 折算放在装上新装备之后：换下来的旧件此时才真正离场，事件顺序也和玩家看到的一致
-  const salvaged = salvageEquipment(state, player, removed.kind);
-  addHistory(
-    state,
-    `${player.name}用${offeredDefinition.name}替换了${EQUIPMENT[removed.kind].name}，`
-      + `旧装备折算为 ${salvaged} 金币。`,
-  );
-  resumeAfterEquipmentChoice(state, choice.playerId, choice.resume);
   return true;
 }
 
@@ -792,7 +673,7 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       return next;
     case "equipmentChoice":
       if (next.phase.choice.playerId !== playerId) return state;
-      chooseEquipment(next);
+      settleActionResult(next, state, chooseEquipment(next));
       {
         const phaseAfterChoice = next.phase as GameState["phase"];
         if (
@@ -944,7 +825,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "choosePvpPenalty":
       return choosePvpPenalty(next, action) ? next : state;
     case "chooseEquipment":
-      return chooseEquipment(next, action.replaceInstanceId) ? next : state;
+      return settleActionResult(next, state, chooseEquipment(next, action.replaceInstanceId));
     case "chooseStatGrowth":
       return chooseStatGrowth(next, action.option) ? next : state;
   }

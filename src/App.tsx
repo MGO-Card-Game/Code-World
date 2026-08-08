@@ -40,10 +40,10 @@ function LocalGame({ onExit, playerCount }: { onExit: () => void; playerCount: P
         dispatch={dispatch}
         toolbar={
           <div className="topbar-actions">
-            <button className="ghost-button" onClick={() => dispatch({ type: "restart" })}>
+            <button className="ghost-button topbar-system-button" onClick={() => dispatch({ type: "restart" })}>
               重新开局
             </button>
-            <button className="ghost-button" onClick={onExit}>返回菜单</button>
+            <button className="ghost-button topbar-system-button" onClick={onExit}>返回菜单</button>
           </div>
         }
       />
@@ -67,7 +67,7 @@ function OnlineGame({ onExit }: { onExit: () => void }) {
             <span className="room-tag">房间 {net.room.code}</span>
             {net.error && <span className="topbar-error">{net.error}</span>}
             <button
-              className="ghost-button"
+              className="ghost-button topbar-system-button"
               onClick={() => {
                 net.leave();
                 onExit();

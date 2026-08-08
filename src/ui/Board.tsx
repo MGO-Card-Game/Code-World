@@ -63,6 +63,7 @@ export function Board({ state, playback, onInspectBoss }: {
     originY: number;
   } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [viewMode, setViewMode] = useState<"action" | "overview" | "free">("action");
   const [transform, setTransform] = useState<BoardTransform>({ x: 0, y: 0, scale: 0.92 });
   const players = Object.values(state.players);
   const positions = Object.fromEntries(
@@ -77,6 +78,7 @@ export function Board({ state, playback, onInspectBoss }: {
   const selectedPlayers = players.filter(
     (player) => state.map.tiles[positions[player.id]].region === selectedRegionId,
   );
+  const selectedBoss = enemyDefinition(selectedRegion.bossEnemyId);
 
   const constrain = useCallback((candidate: BoardTransform): BoardTransform => {
     const viewport = viewportRef.current;
@@ -108,6 +110,7 @@ export function Board({ state, playback, onInspectBoss }: {
   const zoomAt = useCallback((requestedScale: number, clientX?: number, clientY?: number) => {
     const viewport = viewportRef.current;
     if (!viewport) return;
+    setViewMode("free");
     const rect = viewport.getBoundingClientRect();
     const pointX = clientX === undefined ? viewport.clientWidth / 2 : clientX - rect.left;
     const pointY = clientY === undefined ? viewport.clientHeight / 2 : clientY - rect.top;
@@ -127,6 +130,7 @@ export function Board({ state, playback, onInspectBoss }: {
     const viewport = viewportRef.current;
     const world = worldRef.current;
     if (!viewport || !world) return;
+    setViewMode("overview");
     const padding = 20;
     const scale = Math.min(
       MAX_BOARD_ZOOM,
@@ -151,6 +155,7 @@ export function Board({ state, playback, onInspectBoss }: {
 
   useEffect(() => {
     if (selectedRegionId !== activeRegionId) return;
+    setViewMode("action");
     const frame = requestAnimationFrame(() => focusTile(activePosition));
     return () => cancelAnimationFrame(frame);
   }, [activePosition, activeRegionId, focusTile, selectedRegionId, state.map.seed]);
@@ -176,6 +181,7 @@ export function Board({ state, playback, onInspectBoss }: {
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
     event.currentTarget.setPointerCapture(event.pointerId);
+    setViewMode("free");
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -206,6 +212,7 @@ export function Board({ state, playback, onInspectBoss }: {
   };
 
   const followActivePlayer = () => {
+    setViewMode("action");
     setSelectedRegionId(activeRegionId);
     if (selectedRegionId === activeRegionId) focusTile(activePosition);
   };
@@ -222,7 +229,10 @@ export function Board({ state, playback, onInspectBoss }: {
             <button
               type="button"
               className={`${selectedRegionId === region.id ? "selected" : ""} ${activeRegionId === region.id ? "active-stage" : ""}`}
-              onClick={() => setSelectedRegionId(region.id)}
+              onClick={() => {
+                setViewMode("free");
+                setSelectedRegionId(region.id);
+              }}
               aria-current={selectedRegionId === region.id ? "page" : undefined}
               key={region.id}
             >
@@ -244,11 +254,11 @@ export function Board({ state, playback, onInspectBoss }: {
         })}
       </nav>
       <div className="board-toolbar" aria-label="棋盘视图控制">
-        <span>{selectedRegion.name}</span>
+        <span>{selectedRegion.name} · {Math.round(transform.scale * 100)}%</span>
         <button type="button" onClick={() => zoomAt(transform.scale - 0.15)} aria-label="缩小棋盘">−</button>
         <button type="button" onClick={() => zoomAt(transform.scale + 0.15)} aria-label="放大棋盘">＋</button>
-        <button type="button" onClick={fitBoard} title="让当前阶段填满可用区域">总览</button>
-        <button type="button" onClick={followActivePlayer}>行动者</button>
+        <button className={viewMode === "overview" ? "selected" : ""} type="button" aria-pressed={viewMode === "overview"} onClick={fitBoard} title="查看完整阶段环路">总览</button>
+        <button className={viewMode === "action" ? "selected" : ""} type="button" aria-pressed={viewMode === "action"} onClick={followActivePlayer}>行动者</button>
       </div>
       <div
         ref={viewportRef}
@@ -311,12 +321,22 @@ export function Board({ state, playback, onInspectBoss }: {
                 type="button"
                 className={`stage-boss-card ${selectedPlayers.some((player) => stageBossUnlocked(player, selectedRegion)) ? "unlocked" : ""}`}
                 onClick={() => onInspectBoss(selectedRegion.id)}
-                aria-label={`查看${enemyDefinition(selectedRegion.bossEnemyId).name}情报`}
+                aria-label={`查看${selectedBoss.name}情报`}
               >
-                <span>阶段首领</span>
-                <strong>{enemyDefinition(selectedRegion.bossEnemyId).name}</strong>
+                <div className="boss-card-heading">
+                  <i aria-hidden="true">首</i>
+                  <div>
+                    <span>阶段首领</span>
+                    <strong>{selectedBoss.name}</strong>
+                  </div>
+                </div>
+                <div className="boss-card-stats" aria-label="首领基础属性">
+                  <span>生命 <b>{selectedBoss.maxHp}</b></span>
+                  <span>攻击 <b>{selectedBoss.attack}</b></span>
+                  <span>防御 <b>{selectedBoss.defense}</b></span>
+                </div>
                 {selectedRegion.requirements.map((requirement) => (
-                  <small key={`${requirement.type}-${requirement.target}`}>{requirement.label}</small>
+                  <small className="boss-requirement-label" key={`${requirement.type}-${requirement.target}`}>挑战条件 · {requirement.label}</small>
                 ))}
                 <div className="boss-player-progress">
                   {selectedPlayers.length === 0 && <small>暂无玩家进入本阶段</small>}
@@ -335,21 +355,24 @@ export function Board({ state, playback, onInspectBoss }: {
                     );
                   })}
                 </div>
-                <em className="boss-detail-hint">点击查看首领属性</em>
+                <em className="boss-detail-hint">查看完整首领情报 →</em>
               </button>
             </div>
           </section>
         </div>
       </div>
-      <div className="board-legend">
-        <span>拖动平移 · 滚轮缩放 · {Math.round(transform.scale * 100)}%</span>
-        <span><i className="legend-camp" />营地 · 经过回满</span>
-        <span><i className="legend-battle" />战斗</span>
-        <span><i className="legend-treasure" />宝箱</span>
-        <span><i className="legend-blessing" />赐福</span>
-        <span><i className="legend-spring" />泉水</span>
-        <span><i className="legend-event" />事件</span>
-      </div>
+      <details className="board-legend">
+        <summary>图例与棋盘操作</summary>
+        <div>
+          <span>拖动平移 · 滚轮缩放</span>
+          <span><i className="legend-camp" />营地 · 经过回满</span>
+          <span><i className="legend-battle" />战斗</span>
+          <span><i className="legend-treasure" />宝箱</span>
+          <span><i className="legend-blessing" />赐福</span>
+          <span><i className="legend-spring" />泉水</span>
+          <span><i className="legend-event" />事件</span>
+        </div>
+      </details>
     </section>
   );
 }

@@ -35,7 +35,7 @@ function stagedWithHands(
 }
 
 describe("新增卷轴", () => {
-  it("痛击只能用于攻击，并在掷骰前造成 5 减当前防御的伤害", () => {
+  it("痛击只能用于攻击，并在掷骰前造成 6 减当前防御的伤害", () => {
     expect(SCROLLS.heavyStrike.rarity).toBe("R");
     expect(SCROLLS.heavyStrike.timings).toEqual(["beforeAttackRoll"]);
 
@@ -46,7 +46,7 @@ describe("新增卷轴", () => {
     const directDamage = state.lastEvents.filter(
       (event) => event.type === "battleDamage",
     )[0];
-    expect(directDamage).toMatchObject({ targetSide: "b", amount: 3 });
+    expect(directDamage).toMatchObject({ targetSide: "b", amount: 4 });
     expect(only(state.lastEvents, "scrollConsumed").kind).toBe("heavyStrike");
   });
 

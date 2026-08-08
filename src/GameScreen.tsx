@@ -54,7 +54,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
   const [inspectingEquipment, setInspectingEquipment] = useState<EquipmentKind | null>(null);
   const [inspectingBoss, setInspectingBoss] = useState<MapRegionId | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
-  const activeName = state.players[state.activePlayerId].name;
+  const activePlayer = state.players[state.activePlayerId];
   const lingeringBattle = useLingeringBattle(state, playback);
   const players = state.turnOrder.map((id) => state.players[id]);
   const selectedPlayer = state.players[selectedPlayerId];
@@ -72,6 +72,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
     return { stageName: region.name, stageStatus: status };
   };
   const selectedStage = stagePresentation(selectedPlayer);
+  const activeStage = stagePresentation(activePlayer);
   const mapUsePhase =
     inspecting === viewerSeat &&
     inspecting === state.activePlayerId &&
@@ -98,9 +99,12 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
           <span className="brand-mark">D/S</span>
           <div><span>Dicebound Summit</span><h1>骰境登峰</h1></div>
         </div>
-        <div className="round-status">
-          <span>行动 {state.turn}</span>
-          <strong>{activeName}</strong>
+        <div
+          className="round-status"
+          style={{ "--active-player-color": activePlayer.color } as React.CSSProperties}
+        >
+          <span>行动 {state.turn} · {activeStage.stageName}</span>
+          <strong>{activePlayer.name}的回合</strong>
         </div>
         {toolbar}
       </header>

@@ -147,7 +147,7 @@ export function PlayerPanel({
       <div className="player-heading">
         <span className="player-sigil">{playerSigil(player)}</span>
         <div>
-          <span className="eyebrow">{active ? "当前行动" : "登山者"}</span>
+          <span className="eyebrow">{active ? "当前行动" : "正在查看"}</span>
           <h2>{player.name}</h2>
         </div>
       </div>
@@ -155,12 +155,14 @@ export function PlayerPanel({
         <span>生命</span><strong>{hp}/{maxHp}</strong>
       </div>
       <HealthBar value={hp} max={maxHp} />
-      <div className="stat-grid">
+      <div className="stat-grid core-stats">
         <div><span>攻击</span><strong>{getAttack(visualPlayer)}</strong></div>
         <div><span>防御</span><strong>{getDefense(visualPlayer)}</strong></div>
         <div className="gold-stat"><span>金币</span><strong>{gold}</strong></div>
-        <div className="stage-stat"><span>地图</span><strong>{stageName}</strong></div>
-        <div><span>首领</span><strong>{stageStatus}</strong></div>
+      </div>
+      <div className="player-progress-summary">
+        <div><span>当前位置</span><strong>{stageName}</strong></div>
+        <div><span>阶段目标</span><strong>{stageStatus}</strong></div>
       </div>
       {/* 规格 25.2：侧栏只给卷轴数量，完整手牌走资源弹窗 */}
       <div className="inventory-block">

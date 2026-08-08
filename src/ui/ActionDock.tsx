@@ -4,6 +4,144 @@ import { canUseShop } from "../game/economy";
 import type { GameStateView, PlayerId } from "../game/types";
 import type { Dispatch, Playback } from "./shared";
 
+interface ActionGuidance {
+  label: string;
+  action: string;
+  waitingAction?: string;
+  actorIds: PlayerId[];
+}
+
+/** 把引擎阶段翻译成玩家真正需要完成的下一步。 */
+export function actionGuidance(state: GameStateView, movementSides: number): ActionGuidance {
+  const phase = state.phase;
+  switch (phase.kind) {
+    case "awaitingRoll":
+      return {
+        label: "移动阶段",
+        action: `投掷 D${movementSides}`,
+        waitingAction: "投骰",
+        actorIds: [state.activePlayerId],
+      };
+    case "turnComplete":
+      return {
+        label: "行动完成",
+        action: "结束当前回合",
+        actorIds: [state.activePlayerId],
+      };
+    case "encounterChoice":
+      return {
+        label: "旅者相遇",
+        action: "选择相遇对象",
+        actorIds: [phase.choice.challengerId],
+      };
+    case "encounterDecision": {
+      const encounter = phase.encounter;
+      return {
+        label: "相遇抉择",
+        action: "选择交易、招呼或战斗",
+        actorIds: [
+          encounter.choiceA.status === "pending" ? encounter.aPlayerId : undefined,
+          encounter.choiceB.status === "pending" ? encounter.bPlayerId : undefined,
+        ].filter((id): id is PlayerId => id !== undefined),
+      };
+    }
+    case "tradeOffer": {
+      const trade = phase.trade;
+      return {
+        label: "秘密报价",
+        action: "提交交易报价",
+        actorIds: [
+          trade.offerA.status === "pending" ? trade.aPlayerId : undefined,
+          trade.offerB.status === "pending" ? trade.bPlayerId : undefined,
+        ].filter((id): id is PlayerId => id !== undefined),
+      };
+    }
+    case "tradeConfirmation": {
+      const trade = phase.trade;
+      return {
+        label: "交易确认",
+        action: "核对并确认双方报价",
+        actorIds: [
+          trade.confirmationA === "pending" ? trade.aPlayerId : undefined,
+          trade.confirmationB === "pending" ? trade.bPlayerId : undefined,
+        ].filter((id): id is PlayerId => id !== undefined),
+      };
+    }
+    case "bossGateChoice":
+      return {
+        label: "首领入口",
+        action: "决定是否挑战阶段首领",
+        actorIds: [phase.choice.playerId],
+      };
+    case "battle": {
+      const battle = phase.battle;
+      const attacker = battle.attacker;
+      const defender = attacker === "a" ? "b" : "a";
+      const pendingSide = [attacker, defender].find((side) => {
+        const choice = side === "a" ? battle.choiceA : battle.choiceB;
+        const owner = side === "a" ? battle.aPlayerId : battle.bPlayerId;
+        return owner !== undefined && choice.status === "pending";
+      });
+      const actorId = pendingSide === "a" ? battle.aPlayerId : pendingSide === "b" ? battle.bPlayerId : undefined;
+      return {
+        label: pendingSide
+          ? `战斗阶段 · ${pendingSide === attacker ? "攻击方" : "防守方"}`
+          : "战斗结算",
+        action: "选择本轮卷轴",
+        actorIds: actorId ? [actorId] : [],
+      };
+    }
+    case "blessingChoice":
+      return {
+        label: "赐福抉择",
+        action: "决定是否替换现有赐福",
+        actorIds: [phase.choice.winnerId],
+      };
+    case "pvpPenalty":
+      return {
+        label: "相遇战代价",
+        action: phase.penalty.waived ? "代价已免除" : "选择交付资源",
+        actorIds: phase.penalty.waived ? [] : [phase.penalty.loserId],
+      };
+    case "equipmentChoice":
+      return {
+        label: "装备取舍",
+        action: "选择替换装备或拆解新品",
+        actorIds: [phase.choice.playerId],
+      };
+    case "pveReward":
+      return {
+        label: "战利品结算",
+        action: "确认本次战斗奖励",
+        actorIds: [phase.notice.playerId],
+      };
+    case "statGrowthChoice":
+      return {
+        label: "永久成长",
+        action: "选择一项属性提升",
+        actorIds: [phase.choice.playerId],
+      };
+    case "shop":
+      return {
+        label: "沿途商栈",
+        action: "选购物品或离开商店",
+        actorIds: [phase.shop.playerId],
+      };
+    case "casino":
+      return {
+        label: "赌场转盘",
+        action: "决定转动转盘或离开",
+        actorIds: [phase.casino.playerId],
+      };
+    case "gameOver":
+      return {
+        label: "登峰决胜",
+        action: `${state.players[phase.winnerId].name}获得胜利`,
+        actorIds: [],
+      };
+  }
+}
+
 /** 底部操作条：行动提示、移动骰结果，以及当前阶段唯一可点的那颗按钮。 */
 export function ActionDock({ state, dispatch, message, playback, viewerSeat, onOpenShop }: {
   state: GameStateView;
@@ -18,14 +156,42 @@ export function ActionDock({ state, dispatch, message, playback, viewerSeat, onO
   const rollPending = playback.pending.some((event) => event.type === "movementRolled");
   const die = rollPending ? undefined : state.lastMovementRoll;
   const movementSides = Math.max(2, 6 + getDieSidesBonus(active, "movement"));
+  const guidance = actionGuidance(state, movementSides);
   const canControlTurn = viewerSeat === state.activePlayerId;
+  const viewerMustAct = guidance.actorIds.includes(viewerSeat);
+  const hasPendingActor = guidance.actorIds.length > 0;
+  const waitingNames = guidance.actorIds
+    .filter((id) => id !== viewerSeat)
+    .map((id) => state.players[id].name)
+    .join("、");
+  const guidanceText = playback.playing
+    ? `${guidance.label} · 演出结算中`
+    : viewerMustAct
+      ? `${guidance.label} · 请${guidance.action}`
+      : waitingNames
+        ? `${guidance.label} · 等待${waitingNames}${guidance.waitingAction ?? guidance.action}`
+        : `${guidance.label} · ${guidance.action}`;
 
   return (
-    <section className="action-dock">
-      <div>
-        <span className="eyebrow">行动提示</span>
+    <section
+      className="action-dock"
+      style={{ "--active-player-color": active.color } as React.CSSProperties}
+    >
+      <div className="action-dock-copy">
+        <span className="eyebrow">
+          {playback.playing
+            ? "行动结算"
+            : viewerMustAct
+              ? "你的行动"
+              : hasPendingActor
+                ? "等待行动"
+                : "阶段状态"}
+        </span>
+        <strong className="action-dock-title">{active.name}的回合</strong>
+        <span className="action-dock-phase">{guidanceText}</span>
         <AnimatePresence mode="wait">
           <motion.p
+            className="action-dock-message"
             key={message}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -56,7 +222,13 @@ export function ActionDock({ state, dispatch, message, playback, viewerSeat, onO
       ) : (
         <>
           {state.phase.kind === "awaitingRoll" && canControlTurn && (
-            <button className="primary-button" onClick={() => dispatch({ type: "rollMovement" })}>为{active.name}投 D{movementSides}</button>
+            <button className="primary-button action-primary-button" onClick={() => dispatch({ type: "rollMovement" })}>
+              <span className="action-button-icon" aria-hidden="true">骰</span>
+              <span>
+                <strong>投掷 D{movementSides}</strong>
+                <small>为{active.name}</small>
+              </span>
+            </button>
           )}
           {state.phase.kind === "turnComplete" && canControlTurn && (
             <div className="turn-complete-actions">

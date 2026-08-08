@@ -390,6 +390,9 @@ describe("暗牌裁剪 viewFor", () => {
         case "shop":
           state = gameReducer(state, { type: "leaveShop" });
           break;
+        case "casino":
+          state = gameReducer(state, { type: "leaveCasino" });
+          break;
         default: break;
       }
 

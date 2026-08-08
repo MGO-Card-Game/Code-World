@@ -5,7 +5,7 @@ import {
 } from "./content/equipment";
 import type { CardRarity } from "./content/rarity";
 import { pickScrollKind, SCROLLS } from "./content/scrolls";
-import { GOLD_SCALE, spendGold } from "./economy";
+import { roundGold, spendGold } from "./economy";
 import { applyStatGrowth, STAT_GROWTH, STAT_GROWTH_OPTIONS } from "./growth";
 import { grantEquipment, grantScroll, rewardSecret } from "./resources";
 import { addHistory, nextRandom } from "./state";
@@ -42,10 +42,6 @@ const EQUIPMENT_CATEGORIES: readonly EquipmentCategory[] = [
   "shoes",
   "accessory",
 ];
-
-function roundGold(price: number) {
-  return Math.round(price / GOLD_SCALE) * GOLD_SCALE;
-}
 
 /** 卷轴与装备独立浮动；randomValue 参数让边界定价可以脱离随机流测试。 */
 export function variableShopPrice(basePrice: number, randomValue: number) {

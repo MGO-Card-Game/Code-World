@@ -19,6 +19,11 @@ import type {
 /** 一枚旧版金币折算为 10 个当前金币单位；统一调整量级时只改这里。 */
 export const GOLD_SCALE = 10;
 
+/** 价格取整到 GOLD_SCALE 的倍数；商店和赌场的浮动/递增定价共用同一条取整规则。 */
+export function roundGold(price: number) {
+  return Math.round(price / GOLD_SCALE) * GOLD_SCALE;
+}
+
 export const ECONOMY = {
   pveGold: 5 * GOLD_SCALE,
   eliteBonusGold: 5 * GOLD_SCALE,
@@ -98,12 +103,17 @@ export function salvageEquipment(state: GameState, player: Player, kind: Equipme
   return grantGold(state, player, ECONOMY.equipmentSalvage[EQUIPMENT[kind].rarity], "salvage");
 }
 
-export function spendGold(state: GameState, player: Player, amount: number) {
+export function spendGold(
+  state: GameState,
+  player: Player,
+  amount: number,
+  reason: Extract<GoldChangeReason, "shop" | "event"> = "shop",
+) {
   const normalized = Math.max(0, Math.floor(amount));
   if (normalized === 0 || player.gold < normalized) return false;
   const from = player.gold;
   player.gold -= normalized;
-  emit(state, { type: "goldChanged", playerId: player.id, from, to: player.gold, reason: "shop" });
+  emit(state, { type: "goldChanged", playerId: player.id, from, to: player.gold, reason });
   return true;
 }
 

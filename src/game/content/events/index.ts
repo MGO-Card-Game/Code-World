@@ -1,6 +1,7 @@
 import type { MapRegionId } from "../../types";
 import { pickWeighted } from "../weighted";
 import { BOON_EVENTS } from "./boons";
+import { CASINO_EVENTS } from "./casino";
 import type { MapEventDefinition } from "./definition";
 import { HAZARD_EVENTS } from "./hazards";
 import { RECOVERY_EVENTS } from "./recovery";
@@ -16,6 +17,7 @@ export {
   type MapEventDefinition,
   type MapEventEffectDefinition,
   type MapEventResource,
+  type PlayerNarrationContext,
   type RewardNarrationContext,
 } from "./definition";
 
@@ -25,6 +27,7 @@ export const MAP_EVENTS = {
   ...HAZARD_EVENTS,
   ...REWARD_EVENTS,
   ...BOON_EVENTS,
+  ...CASINO_EVENTS,
 };
 
 export type MapEventKind = keyof typeof MAP_EVENTS;

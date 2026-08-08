@@ -15,6 +15,7 @@ describe("地图事件内容注册表", () => {
       "weaponInStone",
       "veteranGuidance",
       "guardianInscription",
+      "casinoRoulette",
     ]);
     expect(MAP_EVENTS.roadsideRespite.category).toBe("recovery");
     expect(MAP_EVENTS.fallingRocks.category).toBe("hazard");
@@ -24,9 +25,10 @@ describe("地图事件内容注册表", () => {
     expect(MAP_EVENTS.weaponInStone.category).toBe("reward");
     expect(MAP_EVENTS.veteranGuidance.category).toBe("boon");
     expect(MAP_EVENTS.guardianInscription.category).toBe("boon");
+    expect(MAP_EVENTS.casinoRoulette.category).toBe("casino");
   });
 
-  it("每个区域都有合法事件池，永久成长事件权重是旧事件的一半", () => {
+  it("每个区域都有合法事件池，永久成长事件和赌场转盘权重都是旧事件的一半", () => {
     for (const region of REGIONS) {
       expect(mapEventPool(region)).toEqual([
         ["roadsideRespite", 1],
@@ -37,29 +39,32 @@ describe("地图事件内容注册表", () => {
         ["weaponInStone", 0.25],
         ["veteranGuidance", 0.5],
         ["guardianInscription", 0.5],
+        ["casinoRoulette", 0.5],
       ]);
     }
   });
 
-  it("一次权重抽取消耗一个随机数并覆盖八个事件区间", () => {
+  it("一次权重抽取消耗一个随机数并覆盖九个事件区间", () => {
     let calls = 0;
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.1; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.05; }))
       .toBe("roadsideRespite");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.25; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.2; }))
       .toBe("fallingRocks");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.45; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.4; }))
       .toBe("lostPurse");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.6; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.55; }))
       .toBe("travelerGift");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.74; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.68; }))
       .toBe("fallenAdventurer");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.8; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.74; }))
       .toBe("weaponInStone");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.87; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.8; }))
       .toBe("veteranGuidance");
-    expect(pickMapEvent("foothill", () => { calls += 1; return 0.96; }))
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.88; }))
       .toBe("guardianInscription");
-    expect(calls).toBe(8);
+    expect(pickMapEvent("foothill", () => { calls += 1; return 0.96; }))
+      .toBe("casinoRoulette");
+    expect(calls).toBe(9);
   });
 
   it("所有事件都具备展示信息、正权重和至少一个声明式效果", () => {

@@ -317,6 +317,13 @@ export interface StatGrowthChoiceState {
   stageId: MapRegionId;
 }
 
+/** 赌场转盘的进店状态；spins 决定下一次转动的价格，见 casinoSpinPrice。 */
+export interface CasinoState {
+  playerId: PlayerId;
+  tileIndex: number;
+  spins: number;
+}
+
 export interface EquipmentChoiceState {
   playerId: PlayerId;
   offered: OwnedEquipment;
@@ -326,7 +333,8 @@ export interface EquipmentChoiceState {
     | { kind: "resolveTile"; tileIndex: number }
     | { kind: "grantTreasureEquipment"; remaining: number }
     | { kind: "showPveReward"; notice: PveRewardNoticeState }
-    | { kind: "shop"; shop: ShopState };
+    | { kind: "shop"; shop: ShopState }
+    | { kind: "casino"; casino: CasinoState };
 }
 
 export type GamePhase =
@@ -344,6 +352,7 @@ export type GamePhase =
   | { kind: "pveReward"; notice: PveRewardNoticeState }
   | { kind: "statGrowthChoice"; choice: StatGrowthChoiceState }
   | { kind: "shop"; shop: ShopState }
+  | { kind: "casino"; casino: CasinoState }
   | { kind: "gameOver"; winnerId: PlayerId };
 
 export type HpChangeReason =
@@ -593,6 +602,9 @@ export type GameAction =
   | { type: "buyShopItem"; item: "scroll" | "healing" }
   | { type: "buyShopOffer"; offerId: number }
   | { type: "leaveShop" }
+  /** 赌场转盘：花费本次价格转一次，奖励是一张卷轴或一件装备。 */
+  | { type: "spinCasino" }
+  | { type: "leaveCasino" }
   /**
    * 提交本侧本回合要打的全部卷轴（GameRule 8.5，张数不限）。
    * 省略或传空数组表示不使用。两侧都提交后引擎自动结算本回合。

@@ -111,6 +111,10 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
     case "leaveShop":
       return state.phase.kind === "shop" && state.phase.shop.playerId === actor;
 
+    case "spinCasino":
+    case "leaveCasino":
+      return state.phase.kind === "casino" && state.phase.casino.playerId === actor;
+
     case "choosePvpPenalty":
       return (
         state.phase.kind === "pvpPenalty" &&
@@ -344,6 +348,8 @@ export function currentActor(state: GameState): PlayerId {
       return state.phase.choice.playerId;
     case "shop":
       return state.phase.shop.playerId;
+    case "casino":
+      return state.phase.casino.playerId;
     case "battle": {
       const battle = state.phase.battle;
       const attacker = battle.attacker;

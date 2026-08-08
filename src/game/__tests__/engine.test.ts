@@ -76,6 +76,8 @@ function advanceAutomatically(state: GameState) {
       return gameReducer(state, { type: "chooseStatGrowth", option: "attack" });
     case "shop":
       return gameReducer(state, { type: "leaveShop" });
+    case "casino":
+      return gameReducer(state, { type: "leaveCasino" });
     case "gameOver":
       return state;
   }

@@ -8,6 +8,7 @@ import { ActionDock } from "./ui/ActionDock";
 import { BattlePanel, useLingeringBattle } from "./ui/BattlePanel";
 import { Board } from "./ui/Board";
 import { BossDetailModal } from "./ui/BossDetailModal";
+import { CasinoTileModal } from "./ui/CasinoTileModal";
 import { EquipmentDetailModal } from "./ui/EquipmentDetailModal";
 import {
   BlessingChoicePanel,
@@ -236,6 +237,15 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             key={`shop-tile-${state.phase.shop.playerId}`}
             state={state}
             shop={state.phase.shop}
+            viewerSeat={viewerSeat}
+            dispatch={dispatch}
+          />
+        )}
+        {!lingeringBattle && !playback.playing && state.phase.kind === "casino" && (
+          <CasinoTileModal
+            key={`casino-tile-${state.phase.casino.playerId}`}
+            state={state}
+            casino={state.phase.casino}
             viewerSeat={viewerSeat}
             dispatch={dispatch}
           />

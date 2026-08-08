@@ -71,6 +71,9 @@ function resumeAfterEquipmentChoice(
     case "shop":
       state.phase = { kind: "shop", shop: resume.shop };
       return true;
+    case "casino":
+      state.phase = { kind: "casino", casino: resume.casino };
+      return true;
   }
 }
 

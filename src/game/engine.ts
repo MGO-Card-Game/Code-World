@@ -9,6 +9,7 @@ import { consumeScroll } from "./resources";
 import { addHistory, createInitialGame, emit, rollDie } from "./state";
 import { restAtStageCamp, stageBossUnlocked } from "./stages";
 import { buyShopItem } from "./economy";
+import { leaveCasino, spinCasino } from "./casino";
 import { buyShopOffer, leaveShop } from "./shop";
 import { cancelTrade, confirmTrade, submitTradeOffer } from "./trading";
 import { acknowledgePveReward, chooseEquipment, chooseStatGrowth } from "./rewards";
@@ -307,6 +308,12 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       ) {
         leaveShop(next);
       }
+      if (
+        phaseAfterEquipmentFallback.kind === "casino" &&
+        phaseAfterEquipmentFallback.casino.playerId === playerId
+      ) {
+        leaveCasino(next);
+      }
       if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
         advanceCompletedTurn(next);
       }
@@ -328,6 +335,11 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
     case "shop":
       if (next.phase.shop.playerId !== playerId) return state;
       leaveShop(next);
+      if (next.activePlayerId === playerId) advanceCompletedTurn(next);
+      return next;
+    case "casino":
+      if (next.phase.casino.playerId !== playerId) return state;
+      leaveCasino(next);
       if (next.activePlayerId === playerId) advanceCompletedTurn(next);
       return next;
     case "gameOver":
@@ -448,6 +460,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return buyShopOffer(next, action.offerId) ? next : state;
     case "leaveShop":
       return leaveShop(next) ? next : state;
+    case "spinCasino":
+      return spinCasino(next) ? next : state;
+    case "leaveCasino":
+      return leaveCasino(next) ? next : state;
     case "submitScrollChoice":
       if (!submitScrollChoice(next, action.side, action.instanceIds)) return state;
       settleWaivedPvpPenalty(next);

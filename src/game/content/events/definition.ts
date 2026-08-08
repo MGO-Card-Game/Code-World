@@ -1,7 +1,7 @@
 import type { MapRegionId } from "../../types";
 import type { EquipmentCategory } from "../equipment/definition";
 
-export type MapEventCategory = "recovery" | "hazard" | "reward" | "boon";
+export type MapEventCategory = "recovery" | "hazard" | "reward" | "boon" | "casino";
 export type MapEventResource = "scroll" | "equipment" | "random";
 export type MapEventBaseStat = "attack" | "defense";
 
@@ -22,6 +22,10 @@ export interface BaseStatNarrationContext {
   stat: MapEventBaseStat;
   /** 实际增加量；引擎会把负数配置折算为 0。 */
   amount: number;
+}
+
+export interface PlayerNarrationContext {
+  playerName: string;
 }
 
 /**
@@ -64,6 +68,15 @@ export type MapEventEffectDefinition =
       category?: EquipmentCategory;
       quality?: "standard" | "high";
       narration: (context: RewardNarrationContext) => string;
+    }
+  | {
+      /**
+       * 赌场转盘的逃生口：进店后玩家可反复付费转动，不是一次性即时效果，
+       * 表达不了声明式效果列表的“一次结算完就轮到下一格”约定，所以只负责
+       * 把 phase 切到 casino，具体的转动/离场由 casino.ts 的两个动作处理。
+       */
+      type: "enterCasino";
+      narration: (context: PlayerNarrationContext) => string;
     };
 
 /** 一个事件的内容定义；category 由所在文件盖章，不在每条事件上重复声明。 */

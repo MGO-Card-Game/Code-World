@@ -120,6 +120,14 @@ export function applyMapEventEffect(
       addHistory(state, line(reward.name), rewardSecret(player, line, reward));
       return reward.pendingEquipmentChoice === true;
     }
+    case "enterCasino": {
+      state.phase = {
+        kind: "casino",
+        casino: { playerId: player.id, tileIndex: player.position, spins: 0 },
+      };
+      addHistory(state, effect.narration({ playerName: player.name }));
+      return true;
+    }
   }
 }
 

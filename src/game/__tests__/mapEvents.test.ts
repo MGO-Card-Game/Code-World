@@ -31,14 +31,25 @@ function eventsOf<T extends GameEvent["type"]>(state: GameState, type: T) {
 }
 
 describe("地图事件结算", () => {
-  it("八种声明式事件都能经注册表真实触发", () => {
+  it("八种声明式事件和赌场转盘都能经注册表真实触发", () => {
     const outcomes = new Set<
-      "heal" | "damage" | "gold" | "scroll" | "corpse" | "stoneWeapon" | "attack" | "defense"
+      | "heal" | "damage" | "gold" | "scroll" | "corpse" | "stoneWeapon"
+      | "attack" | "defense" | "casino"
     >();
 
-    for (let seed = 1; seed <= 1000 && outcomes.size < 8; seed += 1) {
+    for (let seed = 1; seed <= 1000 && outcomes.size < 9; seed += 1) {
       const state = landOnEvent(seed);
       const player = state.players[state.activePlayerId];
+
+      if (state.phase.kind === "casino") {
+        outcomes.add("casino");
+        expect(state.phase.casino).toEqual({
+          playerId: player.id,
+          tileIndex: player.position,
+          spins: 0,
+        });
+        continue;
+      }
       expect(state.phase.kind).toBe("turnComplete");
 
       const statChanged = eventsOf(state, "baseStatChanged")[0];
@@ -98,6 +109,7 @@ describe("地图事件结算", () => {
       "stoneWeapon",
       "attack",
       "defense",
+      "casino",
     ]));
   });
 

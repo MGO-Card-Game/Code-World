@@ -8,6 +8,7 @@ import { SCROLLS } from "../game/content/scrolls";
 import { blessingDefinition } from "../game/content/blessings";
 import { enemyDefinition } from "../game/content/enemies";
 import { requirementValueForRegion } from "../game/stages";
+import { STAT_GROWTH, STAT_GROWTH_OPTIONS } from "../game/growth";
 import { getAttack, getDefense, pvpHpTransferAmount } from "../game/selectors";
 import { equipmentSalvageValue, pvpGoldTransferAmount } from "../game/economy";
 import type {
@@ -18,8 +19,11 @@ import type {
   GameStateView,
   PlayerId,
   PlayerView,
+  PveRewardItem,
   PveRewardNoticeState,
   PvpPenaltyState,
+  StatGrowthChoiceState,
+  StatGrowthOption,
 } from "../game/types";
 import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
 
@@ -90,8 +94,10 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
   const sourceNames = {
     battle: "战斗奖励",
     elite: "精英额外奖励",
+    boss: "首领战利品",
     blessing: "战争财阀",
-  } as const;
+  } as const satisfies Record<PveRewardItem["source"], string>;
+  const boss = notice.rewards.some((reward) => reward.source === "boss");
 
   return (
     <ModalBackdrop className="reward-backdrop">
@@ -107,10 +113,18 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
           initial={{ scale: 0.5, rotate: -18 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ delay: 0.12, type: "spring", stiffness: 280, damping: 16 }}
-        >{notice.elite ? "✦" : "◆"}</motion.div>
-        <div className="modal-kicker">{notice.elite ? "精英讨伐成功" : "战斗胜利"}</div>
+        >{boss ? "♛" : notice.elite ? "✦" : "◆"}</motion.div>
+        <div className="modal-kicker">
+          {boss ? "阶段首领已倒下" : notice.elite ? "精英讨伐成功" : "战斗胜利"}
+        </div>
         <h2>{player.name}击败了{notice.enemyName}</h2>
-        <p>{notice.elite ? "强敌倒下，额外战利品已经收入行囊。" : "战利品已经收入行囊。"}</p>
+        <p>{
+          boss
+            ? "关隘就此打开，战利品已经收入行囊。"
+            : notice.elite
+              ? "强敌倒下，额外战利品已经收入行囊。"
+              : "战利品已经收入行囊。"
+        }</p>
         <div className="pve-reward-list">
           {notice.rewards.map((reward, index) => (
             <motion.div
@@ -134,7 +148,7 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
         </div>
         {canAcknowledge ? (
           <button className="primary-button" onClick={() => dispatch({ type: "acknowledgePveReward" })}>
-            收下奖励
+            {notice.statGrowth ? "收下奖励并加点" : "收下奖励"}
           </button>
         ) : (
           <p className="waiting-notice">等待{player.name}确认奖励……</p>
@@ -371,6 +385,56 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
           </>
         ) : (
           <p className="waiting-notice">等待{player.name}选择装备……</p>
+        )}
+      </motion.section>
+    </ModalBackdrop>
+  );
+}
+
+export function StatGrowthPanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: StatGrowthChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[choice.playerId];
+  const region = state.map.regions.find((candidate) => candidate.id === choice.stageId);
+  const canChoose = viewerSeat === choice.playerId;
+  const current: Record<StatGrowthOption, string> = {
+    attack: `当前 ${getAttack(player)}`,
+    defense: `当前 ${getDefense(player)}`,
+    maxHp: `当前 ${player.hp}/${player.maxHp}`,
+  };
+
+  return (
+    <ModalBackdrop className="reward-backdrop">
+      <motion.section
+        className="stat-growth-modal"
+        initial={{ opacity: 0, scale: 0.94, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={SPRING}
+      >
+        <div className="modal-kicker">{region ? `${region.name}·登顶之证` : "登顶之证"}</div>
+        <h2>{player.name}的永久成长</h2>
+        <p>击败阶段首领的奖赏，一局只有两次，选定后不可更改。</p>
+        {canChoose ? (
+          <div className="stat-growth-options">
+            {STAT_GROWTH_OPTIONS.map((option) => (
+              <button
+                key={option}
+                disabled={playing}
+                onClick={() => dispatch({ type: "chooseStatGrowth", option })}
+              >
+                <strong>{STAT_GROWTH[option].name}</strong>
+                <small>{STAT_GROWTH[option].description}</small>
+                <em>{current[option]}</em>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="waiting-notice">等待{player.name}分配成长……</p>
         )}
       </motion.section>
     </ModalBackdrop>

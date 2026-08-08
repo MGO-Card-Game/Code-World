@@ -384,6 +384,9 @@ describe("暗牌裁剪 viewFor", () => {
         case "pveReward":
           state = gameReducer(state, { type: "acknowledgePveReward" });
           break;
+        case "statGrowthChoice":
+          state = gameReducer(state, { type: "chooseStatGrowth", option: "attack" });
+          break;
         default: break;
       }
 

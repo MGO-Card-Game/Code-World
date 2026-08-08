@@ -17,6 +17,7 @@ import {
   GameOverPanel,
   PenaltyPanel,
   PveRewardPanel,
+  StatGrowthPanel,
 } from "./ui/outcomePanels";
 import { PlayerPanel, PlayerSummary } from "./ui/PlayerPanel";
 import { ResourceModal } from "./ui/ResourceModal";
@@ -245,6 +246,16 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             state={state}
             notice={state.phase.notice}
             dispatch={dispatch}
+            viewerSeat={viewerSeat}
+          />
+        )}
+        {!lingeringBattle && state.phase.kind === "statGrowthChoice" && (
+          <StatGrowthPanel
+            key="stat-growth"
+            state={state}
+            choice={state.phase.choice}
+            dispatch={dispatch}
+            playing={playback.playing}
             viewerSeat={viewerSeat}
           />
         )}

@@ -6,7 +6,12 @@ import {
   receiveTransferredBlessing,
 } from "./blessings";
 import { findPreviousRestTile, findRestTileAtOrBefore } from "./map";
-import { grantRandomResourceReward, grantScroll, rewardSecret } from "./resources";
+import {
+  grantEquipment,
+  grantRandomResourceReward,
+  grantScroll,
+  rewardSecret,
+} from "./resources";
 import { enemyStats, getAttack, getDefense, pvpHpTransferAmount } from "./selectors";
 import { addHistory, emit, makeInstanceId, nextRandom, rollDie } from "./state";
 import { ECONOMY, grantGold, pvpGoldTransferAmount } from "./economy";
@@ -245,6 +250,52 @@ export function chosenInstanceIds(choice: ScrollChoice): readonly string[] {
   return choice.status === "chosen" ? choice.instanceIds : [];
 }
 
+/** 奖励条目在战报里的连接词；数组第一项直接写名字，后面的按来源接。 */
+const REWARD_CONNECTORS: Record<PveRewardItem["source"], string> = {
+  battle: "并获得",
+  boss: "并获得",
+  elite: "并因击败精英额外获得",
+  blessing: "并因战争财阀额外获得",
+};
+
+/**
+ * 把奖励弹层挂上去。
+ *
+ * 装备槽满时 grantEquipment 已经把阶段换成了 equipmentChoice，这时不能直接覆盖它，
+ * 只能把弹层塞进它的 resume——否则玩家的替换/放弃选择会被这一行吞掉。
+ */
+function presentRewardNotice(
+  state: GameState,
+  notice: PveRewardNoticeState,
+  pendingEquipmentChoice: boolean | undefined,
+) {
+  if (!pendingEquipmentChoice) {
+    state.phase = { kind: "pveReward", notice };
+    return;
+  }
+  if (state.phase.kind !== "equipmentChoice") {
+    throw new Error("装备奖励等待选择时应处于 equipmentChoice 阶段");
+  }
+  state.phase.choice.resume = { kind: "showPveReward", notice };
+}
+
+/** 一句话写完这一堆奖励，暗牌部分交给 rewardSecret 折成旁观者版本。 */
+function announceRewards(
+  state: GameState,
+  player: Player,
+  rewards: readonly PveRewardItem[],
+  line: (what: string) => string,
+) {
+  const describeRewards = (publicView: boolean) => rewards
+    .map((item, index) => {
+      const name = publicView ? item.publicName : item.name;
+      return index === 0 ? name : `${REWARD_CONNECTORS[item.source]}${name}`;
+    })
+    .join("，");
+  const combined = { name: describeRewards(false), publicName: describeRewards(true) };
+  addHistory(state, line(combined.name), rewardSecret(player, line, combined));
+}
+
 export function finishBattle(state: GameState, battle: BattleState, winnerSide: CombatSide) {
   // 先回收临时牌，再走任何分支——相遇战代价阶段会让败方交出一张卷轴
   dropTemporaryScrolls(state);
@@ -269,6 +320,8 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
       winnerSide,
     });
     const player = state.players[battle.aPlayerId];
+    // 战报里用折算后的名字，精英怪才不会在这一句退回成普通怪
+    const enemyName = battleEnemyStats(battle).name;
     if (battle.kind === "boss") {
       const stageId = battle.stageId;
       const region = stageId
@@ -280,14 +333,52 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         const from = player.position;
         player.position = following.entryIndex;
         player.checkpointTileId = following.entryIndex;
-        state.phase = { kind: "turnComplete" };
         emit(state, { type: "playerMoved", playerId: player.id, from, to: player.position });
-        addHistory(
-          state,
-          `${player.name}击败${battleEnemyStats(battle).name}，进入${following.name}！`,
-        );
+        addHistory(state, `${player.name}击败${enemyName}，进入${following.name}！`);
         // 落点就是下一阶段营地，回血走营地那条规则，不在首领奖励里另开一份
         restAtStageCamp(state, player, following);
+
+        const bossGold = grantGold(state, player, ECONOMY.bossGold, "pveReward");
+        const scrollReward = grantScroll(state, player);
+        // 装备放在最后发：槽位满时它会把阶段切成 equipmentChoice，后面的授奖就没地方落了
+        const equipmentReward = grantEquipment(state, player);
+        const rewards: PveRewardItem[] = [
+          {
+            source: "boss",
+            resourceType: "gold",
+            name: `${bossGold} 金币`,
+            publicName: `${bossGold} 金币`,
+          },
+          {
+            source: "boss",
+            resourceType: scrollReward.resourceType,
+            name: scrollReward.name,
+            publicName: scrollReward.publicName,
+          },
+          {
+            source: "boss",
+            resourceType: equipmentReward.resourceType,
+            name: equipmentReward.name,
+            publicName: equipmentReward.publicName,
+          },
+        ];
+        presentRewardNotice(
+          state,
+          {
+            playerId: player.id,
+            enemyName,
+            elite: false,
+            rewards,
+            statGrowth: true,
+          },
+          equipmentReward.pendingEquipmentChoice,
+        );
+        announceRewards(
+          state,
+          player,
+          rewards,
+          (what) => `${player.name}在${following.name}清点首领的战利品，获得${what}。`,
+        );
       } else {
         if (stageId) player.stageProgress[stageId].bossDefeated = true;
         state.phase = { kind: "gameOver", winnerId: player.id };
@@ -316,8 +407,6 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         { length: bonusPveVictoryScrolls(player) },
         () => grantScroll(state, player),
       );
-      // 战报里用折算后的名字，精英怪才不会在这一句退回成普通怪
-      const enemyName = battleEnemyStats(battle).name;
       const rewards: PveRewardItem[] = [
         {
           source: "battle",
@@ -350,39 +439,21 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
           publicName: item.publicName,
         })),
       ];
-      const notice: PveRewardNoticeState = {
-        playerId: player.id,
-        enemyName,
-        elite: battle.enemyAffix !== undefined,
-        rewards,
-      };
-      if (reward.pendingEquipmentChoice) {
-        if (state.phase.kind !== "equipmentChoice") {
-          throw new Error("装备奖励等待选择时应处于 equipmentChoice 阶段");
-        }
-        state.phase.choice.resume = { kind: "showPveReward", notice };
-      } else {
-        state.phase = { kind: "pveReward", notice };
-      }
-
-      const line = (what: string) => `${player.name}击败${enemyName}，获得${what}。`;
-      const describeRewards = (publicView: boolean) => rewards
-        .map((item, index) => {
-          const name = publicView ? item.publicName : item.name;
-          if (index === 0) return name;
-          if (item.source === "battle") return `并获得${name}`;
-          if (item.source === "elite") return `并因击败精英额外获得${name}`;
-          return `并因战争财阀额外获得${name}`;
-        })
-        .join("，");
-      const combinedReward = {
-        name: describeRewards(false),
-        publicName: describeRewards(true),
-      };
-      addHistory(
+      presentRewardNotice(
         state,
-        line(combinedReward.name),
-        rewardSecret(player, line, combinedReward),
+        {
+          playerId: player.id,
+          enemyName,
+          elite: battle.enemyAffix !== undefined,
+          rewards,
+        },
+        reward.pendingEquipmentChoice,
+      );
+      announceRewards(
+        state,
+        player,
+        rewards,
+        (what) => `${player.name}击败${enemyName}，获得${what}。`,
       );
     }
     return;

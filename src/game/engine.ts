@@ -23,6 +23,7 @@ import {
   rewardSecret,
 } from "./resources";
 import { addHistory, createInitialGame, emit, nextPlayerId, rollDie } from "./state";
+import { applyStatGrowth, STAT_GROWTH } from "./growth";
 import { restAtStageCamp, stageBossUnlocked } from "./stages";
 import {
   buyShopItem,
@@ -38,7 +39,14 @@ import {
   tradeEquipmentCapacityError,
   tradePlayerId,
 } from "./trading";
-import type { GameAction, GameState, MapTile, OwnedScroll, Player } from "./types";
+import type {
+  GameAction,
+  GameState,
+  MapTile,
+  OwnedScroll,
+  Player,
+  StatGrowthOption,
+} from "./types";
 
 /**
  * 回合与格子流程、动作分发，以及规则层的对外门面。
@@ -536,7 +544,27 @@ function resumeAfterEquipmentChoice(
 
 function acknowledgePveReward(state: GameState) {
   if (state.phase.kind !== "pveReward") return false;
+  const notice = state.phase.notice;
+  if (!notice.statGrowth) {
+    state.phase = { kind: "turnComplete" };
+    return true;
+  }
+  const stageId = regionForPosition(state.map, state.players[notice.playerId].position).id;
+  state.phase = {
+    kind: "statGrowthChoice",
+    choice: { playerId: notice.playerId, stageId },
+  };
+  return true;
+}
+
+/** 击败阶段首领后的三选一加点。 */
+function chooseStatGrowth(state: GameState, option: StatGrowthOption) {
+  if (state.phase.kind !== "statGrowthChoice") return false;
+  const player = state.players[state.phase.choice.playerId];
+  if (!player) return false;
+  applyStatGrowth(state, player, option);
   state.phase = { kind: "turnComplete" };
+  addHistory(state, `${player.name}选择了${STAT_GROWTH[option].name}。`);
   return true;
 }
 
@@ -941,6 +969,9 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
           phaseAfterChoice.notice.playerId === playerId
         ) {
           acknowledgePveReward(next);
+          if ((next.phase as GameState["phase"]).kind === "statGrowthChoice") {
+            chooseStatGrowth(next, "maxHp");
+          }
         }
       }
       if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
@@ -950,6 +981,15 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
     case "pveReward":
       if (next.phase.notice.playerId !== playerId) return state;
       acknowledgePveReward(next);
+      if ((next.phase as GameState["phase"]).kind === "statGrowthChoice") {
+        chooseStatGrowth(next, "maxHp");
+      }
+      if (next.activePlayerId === playerId) advanceCompletedTurn(next);
+      return next;
+    case "statGrowthChoice":
+      if (next.phase.choice.playerId !== playerId) return state;
+      // 掉线的人替他点生命上限：三档里只有它不改变这名玩家的战斗风格
+      chooseStatGrowth(next, "maxHp");
       if (next.activePlayerId === playerId) advanceCompletedTurn(next);
       return next;
     case "gameOver":
@@ -1074,6 +1114,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return choosePvpPenalty(next, action) ? next : state;
     case "chooseEquipment":
       return chooseEquipment(next, action.replaceInstanceId) ? next : state;
+    case "chooseStatGrowth":
+      return chooseStatGrowth(next, action.option) ? next : state;
   }
 }
 

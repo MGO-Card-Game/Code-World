@@ -308,9 +308,9 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 
 /* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
-.battle-modal, .penalty-modal, .encounter-choice-modal, .encounter-decision-modal, .trade-offer-modal, .trade-confirmation-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .shop-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
+.battle-modal, .penalty-modal, .encounter-choice-modal, .encounter-decision-modal, .trade-offer-modal, .trade-confirmation-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .stat-growth-modal, .shop-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
 .modal-kicker { color: #caa45f; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; }
-.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .encounter-decision-modal h2, .trade-offer-modal h2, .trade-confirmation-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .shop-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
+.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .encounter-decision-modal h2, .trade-offer-modal h2, .trade-confirmation-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .stat-growth-modal h2, .shop-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
 .battle-modal > h2 span { color: #a45a43; font: 900 14px Georgia, serif; padding: 0 12px; }
 .initiative-line { color: #887a68; font-size: 10px; }
 .combatants { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: center; gap: 13px; margin: 21px 0 17px; }
@@ -483,7 +483,17 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .pve-reward-item.source-blessing span { color: #b18ac8; }
 .pve-reward-item strong { color: #efd293; font: 700 15px "Noto Serif SC", serif; }
 .pve-reward-item small { color: #857763; font-size: 9px; }
+.pve-reward-item.source-boss { border-color: #d08d4c; background: linear-gradient(150deg, #46260f, #1a120c); box-shadow: inset 0 1px #f7b96e2b; }
+.pve-reward-item.source-boss span { color: #e39a55; }
 .pve-reward-modal .primary-button { margin-top: 3px; }
+.stat-growth-modal { width: min(600px, 100%); border-color: #b88b43; background: radial-gradient(circle at 50% 0, #43331d 0, #221b13 34%, #11100e 78%); }
+.stat-growth-modal > p { color: #ad9d85; font-size: 11px; }
+.stat-growth-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; margin-top: 20px; }
+.stat-growth-options button { min-height: 118px; padding: 15px 11px; border: 1px solid #7d6440; background: #17130e; color: #d5c0a1; display: grid; align-content: center; gap: 7px; }
+.stat-growth-options button:hover { border-color: #e0b264; background: #2c2116; }
+.stat-growth-options strong { color: #efd293; font: 700 15px "Noto Serif SC", serif; }
+.stat-growth-options small { color: #94856f; font-size: 9px; line-height: 1.6; }
+.stat-growth-options em { color: #9f8152; font-size: 9px; font-style: normal; letter-spacing: .1em; }
 .shop-backdrop { background: radial-gradient(circle, #4b3b1dcc, #080706ed 58%); }
 .shop-modal { width: min(560px, 100%); border-color: #a78343; background: radial-gradient(circle at 50% 0, #42351d, #201a12 38%, #11100e 78%); }
 .shop-modal > p { color: #a99b87; font-size: 11px; }

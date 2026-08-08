@@ -117,6 +117,9 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
     case "chooseEquipment":
       return state.phase.kind === "equipmentChoice" && state.phase.choice.playerId === actor;
 
+    case "chooseStatGrowth":
+      return state.phase.kind === "statGrowthChoice" && state.phase.choice.playerId === actor;
+
     case "submitScrollChoice": {
       if (state.phase.kind !== "battle") return false;
       const battle = state.phase.battle;
@@ -321,6 +324,8 @@ export function currentActor(state: GameState): PlayerId {
       return state.phase.choice.playerId;
     case "pveReward":
       return state.phase.notice.playerId;
+    case "statGrowthChoice":
+      return state.phase.choice.playerId;
     case "battle": {
       const battle = state.phase.battle;
       const attacker = battle.attacker;

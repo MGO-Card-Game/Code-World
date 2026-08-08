@@ -263,7 +263,7 @@ export interface BlessingChoiceState {
   penaltyWaiveReason?: "unyieldingWill" | "noPayable";
 }
 
-export type PveRewardSource = "battle" | "elite" | "blessing";
+export type PveRewardSource = "battle" | "elite" | "boss" | "blessing";
 
 /** PvE 胜利弹层中的一项奖励；卷轴同时保存私密名称和旁观者可见名称。 */
 export interface PveRewardItem {
@@ -279,6 +279,21 @@ export interface PveRewardNoticeState {
   enemyName: string;
   elite: boolean;
   rewards: PveRewardItem[];
+  /**
+   * 确认奖励后还要接一次自主加点。
+   *
+   * 加点写在奖励弹层之后而不是和它并列：装备槽满时奖励会先绕去 equipmentChoice，
+   * 让加点跟在确认动作后面，这条链路无论绕不绕路都只有一个出口。
+   */
+  statGrowth?: true;
+}
+
+/** 三选一的永久成长；数值和文案在 growth.ts 的 STAT_GROWTH。 */
+export type StatGrowthOption = "attack" | "defense" | "maxHp";
+
+export interface StatGrowthChoiceState {
+  playerId: PlayerId;
+  stageId: MapRegionId;
 }
 
 export interface EquipmentChoiceState {
@@ -305,10 +320,12 @@ export type GamePhase =
   | { kind: "pvpPenalty"; penalty: PvpPenaltyState }
   | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
   | { kind: "pveReward"; notice: PveRewardNoticeState }
+  | { kind: "statGrowthChoice"; choice: StatGrowthChoiceState }
   | { kind: "gameOver"; winnerId: PlayerId };
 
 export type HpChangeReason =
   | "camp"
+  | "growth"
   | "spring"
   | "event"
   | "equipment"
@@ -570,7 +587,9 @@ export type GameAction =
       instanceId?: string;
     }
   /** 装备槽已满时，省略 replaceInstanceId 表示放弃新装备。 */
-  | { type: "chooseEquipment"; replaceInstanceId?: string };
+  | { type: "chooseEquipment"; replaceInstanceId?: string }
+  /** 击败阶段首领后的自主加点，三选一。 */
+  | { type: "chooseStatGrowth"; option: StatGrowthOption };
 
 /**
  * 裁剪后的卷轴：对手只看得到牌背。

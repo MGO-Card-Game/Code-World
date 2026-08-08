@@ -139,7 +139,9 @@ describe("循环阶段地图", () => {
     expect(player.checkpointTileId).toBe(mountainside.entryIndex);
     // 落点就是云腰营地，残血通关不该带着 1 点血进下一阶段
     expect(player.hp).toBe(player.maxHp);
-    expect(state.phase.kind).toBe("turnComplete");
+    // 阶段首领会发奖励，弹层要由本人确认，不能直接回到 turnComplete
+    expect(state.phase.kind).toBe("pveReward");
+    state.phase = { kind: "turnComplete" };
 
     const summit = state.map.regions[2];
     const finalBoss = makeBattle({

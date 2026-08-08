@@ -72,6 +72,8 @@ function advanceAutomatically(state: GameState) {
       return gameReducer(state, { type: "chooseEquipment" });
     case "pveReward":
       return gameReducer(state, { type: "acknowledgePveReward" });
+    case "statGrowthChoice":
+      return gameReducer(state, { type: "chooseStatGrowth", option: "attack" });
     case "gameOver":
       return state;
   }

@@ -22,6 +22,8 @@ export const GOLD_SCALE = 10;
 export const ECONOMY = {
   pveGold: 5 * GOLD_SCALE,
   eliteBonusGold: 5 * GOLD_SCALE,
+  /** 阶段首领一局只打得到两次，给到够在新阶段做一次像样补给的量。 */
+  bossGold: 15 * GOLD_SCALE,
   treasureGold: 5 * GOLD_SCALE,
   eventGold: 5 * GOLD_SCALE,
   pvpTransferPercent: 20,

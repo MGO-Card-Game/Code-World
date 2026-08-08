@@ -137,8 +137,8 @@ describe("怪物战斗钩子", () => {
   });
 
   it("霜息：霜牙巨兽高于一半血时攻击 +2，与濒死反扑正好相反", () => {
-    // 霜牙巨兽 22 血，半血是 11
-    for (const [hpB, expected] of [[11, 0], [12, 2]] as const) {
+    // 霜牙巨兽 24 血，半血是 12；「高于一半」不含正好一半
+    for (const [hpB, expected] of [[12, 0], [13, 2]] as const) {
       const state = resolveRound(
         pveBattle(20260805, "frostFang", undefined, { attacker: "b", hpB }),
       );

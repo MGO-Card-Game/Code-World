@@ -133,7 +133,12 @@ export interface EquipmentDamageContext {
   incoming: number;
   /** 减免固定伤害量。 */
   reduceDamage: (by: number) => void;
-  /** 把伤害压到"扣完至少还剩 hp 点"，用于致命拦截。 */
+  /**
+   * 保证这次伤害结算后至少剩 hp 点生命，用于致命拦截。
+   *
+   * 若目标当前生命已经低于该下限，伤害会先被压到 0，再补足生命；因此也能表达
+   * “受到致命伤害时恢复至一定生命”的复苏类效果。
+   */
   keepAtLeast: (hp: number) => void;
   addBattleLog: (text: string) => void;
 }

@@ -1,6 +1,7 @@
 import {
   EQUIPMENT,
   EQUIPMENT_SLOT_LIMITS,
+  type EquipmentPickOptions,
   equipmentCategory,
   equipmentDefinition,
   pickEquipmentKind,
@@ -64,10 +65,18 @@ export function grantRandomResourceReward(
   state: GameState,
   player: Player,
   equipmentResume?: EquipmentChoiceState["resume"],
+  equipmentPickOptions?: EquipmentPickOptions,
 ): Reward {
   return rollDie(state, 2) === 1
     ? grantScroll(state, player)
-    : grantEquipment(state, player, undefined, equipmentResume);
+    : grantEquipment(
+      state,
+      player,
+      equipmentPickOptions
+        ? pickEquipmentKind(() => nextRandom(state), equipmentPickOptions)
+        : undefined,
+      equipmentResume,
+    );
 }
 
 /** 按奖励是否需要保密，拼出 addHistory 的第三个参数 */

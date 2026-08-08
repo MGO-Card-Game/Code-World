@@ -9,7 +9,7 @@ import { defineEnemies } from "./definition";
 export const ROAMING_ENEMIES = defineEnemies("roaming", {
   slime: {
     name: "史莱姆",
-    maxHp: 6,
+    maxHp: 8,
     attack: 1,
     defense: 0,
     regions: { foothill: 2 },
@@ -17,7 +17,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
 
   wolf: {
     name: "山狼",
-    maxHp: 9,
+    maxHp: 10,
     attack: 2,
     defense: 1,
     regions: { foothill: 1, mountainside: 2, summit: 1 },
@@ -25,7 +25,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
 
   golem: {
     name: "石像守卫",
-    maxHp: 13,
+    maxHp: 16,
     attack: 3,
     defense: 2,
     regions: { mountainside: 1, summit: 2 },
@@ -33,7 +33,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
 
   caveBats: {
     name: "岩穴蝠群",
-    maxHp: 6,
+    maxHp: 8,
     attack: 2,
     defense: 0,
     regions: { foothill: 1 },
@@ -43,7 +43,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
 
   thornbackBoar: {
     name: "荆背野猪",
-    maxHp: 10,
+    maxHp: 12,
     attack: 1,
     defense: 2,
     regions: { foothill: 1, mountainside: 1 },
@@ -51,7 +51,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
 
   mistSpider: {
     name: "雾毒蜘蛛",
-    maxHp: 9,
+    maxHp: 14,
     attack: 3,
     defense: 1,
     regions: { mountainside: 1, summit: 1 },
@@ -67,17 +67,17 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
 
   thunderEagle: {
     name: "雷羽鹰",
-    maxHp: 10,
-    attack: 4,
-    defense: 0,
+    maxHp: 14,
+    attack: 5,
+    defense: 1,
     regions: { mountainside: 1, summit: 1 },
   },
 
   iceShellLizard: {
     name: "冰壳蜥",
-    maxHp: 15,
+    maxHp: 18,
     attack: 2,
-    defense: 2,
+    defense: 3,
     regions: { summit: 1 },
   },
 });

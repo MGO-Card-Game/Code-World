@@ -1,5 +1,6 @@
 import { EQUIPMENT } from "./content/equipment";
 import {
+  acceptDrawnBlessing,
   blessingName,
   detachBlessing,
   receiveTransferredBlessing,
@@ -179,6 +180,31 @@ export function settleUnavailablePvpPenalty(state: GameState) {
 /** 赢家在已有赐福时，选择保留原赐福或用败方赐福覆盖。 */
 export function chooseBlessing(state: GameState, replace: boolean) {
   if (state.phase.kind !== "blessingChoice") return false;
+  const choice = state.phase.choice;
+  const winner = state.players[choice.winnerId];
+  const existing = winner.blessings[0];
+
+  if (choice.source === "tile") {
+    if (replace) {
+      const existingName = existing ? blessingName(existing) : undefined;
+      if (existing) detachBlessing(state, winner);
+      if (!acceptDrawnBlessing(state, winner, choice.offered)) return false;
+      addHistory(
+        state,
+        existingName
+          ? `${winner.name}放弃${existingName}，在「${choice.tileLabel}」接纳了${blessingName(choice.offered)}。`
+          : `${winner.name}在「${choice.tileLabel}」接纳了${blessingName(choice.offered)}。`,
+      );
+    } else {
+      addHistory(
+        state,
+        `${winner.name}保留当前赐福，${blessingName(choice.offered)}的力量从「${choice.tileLabel}」消散。`,
+      );
+    }
+    state.phase = { kind: "turnComplete" };
+    return true;
+  }
+
   const {
     winnerId,
     loserId,
@@ -186,10 +212,8 @@ export function chooseBlessing(state: GameState, replace: boolean) {
     tileIndex,
     penaltyWaived,
     penaltyWaiveReason,
-  } = state.phase.choice;
-  const winner = state.players[winnerId];
+  } = choice;
   const loser = state.players[loserId];
-  const existing = winner.blessings[0];
 
   if (replace) {
     const existingName = existing ? blessingName(existing) : undefined;

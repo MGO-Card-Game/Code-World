@@ -1,4 +1,5 @@
 import { equipmentDefinition } from "./content/equipment";
+import type { RarityWeights } from "./content/rarity";
 import {
   applyPvpPenaltyReplacement,
   bonusPveVictoryScrolls,
@@ -43,6 +44,14 @@ import type {
  * 一次或几次（开战、某一方倒下、临时牌与暗格回收），一轮之内的投骰与效果结算在那边。
  * 依赖只朝一个方向走：battleRound 用得到这里的函数，反过来没有。
  */
+
+/** 普通怪的基础装备池不掉落 PR；精英、宝箱、事件和商店仍走各自原有权重。 */
+export const NORMAL_ENEMY_EQUIPMENT_RARITY_WEIGHTS = {
+  N: 70,
+  R: 20,
+  SR: 10,
+  PR: 0,
+} as const satisfies RarityWeights;
 
 /** 折算过词缀的敌方属性。b 侧是玩家时不该调用。 */
 export function battleEnemyStats(battle: BattleState) {
@@ -169,6 +178,7 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
     state.phase = {
       kind: "blessingChoice",
       choice: {
+        source: "pvp",
         winnerId,
         loserId,
         offered: offeredBlessing,
@@ -397,7 +407,14 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
           addHistory(state, `${player.name}已满足${region.name}的首领挑战条件！`);
         }
       }
-      const reward = grantRandomResourceReward(state, player);
+      const reward = grantRandomResourceReward(
+        state,
+        player,
+        undefined,
+        battle.enemyAffix
+          ? undefined
+          : { rarityWeights: NORMAL_ENEMY_EQUIPMENT_RARITY_WEIGHTS },
+      );
       const eliteReward = battle.enemyAffix ? grantScroll(state, player) : undefined;
       const battleGold = grantGold(state, player, ECONOMY.pveGold, "pveReward");
       const eliteGold = battle.enemyAffix
@@ -507,6 +524,8 @@ function applyEquipmentBeforeDamage(
 ) {
   let damage = incoming;
   const ownHp = sideHp(battle, targetSide);
+  const ownMaxHp = sideMaxHp(state, battle, targetSide);
+  let minimumHpAfter = 0;
   // 两个改伤函数都收敛到这里，钳一次就够——外面再也没有别的路能改这个值
   const shrinkTo = (value: number) => {
     damage = Math.min(damage, Math.max(0, value));
@@ -521,10 +540,14 @@ function applyEquipmentBeforeDamage(
       player,
       item,
       ownHp,
-      ownMaxHp: sideMaxHp(state, battle, targetSide),
+      ownMaxHp,
       incoming,
       reduceDamage: (by) => shrinkTo(damage - Math.max(0, by)),
-      keepAtLeast: (hp) => shrinkTo(ownHp - Math.max(0, hp)),
+      keepAtLeast: (hp) => {
+        const floor = Math.min(ownMaxHp, Math.max(0, hp));
+        minimumHpAfter = Math.max(minimumHpAfter, floor);
+        shrinkTo(ownHp - floor);
+      },
       addBattleLog(text) {
         battle.log.unshift(text);
         battle.log = battle.log.slice(0, 8);
@@ -532,7 +555,7 @@ function applyEquipmentBeforeDamage(
     };
     effects.beforeDamage(context);
   });
-  return damage;
+  return { damage, minimumHpAfter };
 }
 
 /**
@@ -587,14 +610,31 @@ export function dealBattleDamage(
   rawDamage: number,
   logLine: (damage: number) => string,
 ) {
-  const damage = applyEquipmentBeforeDamage(
+  const { damage, minimumHpAfter } = applyEquipmentBeforeDamage(
     state,
     battle,
     sourceSide,
     targetSide,
     Math.max(0, rawDamage),
   );
-  return applyBattleHpLoss(state, battle, targetSide, damage, logLine(damage));
+  const defeated = applyBattleHpLoss(
+    state,
+    battle,
+    targetSide,
+    damage,
+    logLine(damage),
+  );
+  const hpAfterDamage = sideHp(battle, targetSide);
+  if (minimumHpAfter > hpAfterDamage) {
+    applyBattleHealing(
+      state,
+      battle,
+      targetSide,
+      minimumHpAfter - hpAfterDamage,
+      "不灭王铠",
+    );
+  }
+  return defeated && sideHp(battle, targetSide) <= 0;
 }
 
 export function applyDirectScrollDamage(

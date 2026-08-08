@@ -12,15 +12,15 @@ export type { BlessingDefinition } from "./definition";
 export const BLESSINGS = defineBlessings({
   giantStrength: {
     name: "巨人之力",
-    description: "攻击永久 +3。",
+    description: "攻击永久 +2。",
     weight: 1,
-    modifiers: [{ type: "statBonus", stat: "attack", value: 3 }],
+    modifiers: [{ type: "statBonus", stat: "attack", value: 2 }],
   },
   dragonScale: {
     name: "龙鳞护体",
-    description: "防御永久 +3。",
+    description: "防御永久 +2。",
     weight: 1,
-    modifiers: [{ type: "statBonus", stat: "defense", value: 3 }],
+    modifiers: [{ type: "statBonus", stat: "defense", value: 2 }],
   },
   favoredByFate: {
     name: "命运垂青",
@@ -52,7 +52,7 @@ export const BLESSINGS = defineBlessings({
   },
   unyieldingWill: {
     name: "不屈意志",
-    description: "相遇战战败时免除正常惩罚，改为损失 1 点真实生命，最低保留 1 点。",
+    description: "相遇战战败时免除正常惩罚，改为损失 1 点生命，最低保留 1 点。",
     weight: 1,
     modifiers: [],
     effects: [{ type: "replacePvpPenaltyWithHpLoss", amount: 1 }],
@@ -76,9 +76,12 @@ export function blessingDefinition(kind: BlessingKind): BlessingDefinition {
   return blessingTable[kind];
 }
 
-export function pickBlessingKind(random: () => number): BlessingKind | undefined {
+export function pickBlessingKind(
+  random: () => number,
+  excluded: readonly BlessingKind[] = [],
+): BlessingKind | undefined {
   const kinds = (Object.keys(BLESSINGS) as BlessingKind[]).filter(
-    (kind) => blessingDefinition(kind).enabled !== false,
+    (kind) => blessingDefinition(kind).enabled !== false && !excluded.includes(kind),
   );
   if (kinds.length === 0) return undefined;
   return pickWeighted(

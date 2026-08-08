@@ -26,16 +26,16 @@ export type RandomTileType = Exclude<TileType, "start" | "boss" | "gate">;
  * 加类型时要连带核对可行性：min 合计必须 ≤ 区域容量 ≤ max 合计，
  * 否则 chooseCounts 会抛「地图格数量规则无法填满」。
  * 现在是 min 23、max 29，每圈扣除守关门与营地后容量为 26。
- * 泉水固定两个，释放出的容量暂时转给事件格；商店固定一个。
+ * 泉水与商店固定两个；商店增加的名额从宝箱配额中划出。
  */
 export const MAP_TILE_LIMITS: Record<RandomTileType, TileCountRange> = {
   battle: { min: 6, max: 8 },
   elite: { min: 2, max: 3 },
   event: { min: 7, max: 9 },
-  treasure: { min: 4, max: 5 },
+  treasure: { min: 3, max: 4 },
   blessing: { min: 1, max: 1 },
   spring: { min: 2, max: 2 },
-  shop: { min: 1, max: 1 },
+  shop: { min: 2, max: 2 },
 };
 
 export const MAP_REGIONS: MapRegion[] = [

@@ -22,20 +22,23 @@ function pvpBattle(seed: number): GameState {
   return state;
 }
 
-/** 把本侧防御骰锁在骰面上限的测试砧。 */
-const LOCK_DEFENSE_MAX: EquipmentDefinition = {
-  name: "测试砧",
-  description: "把防御骰锁在最高面",
-  rarity: "N",
-  category: "accessory",
-  modifiers: [],
-  effects: {
-    beforeRoll({ dieKind, modifiers }) {
-      if (dieKind !== "defense") return;
-      modifiers.minimumRoll = 99;
+/** 把本侧防御骰锁在指定点数的测试砧。 */
+function lockDefenseAt(value: number): EquipmentDefinition {
+  return {
+    name: "测试砧",
+    description: `把防御骰锁在 ${value}`,
+    rarity: "N",
+    category: "accessory",
+    modifiers: [],
+    effects: {
+      beforeRoll({ dieKind, modifiers }) {
+        if (dieKind !== "defense") return;
+        modifiers.fixedRollDice += 1;
+        modifiers.fixedRollValue = value;
+      },
     },
-  },
-};
+  };
+}
 
 function addProbe(kind: string, definition: EquipmentDefinition) {
   (EQUIPMENT as Record<string, EquipmentDefinition>)[kind] = definition;
@@ -92,13 +95,14 @@ describe("岩心甲", () => {
     ]);
   });
 
-  it("防御骰掷出最高面时，本次伤害减少 3", () => {
-    const remove = addProbe("testLockDefenseMax", LOCK_DEFENSE_MAX);
+  it("防御骰掷出 1 时，本次伤害减少 3", () => {
+    const remove = addProbe("testLockDefenseOne", lockDefenseAt(1));
     try {
       let state = pvpBattle(7);
+      state.players.player1.baseAttack = 8;
       state.players.player2.equipment = [
         { instanceId: "armor-2", kind: "stoneheartArmor" },
-        { instanceId: "probe-1", kind: "testLockDefenseMax" as never },
+        { instanceId: "probe-1", kind: "testLockDefenseOne" as never },
       ];
       if (state.phase.kind !== "battle") throw new Error("unreachable");
       state.phase.battle.attacker = "a";
@@ -107,9 +111,9 @@ describe("岩心甲", () => {
 
       const attack = only(state.lastEvents, "attackRolled");
       const defense = only(state.lastEvents, "defenseRolled");
-      // 骰面上限 +1 来自普通 modifier；锁定的最高面已经必定命中
+      // 骰面上限 +1 仍然生效，但测试砧把实际点数锁在 1
       expect(defense.sides).toBe(7);
-      expect(defense.dice).toEqual([7]);
+      expect(defense.dice).toEqual([1]);
       const raw = Math.max(0, attack.total - defense.total);
       expect(only(state.lastEvents, "battleDamage").amount).toBe(Math.max(0, raw - 3));
     } finally {
@@ -117,28 +121,15 @@ describe("岩心甲", () => {
     }
   });
 
-  it("没掷出最高面时不减伤", () => {
-    // 骰面拉到 D21，掷中最高面的概率低到可以靠固定种子避开，理由同旧骑士长剑的对照用例
-    const remove = addProbe("testWideDefenseDie", {
-      name: "测试砧",
-      description: "把防御骰面拉大",
-      rarity: "N",
-      category: "accessory",
-      modifiers: [],
-      effects: {
-        beforeRoll({ dieKind, modifiers }) {
-          if (dieKind !== "defense") return;
-          modifiers.sidesOverride = 20;
-        },
-      },
-    });
+  it("没有掷出 1 时不减伤", () => {
+    const remove = addProbe("testLockDefenseTwo", lockDefenseAt(2));
 
     try {
       let state = pvpBattle(7);
       state.players.player1.baseAttack = 8;
       state.players.player2.equipment = [
         { instanceId: "armor-2", kind: "stoneheartArmor" },
-        { instanceId: "probe-1", kind: "testWideDefenseDie" as never },
+        { instanceId: "probe-1", kind: "testLockDefenseTwo" as never },
       ];
       if (state.phase.kind !== "battle") throw new Error("unreachable");
       state.phase.battle.attacker = "a";
@@ -147,8 +138,7 @@ describe("岩心甲", () => {
 
       const attack = only(state.lastEvents, "attackRolled");
       const defense = only(state.lastEvents, "defenseRolled");
-      // 前置条件：这一颗不能是最高面，否则本用例测的就不是"没触发"了
-      expect(defense.dice).not.toContain(defense.sides);
+      expect(defense.dice).toEqual([2]);
       const raw = Math.max(0, attack.total - defense.total);
       expect(only(state.lastEvents, "battleDamage").amount).toBe(raw);
     } finally {

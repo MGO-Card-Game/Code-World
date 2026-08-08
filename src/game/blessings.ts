@@ -3,6 +3,7 @@ import {
   pickBlessingKind,
 } from "./content/blessings";
 import { emit, makeInstanceId, nextRandom } from "./state";
+import type { BlessingKind } from "./content/blessings";
 import type { GameState, OwnedBlessing, Player } from "./types";
 import type { RollModifiers } from "./effects/battleHooks";
 
@@ -111,25 +112,44 @@ function removeBlessing(state: GameState, player: Player, blessing: OwnedBlessin
   }
 }
 
+/** 只抽取并创建赐福实例，不立即应用；用于已有赐福时先展示替换选择。 */
+export function drawRandomBlessing(
+  state: GameState,
+  excluded: readonly BlessingKind[] = [],
+): OwnedBlessing | undefined {
+  const kind = pickBlessingKind(() => nextRandom(state), excluded);
+  if (kind === undefined) return undefined;
+  return {
+    instanceId: makeInstanceId(state, "blessing"),
+    kind,
+  };
+}
+
+/** 接纳一个已抽出的新赐福，并发出公开获得事件。 */
+export function acceptDrawnBlessing(
+  state: GameState,
+  player: Player,
+  blessing: OwnedBlessing,
+) {
+  if (player.blessings.length > 0) return false;
+  applyBlessing(state, player, blessing);
+  emit(state, {
+    type: "blessingGranted",
+    playerId: player.id,
+    instanceId: blessing.instanceId,
+    kind: blessing.kind,
+  });
+  return true;
+}
+
 /** 随机授予一个赐福；内容池尚未配置时返回 undefined。 */
 export function grantRandomBlessing(
   state: GameState,
   player: Player,
 ): OwnedBlessing | undefined {
   if (player.blessings.length > 0) return undefined;
-  const kind = pickBlessingKind(() => nextRandom(state));
-  if (kind === undefined) return undefined;
-  const blessing: OwnedBlessing = {
-    instanceId: makeInstanceId(state, "blessing"),
-    kind,
-  };
-  applyBlessing(state, player, blessing);
-  emit(state, {
-    type: "blessingGranted",
-    playerId: player.id,
-    instanceId: blessing.instanceId,
-    kind,
-  });
+  const blessing = drawRandomBlessing(state);
+  if (!blessing || !acceptDrawnBlessing(state, player, blessing)) return undefined;
   return blessing;
 }
 

@@ -1,5 +1,10 @@
 import { startBattle } from "./battle";
-import { blessingName, bonusTreasureEquipment, grantRandomBlessing } from "./blessings";
+import {
+  blessingName,
+  bonusTreasureEquipment,
+  drawRandomBlessing,
+  grantRandomBlessing,
+} from "./blessings";
 import { ECONOMY, grantGold } from "./economy";
 import { startEncounterDecision } from "./encounters";
 import { resolveRandomMapEvent } from "./mapEvents";
@@ -107,8 +112,29 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
     }
     case "blessing": {
       if (player.blessings.length > 0) {
-        state.phase = { kind: "turnComplete" };
-        addHistory(state, `${player.name}已经拥有赐福，没有从「${tile.label}」重复获得。`);
+        const offered = drawRandomBlessing(
+          state,
+          player.blessings.map((blessing) => blessing.kind),
+        );
+        if (!offered) {
+          state.phase = { kind: "turnComplete" };
+          addHistory(state, `${player.name}来到「${tile.label}」，但没有可更换的新赐福。`);
+          return;
+        }
+        state.phase = {
+          kind: "blessingChoice",
+          choice: {
+            source: "tile",
+            winnerId: player.id,
+            offered,
+            tileIndex: tile.id,
+            tileLabel: tile.label,
+          },
+        };
+        addHistory(
+          state,
+          `${player.name}在「${tile.label}」发现${blessingName(offered)}，需要决定是否更换当前赐福。`,
+        );
         return;
       }
       const blessing = grantRandomBlessing(state, player);

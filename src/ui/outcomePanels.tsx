@@ -219,7 +219,7 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
   viewerSeat: PlayerId;
 }) {
   const winner = state.players[choice.winnerId];
-  const loser = state.players[choice.loserId];
+  const loser = choice.source === "pvp" ? state.players[choice.loserId] : undefined;
   const current = winner.blessings[0];
   const currentDefinition = current ? blessingDefinition(current.kind) : undefined;
   const offeredDefinition = blessingDefinition(choice.offered.kind);
@@ -235,8 +235,12 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
         transition={SPRING}
       >
         <div className="modal-kicker">赐福抉择</div>
-        <h2>{winner.name}夺得了{loser.name}的赐福</h2>
-        <p>每名玩家只能持有一个赐福。选择覆盖后，原赐福会永久消失。</p>
+        <h2>
+          {choice.source === "pvp"
+            ? `${winner.name}夺得了${loser!.name}的赐福`
+            : `${winner.name}在${choice.tileLabel}发现新的赐福`}
+        </h2>
+        <p>每名玩家只能持有一个赐福。选择更换后，原赐福会永久消失。</p>
         <div className="blessing-comparison">
           <div>
             <span>当前赐福</span>
@@ -244,7 +248,7 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
             <small>{currentDefinition?.description ?? "当前没有赐福"}</small>
           </div>
           <div className="offered">
-            <span>败方赐福</span>
+            <span>{choice.source === "pvp" ? "败方赐福" : "新赐福"}</span>
             <strong>{offeredDefinition.name}</strong>
             <small>{offeredDefinition.description}</small>
           </div>
@@ -256,7 +260,7 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
               <strong>{currentDefinition?.name ?? "不覆盖"}</strong>
             </button>
             <button className="replace-blessing" disabled={playing} onClick={() => dispatch({ type: "chooseBlessing", replace: true })}>
-              <span>覆盖原赐福</span>
+              <span>更换当前赐福</span>
               <strong>接纳{offeredDefinition.name}</strong>
             </button>
           </div>

@@ -277,8 +277,18 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
     }
     case "blessingChoice":
       if (next.phase.choice.winnerId !== playerId) return state;
-      chooseBlessing(next, false);
-      return next;
+      {
+        const source = next.phase.choice.source;
+        chooseBlessing(next, false);
+        if (
+          source === "tile" &&
+          (next.phase as GameState["phase"]).kind === "turnComplete" &&
+          next.activePlayerId === playerId
+        ) {
+          advanceCompletedTurn(next);
+        }
+        return next;
+      }
     case "pvpPenalty":
       if (next.phase.penalty.loserId !== playerId) return state;
       settleUnavailablePvpPenalty(next);

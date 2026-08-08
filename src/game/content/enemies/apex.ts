@@ -10,8 +10,8 @@ import { defineEnemies } from "./definition";
 export const APEX_ENEMIES = defineEnemies("apex", {
   banditChief: {
     name: "山匪头目",
-    maxHp: 18,
-    attack: 5,
+    maxHp: 28,
+    attack: 6,
     defense: 3,
     regions: { foothill: 1 },
     abilities: [{
@@ -32,9 +32,9 @@ export const APEX_ENEMIES = defineEnemies("apex", {
 
   frostFang: {
     name: "霜牙巨兽",
-    maxHp: 24,
-    attack: 5,
-    defense: 4,
+    maxHp: 40,
+    attack: 8,
+    defense: 5,
     regions: { mountainside: 1 },
     abilities: [{
       name: "霜息",

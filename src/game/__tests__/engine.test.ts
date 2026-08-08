@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { NORMAL_ENEMY_EQUIPMENT_RARITY_WEIGHTS } from "../battle";
 import { createInitialGame, gameReducer } from "../engine";
 import {
   makeBattle,
@@ -6,7 +7,7 @@ import {
   PLAYTHROUGH_SEED,
   resolveRound,
 } from "../testSupport";
-import { EQUIPMENT_SLOT_LIMITS, equipmentCategory } from "../content/equipment";
+import { EQUIPMENT, EQUIPMENT_SLOT_LIMITS, equipmentCategory } from "../content/equipment";
 import type { GameState } from "../types";
 
 function advanceAutomatically(state: GameState) {
@@ -129,6 +130,28 @@ describe("game engine", () => {
 
       expect(outcomes).toEqual(new Set(["scroll", "equipment"]));
     }
+  });
+
+  it("普通怪基础装备按 70/20/10/0 抽取，不会掉落 PR", () => {
+    expect(NORMAL_ENEMY_EQUIPMENT_RARITY_WEIGHTS)
+      .toEqual({ N: 70, R: 20, SR: 10, PR: 0 });
+    const observed = new Set<string>();
+
+    for (let seed = 1; seed <= 400; seed += 1) {
+      let state = createInitialGame(seed);
+      state.players.player1.baseAttack = 99;
+      state.phase = {
+        kind: "battle",
+        battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId: "slime", hpB: 1 }),
+      };
+
+      state = resolveRound(state);
+      const equipment = state.players.player1.equipment[0];
+      if (equipment) observed.add(EQUIPMENT[equipment.kind].rarity);
+    }
+
+    expect(observed).toEqual(new Set(["N", "R", "SR"]));
+    expect(observed.has("PR")).toBe(false);
   });
 
   it("精英胜利在基础奖励外必定追加一张卷轴，并等待玩家确认", () => {

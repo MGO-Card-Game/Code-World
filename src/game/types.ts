@@ -256,8 +256,9 @@ export interface BossGateChoiceState {
   bossEnemyId: EnemyKind;
 }
 
-/** 赢家已有赐福时，决定是否用败方的赐福覆盖自己当前持有的一个。 */
-export interface BlessingChoiceState {
+/** PvP 赢家已有赐福时，决定是否接纳败方失去的赐福。 */
+export interface PvpBlessingChoiceState {
+  source: "pvp";
   winnerId: PlayerId;
   loserId: PlayerId;
   offered: OwnedBlessing;
@@ -265,6 +266,17 @@ export interface BlessingChoiceState {
   penaltyWaived?: true;
   penaltyWaiveReason?: "unyieldingWill" | "noPayable";
 }
+
+/** 已有赐福的玩家再次踩中赐福格时，决定是否换成新抽到的赐福。 */
+export interface TileBlessingChoiceState {
+  source: "tile";
+  winnerId: PlayerId;
+  offered: OwnedBlessing;
+  tileIndex: number;
+  tileLabel: string;
+}
+
+export type BlessingChoiceState = PvpBlessingChoiceState | TileBlessingChoiceState;
 
 export type PveRewardSource = "battle" | "elite" | "boss" | "blessing";
 

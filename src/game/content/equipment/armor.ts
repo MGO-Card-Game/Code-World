@@ -49,21 +49,22 @@ export const ARMOR = defineEquipment("armor", {
 
   undyingKingPlate: {
     name: "不灭王铠",
-    description: "防御骰上限 +3；本场战斗第一次受到致命伤害时，保留 1 点生命",
+    description: "防御骰上限 +3；本场战斗第一次受到致命伤害时，保留一半最大生命（向上取整）",
     rarity: "PR",
     modifiers: [{ type: "dieSides", die: "defense", value: 3 }],
     effects: {
       /*
         「致命」按这一下打完会不会归零算，所以判 incoming >= ownHp 而不是判血量高低。
-        血只剩 1 点时任何伤害都是致命的，keepAtLeast(1) 会把伤害压到 0——这仍然算
-        一次触发，和牌面「第一次受到致命伤害」对得上。
+        目标可能在低于半血时触发，此时 keepAtLeast 会先把伤害压到 0，再由伤害入口
+        补足到半血；奇数上限向上取整，确保实际保留不少于最大生命的一半。
       */
-      beforeDamage({ incoming, ownHp, item, keepAtLeast, addBattleLog }) {
+      beforeDamage({ incoming, ownHp, ownMaxHp, item, keepAtLeast, addBattleLog }) {
         if (item.battleMemo !== undefined) return;
         if (incoming < ownHp) return;
         item.battleMemo = 1;
-        keepAtLeast(1);
-        addBattleLog("不灭王铠挡住致命一击，保留 1 点生命。");
+        const retainedHp = Math.ceil(ownMaxHp / 2);
+        keepAtLeast(retainedHp);
+        addBattleLog(`不灭王铠挡住致命一击，保留 ${retainedHp} 点生命。`);
       },
     },
   },
@@ -110,22 +111,20 @@ export const ARMOR = defineEquipment("armor", {
 
   stoneheartArmor: {
     name: "岩心甲",
-    description: "防御骰上限 +1；防御骰掷出最高面时，本次伤害减少 3",
+    description: "防御骰上限 +1；防御骰掷出 1 时，本次伤害减少 3",
     rarity: "R",
     modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
     effects: {
       /*
-        与旧骑士长剑对称：那把武器在攻击骰打出上限时追加伤害，这件护甲在
-        防御骰打出上限时减免伤害。damageReduction 直接写在 afterRoll 里就够了——
-        它和 beforeDamage 一样会被计入最终伤害公式，不需要另开一个钩子。
-        取本次实际骰面上限而不是写死 6，理由同旧骑士长剑：叠了骰面装备后
-        「6」就不再是这次投骰真正的上限。
+        岩心甲把防御骰的低点转化为减伤：多骰时任意一颗掷出 1 即触发，但每次只减 3。
+        damageReduction 直接写在 afterRoll 里就够了——它和 beforeDamage 一样会被计入
+        最终伤害公式，不需要另开一个钩子。
       */
       afterRoll({ dieKind, roll, modifiers, addBattleLog }) {
         if (dieKind !== "defense") return;
-        if (!roll.dice.includes(roll.sides)) return;
+        if (!roll.dice.includes(1)) return;
         modifiers.damageReduction += 3;
-        addBattleLog(`岩心甲挡下防御骰的 ${roll.sides}，本次伤害减少 3。`);
+        addBattleLog("岩心甲将防御骰的 1 化作岩障，本次伤害减少 3。");
       },
     },
   },

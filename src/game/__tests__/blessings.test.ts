@@ -224,6 +224,45 @@ describe("赐福持有与 PvP 覆盖", () => {
     expect(resolved.message.text).toContain("获得永久赐福");
   });
 
+  it("已有赐福时再次踩格，可以保留当前赐福", () => {
+    const state = createInitialGame(124);
+    const playerId = state.activePlayerId;
+    const current = giveBlessing(state.players[playerId], "giantStrength", "current-blessing");
+
+    const offered = forceLandingOn(state, "blessing");
+
+    expect(offered.phase.kind).toBe("blessingChoice");
+    if (offered.phase.kind !== "blessingChoice") throw new Error("应进入赐福替换选择");
+    expect(offered.phase.choice.source).toBe("tile");
+    expect(offered.phase.choice.offered.kind).not.toBe(current.kind);
+    expect(currentActor(offered)).toBe(playerId);
+    expect(canAct(offered, { type: "chooseBlessing", replace: false }, playerId)).toBe(true);
+
+    const resolved = gameReducer(offered, { type: "chooseBlessing", replace: false });
+    expect(resolved.players[playerId].blessings).toEqual([current]);
+    expect(resolved.phase.kind).toBe("turnComplete");
+  });
+
+  it("已有赐福时再次踩格，可以更换为新赐福", () => {
+    const state = createInitialGame(125);
+    const playerId = state.activePlayerId;
+    giveBlessing(state.players[playerId], "dragonScale", "old-blessing");
+    const offeredState = forceLandingOn(state, "blessing");
+    if (offeredState.phase.kind !== "blessingChoice") throw new Error("应进入赐福替换选择");
+    const offered = offeredState.phase.choice.offered;
+
+    const resolved = gameReducer(offeredState, { type: "chooseBlessing", replace: true });
+
+    expect(resolved.players[playerId].blessings).toEqual([offered]);
+    expect(resolved.phase.kind).toBe("turnComplete");
+    expect(resolved.lastEvents).toContainEqual(expect.objectContaining({
+      type: "blessingGranted",
+      playerId,
+      instanceId: offered.instanceId,
+      kind: offered.kind,
+    }));
+  });
+
   it("赢家没有赐福时，败方赐福自动转移给赢家", () => {
     const state = createInitialGame(77);
     const loser = state.players.player1;

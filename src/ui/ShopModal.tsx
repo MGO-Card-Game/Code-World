@@ -1,7 +1,14 @@
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  SCROLL_CATEGORY_NAMES,
+  SCROLL_CATEGORY_SIGILS,
+  SCROLLS,
+  scrollCategory,
+} from "../game/content/scrolls";
 import { canUseShop, ECONOMY } from "../game/economy";
-import type { GameStateView, PlayerId } from "../game/types";
-import { ModalBackdrop, SPRING, type Dispatch } from "./shared";
+import type { GameStateView, OwnedScroll, PlayerId } from "../game/types";
+import { ModalBackdrop, SPRING, type Dispatch, visibleScrolls } from "./shared";
 
 export function ShopModal({ state, viewerSeat, dispatch, onClose }: {
   state: GameStateView;
@@ -10,9 +17,24 @@ export function ShopModal({ state, viewerSeat, dispatch, onClose }: {
   onClose: () => void;
 }) {
   const player = state.players[state.activePlayerId];
+  const cards = visibleScrolls(player.scrolls);
+  const knownScrollIds = useRef(new Set(cards.map((scroll) => scroll.instanceId)));
+  const [revealedScroll, setRevealedScroll] = useState<OwnedScroll | null>(null);
+
+  useEffect(() => {
+    let gained: OwnedScroll | undefined;
+    for (const scroll of cards) {
+      if (!knownScrollIds.current.has(scroll.instanceId)) gained = scroll;
+      knownScrollIds.current.add(scroll.instanceId);
+    }
+    if (gained) setRevealedScroll(gained);
+  }, [player.scrolls]);
+
   if (viewerSeat !== player.id || !canUseShop(state, player)) return null;
   const canHeal = player.hp < player.maxHp && player.gold >= ECONOMY.shop.healing.price;
   const canBuyScroll = player.gold >= ECONOMY.shop.scroll.price;
+  const revealedDefinition = revealedScroll ? SCROLLS[revealedScroll.kind] : undefined;
+  const revealedCategory = revealedDefinition ? scrollCategory(revealedDefinition) : undefined;
 
   return (
     <ModalBackdrop className="shop-backdrop">
@@ -48,6 +70,46 @@ export function ShopModal({ state, viewerSeat, dispatch, onClose }: {
           </button>
         </div>
         <button type="button" className="ghost-button" onClick={onClose}>离开旅商</button>
+        <AnimatePresence>
+          {revealedScroll && revealedDefinition && revealedCategory && (
+            <motion.div
+              className="shop-reward-reveal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="shop-reward-title"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16 }}
+            >
+              <motion.div
+                className={`shop-reward-card scroll-${revealedScroll.kind} card-${revealedCategory}`}
+                initial={{ opacity: 0, y: 36, scale: 0.72, rotate: -5 }}
+                animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
+                exit={{ opacity: 0, y: -18, scale: 0.88 }}
+                transition={SPRING}
+              >
+                <span className={`card-rarity rarity-${revealedDefinition.rarity.toLowerCase()}`}>
+                  {revealedDefinition.rarity}
+                </span>
+                <span className={`shop-reward-sigil type-${revealedCategory}`} aria-hidden="true">
+                  {SCROLL_CATEGORY_SIGILS[revealedCategory]}
+                </span>
+                <span className="shop-reward-kicker">获得卷轴</span>
+                <h3 id="shop-reward-title">{revealedDefinition.name}</h3>
+                <span className="shop-reward-category">{SCROLL_CATEGORY_NAMES[revealedCategory]}</span>
+                <p>{revealedDefinition.description}</p>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => setRevealedScroll(null)}
+                >
+                  收下并继续补给
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.section>
     </ModalBackdrop>
   );

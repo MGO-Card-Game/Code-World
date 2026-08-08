@@ -222,7 +222,7 @@ describe("不灭王铠", () => {
     ]);
   });
 
-  it("致命一击后保留 1 点生命，战斗不结束", () => {
+  it("致命一击后恢复至一半最大生命，战斗不结束", () => {
     withAnvil(() => {
       let state = oneSidedBattle(99, 4);
       state.players.player2.equipment = [
@@ -233,13 +233,17 @@ describe("不灭王铠", () => {
 
       const damage = only(state.lastEvents, "battleDamage");
       expect(damage.hpBefore).toBe(4);
-      expect(damage.hpAfter).toBe(1);
-      expect(damage.amount).toBe(3);
+      expect(damage.hpAfter).toBe(4);
+      expect(damage.amount).toBe(0);
+      const healed = only(state.lastEvents, "battleHealed");
+      expect(healed.hpBefore).toBe(4);
+      expect(healed.hpAfter).toBe(10);
+      expect(healed.amount).toBe(6);
       expect(state.phase.kind).toBe("battle");
     });
   });
 
-  it("只剩 1 点生命时把伤害压到 0", () => {
+  it("低于半血时把伤害压到 0，再补足至半血", () => {
     withAnvil(() => {
       let state = oneSidedBattle(99, 1);
       state.players.player2.equipment = [
@@ -249,7 +253,22 @@ describe("不灭王铠", () => {
       state = resolveRound(state);
 
       expect(only(state.lastEvents, "battleDamage").amount).toBe(0);
+      expect(only(state.lastEvents, "battleHealed").hpAfter).toBe(10);
       expect(state.phase.kind).toBe("battle");
+    });
+  });
+
+  it("最大生命为奇数时向上取整", () => {
+    withAnvil(() => {
+      let state = oneSidedBattle(99, 4);
+      state.players.player2.maxHp = 21;
+      state.players.player2.equipment = [
+        { instanceId: "plate-1", kind: "undyingKingPlate" },
+      ];
+
+      state = resolveRound(state);
+
+      expect(only(state.lastEvents, "battleHealed").hpAfter).toBe(11);
     });
   });
 
@@ -298,7 +317,7 @@ describe("不灭王铠", () => {
 
       // 第 1 轮挡住
       state = resolveRound(state);
-      expect(only(state.lastEvents, "battleDamage").hpAfter).toBe(1);
+      expect(only(state.lastEvents, "battleHealed").hpAfter).toBe(10);
       expect(plate()?.battleMemo).toBe(1);
 
       // 第 2 轮 b 攻 a，第 3 轮 a 再打一次致命伤害——这次没得挡，战斗结束
@@ -318,7 +337,7 @@ describe("不灭王铠", () => {
         }),
       };
       state = resolveRound(state);
-      expect(only(state.lastEvents, "battleDamage").hpAfter).toBe(1);
+      expect(only(state.lastEvents, "battleHealed").hpAfter).toBe(10);
     });
   });
 });

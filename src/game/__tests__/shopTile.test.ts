@@ -24,7 +24,7 @@ function enterShop(seed = 20260808) {
   const tile = state.map.tiles.find(
     (candidate) => candidate.type === "shop" && candidate.region === "foothill",
   );
-  if (!tile) throw new Error("山脚应生成一个商店格");
+  if (!tile) throw new Error("山脚应生成商店格");
   player.position = tile.id;
   resolveTile(state, tile);
   if (state.phase.kind !== "shop") throw new Error("踩商店格后应进入 shop phase");
@@ -184,13 +184,13 @@ describe("商店格购买与状态恢复", () => {
 });
 
 describe("商店格联机与地图语义", () => {
-  it("每个区域恰好一个安全商店，同格对手不会抢先触发相遇", () => {
+  it("每个区域恰好两个安全商店，同格对手不会抢先触发相遇", () => {
     const entered = enterShop(8201);
     for (const region of entered.state.map.regions) {
       const shops = entered.state.map.tiles.slice(region.startIndex, region.endIndex + 1)
         .filter((tile) => tile.type === "shop");
-      expect(shops).toHaveLength(1);
-      expect(shops[0].safeZone).toBe(true);
+      expect(shops).toHaveLength(2);
+      expect(shops.every((shop) => shop.safeZone)).toBe(true);
     }
 
     const state = createInitialGame(8202);

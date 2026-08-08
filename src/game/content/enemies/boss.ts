@@ -14,9 +14,9 @@ import { defineEnemies } from "./definition";
 export const BOSS_ENEMIES = defineEnemies("boss", {
   dragon: {
     name: "峰顶巨龙",
-    maxHp: 40,
-    attack: 5,
-    defense: 4,
+    maxHp: 100,
+    attack: 10,
+    defense: 8,
     abilities: [
       { name: "龙鳞", description: "防御骰上限 +2（D6 提升为 D8）。" },
       { name: "暴怒", description: "自身生命低于一半时，本次攻击 +2。" },

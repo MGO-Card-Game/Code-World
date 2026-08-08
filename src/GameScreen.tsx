@@ -54,6 +54,8 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
   const [inspectingEquipment, setInspectingEquipment] = useState<EquipmentKind | null>(null);
   const [inspectingBoss, setInspectingBoss] = useState<MapRegionId | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<"player" | "history" | null>(null);
+  const [boardFocused, setBoardFocused] = useState(false);
   const activePlayer = state.players[state.activePlayerId];
   const lingeringBattle = useLingeringBattle(state, playback);
   const players = state.turnOrder.map((id) => state.players[id]);
@@ -109,7 +111,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
         {toolbar}
       </header>
 
-      <div className="game-layout">
+      <div className={`game-layout ${boardFocused ? "board-focused" : ""}`}>
         <aside className="player-roster" aria-label="玩家列表">
           <div className="player-roster-heading">
             <span>冒险家们：</span>
@@ -128,37 +130,90 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
                 stageName={stage.stageName}
                 stageStatus={stage.stageStatus}
                 playback={playback}
-                onSelect={() => setSelectedPlayerId(player.id)}
+                onSelect={() => {
+                  setSelectedPlayerId(player.id);
+                  setInspectorTab("player");
+                }}
               />
               );
             })}
           </div>
         </aside>
-        <Board state={state} playback={playback} onInspectBoss={setInspectingBoss} />
-        <PlayerPanel
-          key={selectedPlayer.id}
-          player={selectedPlayer}
-          active={state.activePlayerId === selectedPlayer.id}
-          stageName={selectedStage.stageName}
-          stageStatus={selectedStage.stageStatus}
-          playback={playback}
-          onInspect={() => setInspecting(selectedPlayer.id)}
-          onInspectEquipment={setInspectingEquipment}
-        />
+        <section className="board-column">
+          <Board
+            state={state}
+            playback={playback}
+            onInspectBoss={setInspectingBoss}
+            focused={boardFocused}
+            onToggleFocus={() => setBoardFocused((focused) => !focused)}
+          />
+          <ActionDock
+            state={state}
+            dispatch={dispatch}
+            message={dockMessage}
+            playback={playback}
+            viewerSeat={viewerSeat}
+            onOpenShop={() => setShopOpen(true)}
+          />
+        </section>
+        <aside className="inspector-rail" aria-label="信息面板">
+          <button
+            type="button"
+            className={inspectorTab === "player" ? "selected" : ""}
+            aria-expanded={inspectorTab === "player"}
+            onClick={() => setInspectorTab((tab) => tab === "player" ? null : "player")}
+          >
+            <span aria-hidden="true">人</span>
+            <strong>角色</strong>
+          </button>
+          <button type="button" onClick={() => setInspecting(selectedPlayer.id)}>
+            <span aria-hidden="true">囊</span>
+            <strong>资源</strong>
+          </button>
+          <button
+            type="button"
+            className={inspectorTab === "history" ? "selected" : ""}
+            aria-expanded={inspectorTab === "history"}
+            onClick={() => setInspectorTab((tab) => tab === "history" ? null : "history")}
+          >
+            <span aria-hidden="true">录</span>
+            <strong>记录</strong>
+          </button>
+          {inspectorTab && (
+            <div className={`inspector-drawer ${inspectorTab === "history" ? "history-drawer" : ""}`}>
+              <button
+                type="button"
+                className="inspector-drawer-close"
+                aria-label="关闭信息面板"
+                onClick={() => setInspectorTab(null)}
+              >
+                ×
+              </button>
+              {inspectorTab === "player" ? (
+                <PlayerPanel
+                  key={selectedPlayer.id}
+                  player={selectedPlayer}
+                  active={state.activePlayerId === selectedPlayer.id}
+                  stageName={selectedStage.stageName}
+                  stageStatus={selectedStage.stageStatus}
+                  playback={playback}
+                  onInspect={() => setInspecting(selectedPlayer.id)}
+                  onInspectEquipment={setInspectingEquipment}
+                />
+              ) : (
+                <section className="history-panel">
+                  <span className="eyebrow">旅途轨迹</span>
+                  <h2>冒险记录</h2>
+                  <div>
+                    {state.history.length === 0 && <p>旅途尚未留下记录。</p>}
+                    {state.history.map((entry, index) => <p key={`${index}-${entry.text}`}>{entry.text}</p>)}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+        </aside>
       </div>
-
-      <ActionDock
-        state={state}
-        dispatch={dispatch}
-        message={dockMessage}
-        playback={playback}
-        viewerSeat={viewerSeat}
-        onOpenShop={() => setShopOpen(true)}
-      />
-      <details className="history-panel">
-        <summary>冒险记录</summary>
-        {state.history.map((entry, index) => <p key={`${index}-${entry.text}`}>{entry.text}</p>)}
-      </details>
 
       {/*
         所有规则阶段弹层放在同一个 AnimatePresence 下，阶段切换时才有进退场衔接。

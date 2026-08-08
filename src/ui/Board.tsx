@@ -48,10 +48,12 @@ function ringGridPosition(index: number, columns: number, rows: number) {
 /**
  * 三阶段分页环形棋盘。每次只渲染一个阶段，仍支持拖动与缩放（规格 4.3）。
  */
-export function Board({ state, playback, onInspectBoss }: {
+export function Board({ state, playback, onInspectBoss, focused, onToggleFocus }: {
   state: GameStateView;
   playback: Playback;
   onInspectBoss: (regionId: MapRegionId) => void;
+  focused: boolean;
+  onToggleFocus: () => void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -168,6 +170,22 @@ export function Board({ state, playback, onInspectBoss }: {
 
   useEffect(() => {
     const viewport = viewportRef.current;
+    if (!viewport || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      setTransform((current) => constrain(current));
+    });
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [constrain]);
+
+  useEffect(() => {
+    if (!focused) return;
+    const frame = requestAnimationFrame(fitBoard);
+    return () => cancelAnimationFrame(frame);
+  }, [fitBoard, focused]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
     if (!viewport) return;
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
@@ -259,6 +277,7 @@ export function Board({ state, playback, onInspectBoss }: {
         <button type="button" onClick={() => zoomAt(transform.scale + 0.15)} aria-label="放大棋盘">＋</button>
         <button className={viewMode === "overview" ? "selected" : ""} type="button" aria-pressed={viewMode === "overview"} onClick={fitBoard} title="查看完整阶段环路">总览</button>
         <button className={viewMode === "action" ? "selected" : ""} type="button" aria-pressed={viewMode === "action"} onClick={followActivePlayer}>行动者</button>
+        <button className={focused ? "selected" : ""} type="button" aria-pressed={focused} onClick={onToggleFocus}>专注</button>
       </div>
       <div
         ref={viewportRef}

@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { useState } from "react";
 import { handCardLayout, handSpacing } from "../anim/handLayout";
 import { EQUIPMENT, type EquipmentKind } from "../game/content/equipment";
 import { blessingDefinition } from "../game/content/blessings";
@@ -9,7 +10,9 @@ import {
   scrollCategory,
   scrollDefinition,
 } from "../game/content/scrolls";
-import type { PlayerView } from "../game/types";
+import { regionForPosition } from "../game/map";
+import { getDieSidesBonus } from "../game/selectors";
+import type { GameMap, PlayerView } from "../game/types";
 import {
   ModalBackdrop,
   revealedScrolls,
@@ -29,6 +32,7 @@ const RESOURCE_RAIL_WIDTH = 520;
  */
 export function ResourceModal({
   player,
+  map,
   playback,
   onClose,
   onInspectEquipment,
@@ -36,16 +40,23 @@ export function ResourceModal({
   onUseMapScroll,
 }: {
   player: PlayerView;
+  map: GameMap;
   playback: Playback;
   onClose: () => void;
   onInspectEquipment: (kind: EquipmentKind) => void;
   mapUsePhase?: "awaitingRoll" | "turnComplete";
-  onUseMapScroll: (instanceId: string) => void;
+  onUseMapScroll: (instanceId: string, distance?: number, targetPosition?: number) => void;
 }) {
   // 只有看得见牌面的才铺开；对手的手牌在视图里已是牌背，这里拿不到牌名
   const cards = visibleScrolls(revealedScrolls(player, playback));
   const hiddenCount = revealedScrolls(player, playback).length - cards.length;
   const spacing = handSpacing(cards.length, RESOURCE_RAIL_WIDTH);
+  // 灵活行动/短程传送符/触手可得这类卡需要玩家先选点数再使用，按卡实例各记一份待选值
+  const [pendingDistance, setPendingDistance] = useState<Record<string, number>>({});
+  // 任意门：待选的绝对格子编号，同样按卡实例各记一份
+  const [pendingTarget, setPendingTarget] = useState<Record<string, number>>({});
+  const movementSides = Math.max(2, 6 + getDieSidesBonus(player, "movement"));
+  const currentRegion = regionForPosition(map, player.position);
 
   return (
     <ModalBackdrop className="resource-backdrop" onClick={onClose}>
@@ -78,9 +89,40 @@ export function ResourceModal({
               const forfeitsMovement = definition.effects.some(
                 (effect) => effect.type === "forfeitMovement",
               );
+              const isHealEffect = definition.effects.some(
+                (effect) => effect.type === "heal" && effect.amount > 0,
+              );
+              // 灵活行动/短程传送符/触手可得：本身就是一次移动，只能替代还没掷骰的那一次
+              const movementEffect = definition.effects.find(
+                (effect) => effect.type === "chooseMovement" || effect.type === "teleport",
+              );
+              const maxDistance = movementEffect
+                ? movementEffect.type === "chooseMovement"
+                  ? movementSides
+                  : movementEffect.maxDistance
+                : undefined;
+              const distance = Math.min(
+                maxDistance ?? 1,
+                Math.max(1, pendingDistance[scroll.instanceId] ?? maxDistance ?? 1),
+              );
+              // 任意门：目标是当前阶段内的绝对格子编号，不受距离限制
+              const isAnywhereDoor = definition.effects.some(
+                (effect) => effect.type === "teleportAnywhere",
+              );
+              const targetPosition = isAnywhereDoor
+                ? Math.min(
+                    currentRegion.endIndex,
+                    Math.max(
+                      currentRegion.startIndex,
+                      pendingTarget[scroll.instanceId] ?? player.position,
+                    ),
+                  )
+                : undefined;
+              const isMovementScroll = !!movementEffect || isAnywhereDoor;
               const mapUseDisabled =
-                player.hp >= player.maxHp ||
-                (forfeitsMovement && mapUsePhase === "turnComplete");
+                (isHealEffect && player.hp >= player.maxHp) ||
+                (forfeitsMovement && mapUsePhase === "turnComplete") ||
+                (isMovementScroll && mapUsePhase !== "awaitingRoll");
               return (
                 <motion.article
                   key={scroll.instanceId}
@@ -105,19 +147,111 @@ export function ResourceModal({
                   </span>
                   <span className="hand-card-name">{SCROLLS[scroll.kind].name}</span>
                   <span className="hand-card-effect">{SCROLLS[scroll.kind].description}</span>
+                  {movementEffect && mapUsePhase && (
+                    <div className="hand-card-distance">
+                      <button
+                        type="button"
+                        aria-label="减少格数"
+                        disabled={mapUseDisabled || distance <= 1}
+                        onClick={() =>
+                          setPendingDistance((prev) => ({
+                            ...prev,
+                            [scroll.instanceId]: Math.max(1, distance - 1),
+                          }))
+                        }
+                      >
+                        −
+                      </button>
+                      <span>{distance} 格</span>
+                      <button
+                        type="button"
+                        aria-label="增加格数"
+                        disabled={mapUseDisabled || distance >= (maxDistance ?? distance)}
+                        onClick={() =>
+                          setPendingDistance((prev) => ({
+                            ...prev,
+                            [scroll.instanceId]: Math.min(maxDistance ?? distance, distance + 1),
+                          }))
+                        }
+                      >
+                        ＋
+                      </button>
+                    </div>
+                  )}
+                  {isAnywhereDoor && mapUsePhase && (
+                    <div className="hand-card-distance hand-card-target">
+                      <button
+                        type="button"
+                        aria-label="目标格前移"
+                        disabled={mapUseDisabled || targetPosition! <= currentRegion.startIndex}
+                        onClick={() =>
+                          setPendingTarget((prev) => ({
+                            ...prev,
+                            [scroll.instanceId]: Math.max(currentRegion.startIndex, targetPosition! - 1),
+                          }))
+                        }
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        aria-label="目标格编号"
+                        min={currentRegion.startIndex}
+                        max={currentRegion.endIndex}
+                        value={targetPosition}
+                        disabled={mapUseDisabled}
+                        title={map.tiles[targetPosition!]?.label}
+                        onChange={(event) => {
+                          const raw = Number(event.target.value);
+                          if (!Number.isInteger(raw)) return;
+                          setPendingTarget((prev) => ({
+                            ...prev,
+                            [scroll.instanceId]: Math.min(
+                              currentRegion.endIndex,
+                              Math.max(currentRegion.startIndex, raw),
+                            ),
+                          }));
+                        }}
+                      />
+                      <button
+                        type="button"
+                        aria-label="目标格后移"
+                        disabled={mapUseDisabled || targetPosition! >= currentRegion.endIndex}
+                        onClick={() =>
+                          setPendingTarget((prev) => ({
+                            ...prev,
+                            [scroll.instanceId]: Math.min(currentRegion.endIndex, targetPosition! + 1),
+                          }))
+                        }
+                      >
+                        ＋
+                      </button>
+                    </div>
+                  )}
+                  {isAnywhereDoor && mapUsePhase && (
+                    <span className="hand-card-target-label">{map.tiles[targetPosition!]?.label}</span>
+                  )}
                   {mapUsable && mapUsePhase && (
                     <button
                       type="button"
                       className="hand-card-use"
                       disabled={mapUseDisabled}
                       title={
-                        player.hp >= player.maxHp
+                        isHealEffect && player.hp >= player.maxHp
                           ? "生命已满"
-                          : mapUseDisabled
-                            ? "已经移动后不能使用战地药剂"
-                            : undefined
+                          : isMovementScroll && mapUsePhase !== "awaitingRoll"
+                            ? "本回合已经移动，无法再指定移动"
+                            : mapUseDisabled
+                              ? "已经移动后不能使用战地药剂"
+                              : undefined
                       }
-                      onClick={() => onUseMapScroll(scroll.instanceId)}
+                      onClick={() =>
+                        onUseMapScroll(
+                          scroll.instanceId,
+                          movementEffect ? distance : undefined,
+                          isAnywhereDoor ? targetPosition : undefined,
+                        )
+                      }
                     >
                       {mapUseDisabled ? "现在不能使用" : "立即使用"}
                     </button>

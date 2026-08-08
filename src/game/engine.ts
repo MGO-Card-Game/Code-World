@@ -1,5 +1,7 @@
 import { equipmentDefinition } from "./content/equipment";
 import { scrollDefinition } from "./content/scrolls";
+import type { ScrollDefinition } from "./content/scrolls";
+import type { ScrollEffectDefinition } from "./effects/cardEffects";
 import { getDieSidesBonus } from "./selectors";
 import { finishBattle, startBattle } from "./battle";
 import { submitScrollChoice } from "./battleRound";
@@ -26,6 +28,8 @@ import type {
   ActionResult,
   GameAction,
   GameState,
+  MapRegion,
+  MapTile,
   OwnedScroll,
   Player,
 } from "./types";
@@ -61,6 +65,80 @@ function chooseBossChallenge(state: GameState, challenge: boolean) {
     { stageId, tileIndex: gateTileIndex, retreatTo: player.checkpointTileId },
   );
   return true;
+}
+
+interface LoopAdvanceResult {
+  region: MapRegion;
+  interceptedAtGate: boolean;
+  passedCamp: boolean;
+  targetTile: MapTile;
+}
+
+/**
+ * 沿区域环路逐格前进 roll 格：处理守关门计次拦截、营地回血判定与经过效果。
+ * 掷骰移动和"灵活行动"这类卷轴共用同一条路径，保证两者手感完全一致。
+ */
+function advanceAlongLoop(state: GameState, player: Player, roll: number): LoopAdvanceResult {
+  const region = regionForPosition(state.map, player.position);
+  let interceptedAtGate = false;
+  let passedCamp = false;
+  for (let step = 0; step < roll; step += 1) {
+    const local = player.position - region.startIndex;
+    const nextLocal = (local + 1) % MAP_REGION_SIZE;
+    player.position = region.startIndex + nextLocal;
+    if (player.position === region.entryIndex) passedCamp = true;
+    if (player.position !== region.gateIndex) continue;
+    player.stageProgress[region.id].laps += 1;
+    if (stageBossUnlocked(player, region)) {
+      interceptedAtGate = true;
+      break;
+    }
+  }
+  return { region, interceptedAtGate, passedCamp, targetTile: state.map.tiles[player.position] };
+}
+
+/**
+ * 直接把玩家挪到 region 内的绝对格子 targetPosition，不经过任何中间格。
+ * teleport 系效果（固定距离/任意门）共用：只结算落点本身，含落点正好是
+ * 营地或守关门的情况；沿途什么都不触发。
+ */
+function landDirectlyAt(
+  state: GameState,
+  player: Player,
+  region: MapRegion,
+  targetPosition: number,
+): { interceptedAtGate: boolean; targetTile: MapTile } {
+  player.position = targetPosition;
+  let interceptedAtGate = false;
+  if (player.position === region.gateIndex) {
+    player.stageProgress[region.id].laps += 1;
+    interceptedAtGate = stageBossUnlocked(player, region);
+  }
+  if (player.position === region.entryIndex) restAtStageCamp(state, player, region);
+  return { interceptedAtGate, targetTile: state.map.tiles[player.position] };
+}
+
+/** 移动结束后的收尾：拦在守关门前进首领挑战选择，否则正常结算落点格子。 */
+function settleMovementDestination(
+  state: GameState,
+  player: Player,
+  region: MapRegion,
+  interceptedAtGate: boolean,
+  targetTile: MapTile,
+) {
+  if (interceptedAtGate) {
+    state.phase = {
+      kind: "bossGateChoice",
+      choice: {
+        playerId: player.id,
+        stageId: region.id,
+        gateTileIndex: region.gateIndex,
+        bossEnemyId: region.bossEnemyId,
+      },
+    };
+  } else {
+    resolveTile(state, targetTile);
+  }
 }
 
 function applyMapHealing(state: GameState, player: Player, amount: number) {
@@ -117,8 +195,120 @@ function applyEquipmentMapScrollUse(
   }
 }
 
-/** 地图阶段使用疗牌；返回 false 时保持“非法动作不产生新状态”的约定。 */
-function useMapScroll(state: GameState, instanceId: string) {
+/**
+ * "灵活行动"、"短程传送符"和"触手可得"这类卷轴：本身就是一次移动动作，用来代替 rollMovement，
+ * 所以只能在还没掷骰的 awaitingRoll 用——移动完再打没有骰可代替。
+ *
+ * chooseMovement 直接复用 advanceAlongLoop，和正常掷骰移动逐格前进、触发同样的
+ * 营地回血与守关门计次；teleport 是直接跳变位置，途中什么都不触发，
+ * 只有落点本身会照常结算（含落在守关门/营地上）。
+ */
+function useMovementScroll(
+  state: GameState,
+  player: Player,
+  instanceId: string,
+  scrollKind: OwnedScroll["kind"],
+  definition: ScrollDefinition,
+  effect: Extract<ScrollEffectDefinition, { type: "chooseMovement" | "teleport" }>,
+  distance: number | undefined,
+) {
+  if (state.phase.kind !== "awaitingRoll") return false;
+  const sides = Math.max(2, 6 + getDieSidesBonus(player, "movement"));
+  const maxDistance = effect.type === "chooseMovement" ? sides : effect.maxDistance;
+  if (
+    distance === undefined ||
+    !Number.isInteger(distance) ||
+    distance < 1 ||
+    distance > maxDistance
+  ) {
+    return false;
+  }
+
+  consumeScroll(state, player, instanceId);
+  const positionBefore = player.position;
+  state.movementOrigin = positionBefore;
+
+  if (effect.type === "chooseMovement") {
+    const roll = distance + blessingMovementRollBonus(player);
+    state.lastMovementRoll = roll;
+    const { region, interceptedAtGate, passedCamp, targetTile } = advanceAlongLoop(state, player, roll);
+    emit(state, { type: "movementRolled", playerId: player.id, value: roll, sides });
+    emit(state, { type: "playerMoved", playerId: player.id, from: positionBefore, to: player.position });
+    addHistory(
+      state,
+      `${player.name}使用${definition.name}，指定移动 ${distance} 格，抵达「${targetTile.label}」${
+        interceptedAtGate ? "，已满足首领挑战条件" : ""
+      }。`,
+    );
+    if (passedCamp) restAtStageCamp(state, player, region);
+    settleMovementDestination(state, player, region, interceptedAtGate, targetTile);
+  } else {
+    const region = regionForPosition(state.map, player.position);
+    const local = player.position - region.startIndex;
+    const target = region.startIndex + ((local + distance) % MAP_REGION_SIZE);
+    const { interceptedAtGate, targetTile } = landDirectlyAt(state, player, region, target);
+    emit(state, { type: "playerMoved", playerId: player.id, from: positionBefore, to: player.position });
+    addHistory(
+      state,
+      `${player.name}使用${definition.name}，跃至「${targetTile.label}」${
+        interceptedAtGate ? "，已满足首领挑战条件" : ""
+      }。`,
+    );
+    settleMovementDestination(state, player, region, interceptedAtGate, targetTile);
+  }
+
+  applyEquipmentMapScrollUse(state, player, scrollKind);
+  return true;
+}
+
+/**
+ * "任意门"：不受距离限制的传送，只要落在玩家当前所在阶段的环路内即可。
+ * 落点结算规则和 teleport 完全一致，唯一区别是目标由绝对格子编号给出，
+ * 不是相对当前位置的偏移量。
+ */
+function useTeleportAnywhereScroll(
+  state: GameState,
+  player: Player,
+  instanceId: string,
+  scrollKind: OwnedScroll["kind"],
+  definition: ScrollDefinition,
+  targetPosition: number | undefined,
+) {
+  if (state.phase.kind !== "awaitingRoll") return false;
+  const region = regionForPosition(state.map, player.position);
+  if (
+    targetPosition === undefined ||
+    !Number.isInteger(targetPosition) ||
+    targetPosition < region.startIndex ||
+    targetPosition > region.endIndex
+  ) {
+    return false;
+  }
+
+  consumeScroll(state, player, instanceId);
+  const positionBefore = player.position;
+  state.movementOrigin = positionBefore;
+  const { interceptedAtGate, targetTile } = landDirectlyAt(state, player, region, targetPosition);
+  emit(state, { type: "playerMoved", playerId: player.id, from: positionBefore, to: player.position });
+  addHistory(
+    state,
+    `${player.name}使用${definition.name}，传送至「${targetTile.label}」${
+      interceptedAtGate ? "，已满足首领挑战条件" : ""
+    }。`,
+  );
+  settleMovementDestination(state, player, region, interceptedAtGate, targetTile);
+
+  applyEquipmentMapScrollUse(state, player, scrollKind);
+  return true;
+}
+
+/** 地图阶段使用；返回 false 时保持“非法动作不产生新状态”的约定。 */
+function useMapScroll(
+  state: GameState,
+  instanceId: string,
+  distance?: number,
+  targetPosition?: number,
+) {
   if (state.phase.kind !== "awaitingRoll" && state.phase.kind !== "turnComplete") {
     return false;
   }
@@ -127,6 +317,20 @@ function useMapScroll(state: GameState, instanceId: string) {
   if (!owned) return false;
   const definition = scrollDefinition(owned.kind);
   if (!definition.timings.includes("map")) return false;
+
+  const movementEffect = definition.effects.find(
+    (effect): effect is Extract<ScrollEffectDefinition, { type: "chooseMovement" | "teleport" }> =>
+      effect.type === "chooseMovement" || effect.type === "teleport",
+  );
+  if (movementEffect) {
+    return useMovementScroll(state, player, instanceId, owned.kind, definition, movementEffect, distance);
+  }
+
+  const teleportAnywhere = definition.effects.some((effect) => effect.type === "teleportAnywhere");
+  if (teleportAnywhere) {
+    return useTeleportAnywhereScroll(state, player, instanceId, owned.kind, definition, targetPosition);
+  }
+
   const supported = definition.effects.every(
     (effect) => effect.type === "heal" || effect.type === "forfeitMovement",
   );
@@ -390,21 +594,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       next.lastMovementRoll = roll;
       const positionBefore = player.position;
       next.movementOrigin = positionBefore;
-      const region = regionForPosition(next.map, player.position);
-      let interceptedAtGate = false;
-      let passedCamp = false;
-      for (let step = 0; step < roll; step += 1) {
-        const local = player.position - region.startIndex;
-        const nextLocal = (local + 1) % MAP_REGION_SIZE;
-        player.position = region.startIndex + nextLocal;
-        if (player.position === region.entryIndex) passedCamp = true;
-        if (player.position !== region.gateIndex) continue;
-        player.stageProgress[region.id].laps += 1;
-        if (stageBossUnlocked(player, region)) {
-          interceptedAtGate = true;
-          break;
-        }
-      }
+      const { region, interceptedAtGate, passedCamp, targetTile } = advanceAlongLoop(next, player, roll);
       emit(next, {
         type: "movementRolled",
         playerId: player.id,
@@ -417,7 +607,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         from: positionBefore,
         to: player.position,
       });
-      const targetTile = next.map.tiles[player.position];
       addHistory(
         next,
         interceptedAtGate
@@ -426,23 +615,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       );
       // 回血要在结算格子之前：这一步路过营地、下一步踩进战斗格的人应当满血开打
       if (passedCamp) restAtStageCamp(next, player, region);
-      if (interceptedAtGate) {
-        next.phase = {
-          kind: "bossGateChoice",
-          choice: {
-            playerId: player.id,
-            stageId: region.id,
-            gateTileIndex: region.gateIndex,
-            bossEnemyId: region.bossEnemyId,
-          },
-        };
-      } else {
-        resolveTile(next, targetTile);
-      }
+      settleMovementDestination(next, player, region, interceptedAtGate, targetTile);
       return next;
     }
     case "useMapScroll":
-      return useMapScroll(next, action.instanceId) ? next : state;
+      return useMapScroll(next, action.instanceId, action.distance, action.targetPosition) ? next : state;
     case "endTurn": {
       if (next.phase.kind !== "turnComplete") return state;
       advanceCompletedTurn(next);

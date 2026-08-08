@@ -363,6 +363,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
           <ResourceModal
             key={`resource-${inspecting}`}
             player={state.players[inspecting]}
+            map={state.map}
             playback={playback}
             onClose={() => {
               setInspecting(null);
@@ -370,7 +371,9 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             }}
             onInspectEquipment={setInspectingEquipment}
             mapUsePhase={mapUsePhase}
-            onUseMapScroll={(instanceId) => dispatch({ type: "useMapScroll", instanceId })}
+            onUseMapScroll={(instanceId, distance, targetPosition) =>
+              dispatch({ type: "useMapScroll", instanceId, distance, targetPosition })
+            }
           />
         )}
         {inspectingEquipment && (

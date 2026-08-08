@@ -164,7 +164,10 @@ describe("一回合多张卷轴", () => {
       "flatBonus", "dieSides", "extraDice", "rollTwice", "minimumRoll", "maxRoll",
       "fixedRoll", "damageReduction",
     ];
-    const SEQUENTIAL = ["directDamage", "heal", "forfeitMovement", "custom"];
+    const SEQUENTIAL = [
+      "directDamage", "heal", "forfeitMovement", "chooseMovement", "teleport",
+      "teleportAnywhere", "custom",
+    ];
 
     for (const kind of Object.keys(SCROLLS) as ScrollKind[]) {
       for (const effect of SCROLLS[kind].effects) {

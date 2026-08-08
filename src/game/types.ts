@@ -595,7 +595,12 @@ export interface GameState {
 export type GameAction =
   | { type: "restart"; seed?: number }
   | { type: "rollMovement" }
-  | { type: "useMapScroll"; instanceId: string }
+  /**
+   * distance 只有 chooseMovement / teleport 效果的卷轴需要；
+   * targetPosition 只有 teleportAnywhere 效果的卷轴需要（当前阶段内的绝对格子编号）。
+   * 其余卷轴都会忽略这两个字段。
+   */
+  | { type: "useMapScroll"; instanceId: string; distance?: number; targetPosition?: number }
   | { type: "endTurn" }
   | { type: "chooseEncounterOpponent"; opponentId: PlayerId }
   | { type: "chooseEncounterIntent"; side: CombatSide; intent: EncounterIntent }

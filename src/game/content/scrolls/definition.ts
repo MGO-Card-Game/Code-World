@@ -60,5 +60,8 @@ export function scrollCategory(definition: ScrollDefinition): ScrollCategory {
   const attack = definition.timings.includes("beforeAttackRoll");
   const defense = definition.timings.includes("beforeDefenseRoll");
   if (attack && defense) return "universal";
-  return attack ? "attack" : "defense";
+  if (attack) return "attack";
+  if (defense) return "defense";
+  // 纯地图卷轴（比如移动类）不攻不防，归到通用最贴切
+  return "universal";
 }

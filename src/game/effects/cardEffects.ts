@@ -42,6 +42,22 @@ export type ScrollEffectDefinition =
   | { type: "heal"; amount: number }
   /** 地图阶段放弃本次移动；战斗中使用则失去下一次地图移动。 */
   | { type: "forfeitMovement" }
+  /**
+   * 地图阶段专用，代替掷移动骰：自选点数（1 到当前移动骰上限），
+   * 按普通移动的规则逐格前进——照样触发沿途的营地回血与守关门计次。
+   */
+  | { type: "chooseMovement" }
+  /**
+   * 地图阶段专用，代替掷移动骰：直接跃至前方 1 到 maxDistance 格处。
+   * 和 chooseMovement 的区别是不逐格前进，途中的营地与守关门计次一概不触发，
+   * 只结算最终停留的格子——这是"跳过"和"走过"的核心差异。
+   */
+  | { type: "teleport"; maxDistance: number }
+  /**
+   * 地图阶段专用，代替掷移动骰：直接传送到当前所在阶段地图上的任意一格，
+   * 不受距离限制。和 teleport 同理，只结算落点本身，不触发沿途任何效果。
+   */
+  | { type: "teleportAnywhere" }
   | { type: "custom"; resolve: ScrollEffectResolver };
 
 /** 声明式效果覆盖不了的卷轴，直接在卡牌定义里写这个函数。 */

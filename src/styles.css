@@ -160,6 +160,15 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .hand-card-use { margin-top: 2px; padding: 6px 4px; border: 1px solid #538566; border-radius: 3px; background: #17291d; color: #aee8be; font-size: 10px; }
 .hand-card-use:hover:not(:disabled) { border-color: #8dd9a5; background: #203a29; }
 
+/* 灵活行动/短程传送符/触手可得：使用前先在这里选定移动格数 */
+.hand-card-distance { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px; font-size: 10px; color: #e3c787; }
+.hand-card-distance button { width: 18px; height: 18px; padding: 0; border: 1px solid #8a6a2e; border-radius: 3px; background: #221c10; color: #e3c787; font-size: 11px; line-height: 1; }
+.hand-card-distance button:hover:not(:disabled) { border-color: #e3c787; background: #3d3117; }
+.hand-card-distance button:disabled { opacity: .4; }
+.hand-card-distance span { min-width: 28px; text-align: center; }
+.hand-card-target input { width: 34px; height: 18px; padding: 0; border: 1px solid #8a6a2e; border-radius: 3px; background: #221c10; color: #e3c787; font-size: 10px; text-align: center; }
+.hand-card-target-label { display: block; margin-top: 2px; font-size: 9px; color: #b0a18e; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* 战斗骰面与伤害飘字 */
 .combat-dice { display: grid; grid-template-columns: 1fr 66px 1fr; align-items: stretch; gap: 12px; margin: -1px 0 13px; }
 .combat-dice-divider { display: grid; place-items: center; color: #665a4a; font: 700 15px "Noto Serif SC", serif; }

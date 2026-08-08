@@ -592,6 +592,19 @@ export type GameAction =
   | { type: "chooseStatGrowth"; option: StatGrowthOption };
 
 /**
+ * 规则模块处理完一个动作之后的结果。
+ *
+ * false 表示这是个非法动作，调用方要维持「非法动作不产生新状态」的约定；
+ * true 表示已经处理完；带 resolveTile 的表示还欠一次格子结算。
+ *
+ * 最后一种存在的理由是依赖方向：格子结算住在 engine.ts，而相遇、交易、相遇战代价
+ * 这些流程都以「回到那一格继续走」收尾。让它们直接调 resolveTile 就要反向依赖
+ * engine，于是这里把「接下来做什么」交成数据，由 engine 自己去解释——
+ * 和 EquipmentChoiceState.resume 是同一个办法。
+ */
+export type ActionResult = boolean | { resolveTile: number };
+
+/**
  * 裁剪后的卷轴：对手只看得到牌背。
  *
  * 保留 instanceId 是有意的——界面用它做动画 key，牌背才能各自进出，

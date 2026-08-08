@@ -8,6 +8,7 @@ import { SCROLLS } from "./content/scrolls";
 import { applyEquipmentStats, removeEquipmentStats } from "./resources";
 import { addHistory, emit } from "./state";
 import type {
+  ActionResult,
   CombatSide,
   GameAction,
   GameState,
@@ -15,6 +16,13 @@ import type {
   TradeConfirmationState,
   TradeOffer,
 } from "./types";
+
+/**
+ * 相遇战之外的另一条相遇出口：报价、复核、原子交换。
+ *
+ * 三个动作处理函数都以「回到那一格继续结算」收尾，但格子结算在 engine.ts，
+ * 所以它们把这件事作为 ActionResult 交回去，而不是反过来依赖 engine。
+ */
 
 type TradeParticipants = Pick<
   TradeConfirmationState,
@@ -199,4 +207,90 @@ export function executeTrade(state: GameState, trade: TradeConfirmationState) {
     `${a.name}交出${describeOffer(trade.offerA)}，${b.name}交出${describeOffer(trade.offerB)}，交易完成。`,
   );
   return true;
+}
+
+export function submitTradeOffer(
+  state: GameState,
+  action: Extract<GameAction, { type: "submitTradeOffer" }>,
+): ActionResult {
+  if (state.phase.kind !== "tradeOffer") return false;
+  if (action.side !== "a" && action.side !== "b") return false;
+  const trade = state.phase.trade;
+  const choice = action.side === "a" ? trade.offerA : trade.offerB;
+  if (choice.status !== "pending") return false;
+  const player = state.players[tradePlayerId(trade, action.side)];
+  const offer = player ? createTradeOffer(player, action) : undefined;
+  if (!offer) return false;
+  delete trade.error;
+  if (action.side === "a") trade.offerA = { status: "offered", offer };
+  else trade.offerB = { status: "offered", offer };
+
+  if (trade.offerA.status !== "offered" || trade.offerB.status !== "offered") {
+    addHistory(state, `${player.name}已经提交交易报价，等待对方。`);
+    return true;
+  }
+  const a = state.players[trade.aPlayerId];
+  const b = state.players[trade.bPlayerId];
+  const error = tradeEquipmentCapacityError(a, b, trade.offerA.offer, trade.offerB.offer);
+  if (error) {
+    trade.offerA = { status: "pending" };
+    trade.offerB = { status: "pending" };
+    trade.error = `${error}，请双方调整装备报价。`;
+    addHistory(state, `交易报价无法装入行囊：${error}，双方需要重新报价。`);
+    return true;
+  }
+  state.phase = {
+    kind: "tradeConfirmation",
+    trade: {
+      aPlayerId: trade.aPlayerId,
+      bPlayerId: trade.bPlayerId,
+      tileIndex: trade.tileIndex,
+      offerA: trade.offerA.offer,
+      offerB: trade.offerB.offer,
+      confirmationA: "pending",
+      confirmationB: "pending",
+    },
+  };
+  addHistory(state, "双方报价已经公开，等待最终确认。互相确认前不会转移任何资源。");
+  return true;
+}
+
+export function confirmTrade(
+  state: GameState,
+  action: Extract<GameAction, { type: "confirmTrade" }>,
+): ActionResult {
+  if (state.phase.kind !== "tradeConfirmation") return false;
+  if (action.side !== "a" && action.side !== "b") return false;
+  if (typeof action.accept !== "boolean") return false;
+  const trade = state.phase.trade;
+  const confirmation = action.side === "a" ? trade.confirmationA : trade.confirmationB;
+  if (confirmation !== "pending") return false;
+  const player = state.players[tradePlayerId(trade, action.side)];
+  if (!action.accept) {
+    addHistory(state, `${player.name}取消了交易，双方相安无事。`);
+    return { resolveTile: trade.tileIndex };
+  }
+  if (action.side === "a") trade.confirmationA = "accepted";
+  else trade.confirmationB = "accepted";
+  if (trade.confirmationA === "pending" || trade.confirmationB === "pending") {
+    addHistory(state, `${player.name}确认了报价，等待对方最终确认。`);
+    return true;
+  }
+  if (!executeTrade(state, trade)) {
+    addHistory(state, "报价中的资源已经变化，交易取消，双方相安无事。");
+  }
+  return { resolveTile: trade.tileIndex };
+}
+
+export function cancelTrade(
+  state: GameState,
+  action: Extract<GameAction, { type: "cancelTrade" }>,
+): ActionResult {
+  if (state.phase.kind !== "tradeOffer") return false;
+  if (action.side !== "a" && action.side !== "b") return false;
+  const trade = state.phase.trade;
+  const player = state.players[tradePlayerId(trade, action.side)];
+  if (!player) return false;
+  addHistory(state, `${player.name}取消了交易，双方相安无事。`);
+  return { resolveTile: trade.tileIndex };
 }

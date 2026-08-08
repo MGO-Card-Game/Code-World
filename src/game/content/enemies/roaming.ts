@@ -13,6 +13,8 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     attack: 1,
     defense: 0,
     regions: { foothill: 2 },
+    // 一滩软泥，反应迟钝，先攻钉死在低点。
+    initiative: { type: "fixed", value: 2 },
   },
 
   wolf: {
@@ -29,6 +31,8 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     attack: 3,
     defense: 2,
     regions: { mountainside: 1, summit: 2 },
+    // 石身笨重，几乎不可能抢到先手。
+    initiative: { type: "fixed", value: 1 },
   },
 
   caveBats: {
@@ -39,6 +43,8 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     regions: { foothill: 1 },
     // 比史莱姆更容易打出高点数，但依然脆弱，是山脚的波动型敌人。
     modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
+    // 蝠群振翅极快，先攻下限抬高，很少手慢。
+    initiative: { type: "range", min: 3, max: 6 },
   },
 
   thornbackBoar: {
@@ -47,6 +53,8 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     attack: 1,
     defense: 2,
     regions: { foothill: 1, mountainside: 1 },
+    // 冲撞前有个助跑，先攻上限受限。
+    initiative: { type: "range", min: 1, max: 4 },
   },
 
   mistSpider: {
@@ -63,6 +71,8 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
         addBattleLog("雾毒蜘蛛命中要害，毒素额外造成 1 点伤害。");
       },
     },
+    // 雾中伏击，先攻下限抬高。
+    initiative: { type: "range", min: 4, max: 6 },
   },
 
   thunderEagle: {
@@ -71,6 +81,8 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     attack: 5,
     defense: 1,
     regions: { mountainside: 1, summit: 1 },
+    // 迅雷之翼，先攻钉死在高点。
+    initiative: { type: "fixed", value: 5 },
   },
 
   iceShellLizard: {
@@ -79,5 +91,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     attack: 2,
     defense: 3,
     regions: { summit: 1 },
+    // 厚重冰甲拖慢反应，先攻钉死在低点。
+    initiative: { type: "fixed", value: 2 },
   },
 });

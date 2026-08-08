@@ -22,6 +22,16 @@ export interface EnemyAbility {
   description: string;
 }
 
+/**
+ * 先攻投骰的特征化限制，不写就和玩家一样自由投 1-6。
+ *
+ * fixed 钉死一个点数——笨重、呆板的怪不该吃到"先攻骰爆 6"这种和它形象不符的运气；
+ * range 只收窄骰池的上下界，敏捷或迟缓的怪据此偏移概率分布，而不是彻底抹平随机性。
+ */
+export type EnemyInitiative =
+  | { type: "fixed"; value: number }
+  | { type: "range"; min: number; max: number };
+
 /** 一只怪的内容。这里没有 tier——它由所在的档位表盖章，见 defineEnemies。 */
 export interface EnemyBody {
   name: string;
@@ -46,6 +56,8 @@ export interface EnemyBody {
   modifiers?: readonly StatModifier[];
   /** 通用数值表达不了的逻辑直接写在这里，和装备的 effects 同理。 */
   effects?: EnemyEffects;
+  /** 先攻骰的特征化限制，见 EnemyInitiative。 */
+  initiative?: EnemyInitiative;
 }
 
 export type EnemyDefinition = EnemyBody & { tier: EnemyTier };

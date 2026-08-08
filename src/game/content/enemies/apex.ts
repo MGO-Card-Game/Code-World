@@ -28,6 +28,8 @@ export const APEX_ENEMIES = defineEnemies("apex", {
         addBattleLog(`山匪头目的重斧砸中要害，额外造成 2 点伤害。`);
       },
     },
+    // 人形山匪，反应在正常范围内，不给极端先攻。
+    initiative: { type: "range", min: 2, max: 5 },
   },
 
   frostFang: {
@@ -53,5 +55,7 @@ export const APEX_ENEMIES = defineEnemies("apex", {
         addBattleLog("霜牙巨兽吐出霜息，本次攻击 +2。");
       },
     },
+    // 体型庞大，先攻上限受限。
+    initiative: { type: "range", min: 1, max: 4 },
   },
 });

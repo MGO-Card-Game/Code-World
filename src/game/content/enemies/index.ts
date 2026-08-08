@@ -8,7 +8,7 @@ import type { EnemyDefinition, EnemyTier } from "./definition";
 import { ROAMING_ENEMIES } from "./roaming";
 
 export { ENEMY_TIER_NAMES, defineEnemies } from "./definition";
-export type { EnemyAbility, EnemyBody, EnemyDefinition, EnemyTier } from "./definition";
+export type { EnemyAbility, EnemyBody, EnemyDefinition, EnemyInitiative, EnemyTier } from "./definition";
 export {
   ELITE_AFFIXES,
   ELITE_BASE_MODIFIERS,

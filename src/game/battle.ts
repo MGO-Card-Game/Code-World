@@ -1,3 +1,4 @@
+import { enemyDefinition } from "./content/enemies";
 import { equipmentDefinition } from "./content/equipment";
 import type { RarityWeights } from "./content/rarity";
 import {
@@ -64,6 +65,18 @@ export function combatantName(state: GameState, battle: BattleState, side: Comba
   return battleEnemyStats(battle).name;
 }
 
+/**
+ * 先攻骰：玩家自由投 1-6，怪物按自身特征收窄——fixed 钉死点数，
+ * range 只收窄上下界。没声明 initiative 的怪和玩家同规则，直接投白板骰。
+ */
+function rollInitiative(state: GameState, enemyId?: EnemyKind) {
+  const initiative = enemyId ? enemyDefinition(enemyId).initiative : undefined;
+  if (!initiative) return rollDie(state);
+  if (initiative.type === "fixed") return initiative.value;
+  const { min, max } = initiative;
+  return min + Math.floor(nextRandom(state) * (max - min + 1));
+}
+
 export function startBattle(
   state: GameState,
   kind: BattleState["kind"],
@@ -82,10 +95,10 @@ export function startBattle(
     enemyAffix,
   });
   let initiativeA = rollDie(state);
-  let initiativeB = rollDie(state);
+  let initiativeB = bPlayerId ? rollDie(state) : rollInitiative(state, enemyId);
   while (initiativeA === initiativeB) {
     initiativeA = rollDie(state);
-    initiativeB = rollDie(state);
+    initiativeB = bPlayerId ? rollDie(state) : rollInitiative(state, enemyId);
   }
   const battle: BattleState = {
     kind,

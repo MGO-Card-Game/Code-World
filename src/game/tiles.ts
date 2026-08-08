@@ -5,6 +5,7 @@ import { startEncounterDecision } from "./encounters";
 import { resolveRandomMapEvent } from "./mapEvents";
 import { grantRandomResourceReward, rewardSecret } from "./resources";
 import { grantTreasureEquipmentReward } from "./rewards";
+import { rollShopStock } from "./shop";
 import { addHistory, emit } from "./state";
 import type { ActionResult, GameState, MapTile } from "./types";
 
@@ -124,6 +125,10 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
       resolveRandomMapEvent(state, player, tile.region);
       return;
     }
+    case "shop":
+      state.phase = { kind: "shop", shop: rollShopStock(state, player) };
+      addHistory(state, `${player.name}走进「${tile.label}」，货架已经摆好。`);
+      return;
     case "start":
     case "gate":
       state.phase = { kind: "turnComplete" };

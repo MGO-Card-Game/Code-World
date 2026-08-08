@@ -98,6 +98,7 @@ function newPlayer(id: PlayerId, name: string, color: string, entryTileId: numbe
     baseAttack: 5,
     baseDefense: 2,
     gold: 0,
+    statPurchases: 0,
     position: entryTileId,
     checkpointTileId: entryTileId,
     stageProgress: {

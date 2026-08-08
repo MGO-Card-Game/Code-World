@@ -25,16 +25,17 @@ export type RandomTileType = Exclude<TileType, "start" | "boss" | "gate">;
  *
  * 加类型时要连带核对可行性：min 合计必须 ≤ 区域容量 ≤ max 合计，
  * 否则 chooseCounts 会抛「地图格数量规则无法填满」。
- * 现在是 min 22、max 28，每圈扣除守关门与营地后容量为 26。
- * 泉水维持 3～4 个；将来加入商店格时，从其余弹性范围中让出容量即可。
+ * 现在是 min 23、max 29，每圈扣除守关门与营地后容量为 26。
+ * 泉水固定两个，释放出的容量暂时转给事件格；商店固定一个。
  */
 export const MAP_TILE_LIMITS: Record<RandomTileType, TileCountRange> = {
   battle: { min: 6, max: 8 },
   elite: { min: 2, max: 3 },
-  event: { min: 6, max: 7 },
+  event: { min: 7, max: 9 },
   treasure: { min: 4, max: 5 },
   blessing: { min: 1, max: 1 },
-  spring: { min: 3, max: 4 },
+  spring: { min: 2, max: 2 },
+  shop: { min: 1, max: 1 },
 };
 
 export const MAP_REGIONS: MapRegion[] = [
@@ -66,6 +67,7 @@ const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
     treasure: ["旧木宝箱", "遗落行囊", "石缝秘藏", "猎人补给"],
     blessing: ["古树赐福", "晨曦祭坛", "山灵石龛", "荒径圣印"],
     spring: ["微光泉水", "林间清泉", "苔石水潭", "山脚驿泉"],
+    shop: ["荒径商栈", "旧道货亭", "旅商帐篷", "林间市集"],
   },
   mountainside: {
     battle: ["峭壁伏击", "古道守卫", "云中兽影", "断桥强敌"],
@@ -74,6 +76,7 @@ const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
     treasure: ["旅者遗物", "封印宝匣", "古道秘藏", "商队遗物"],
     blessing: ["云中古坛", "风语石龛", "先民圣印", "雾隐祷所"],
     spring: ["半山泉眼", "雾隐清潭", "石壁灵泉", "云杉水涧"],
+    shop: ["云腰商栈", "悬崖货亭", "行商营帐", "雾中市集"],
   },
   summit: {
     battle: ["雷脊伏击", "峰顶守卫", "龙巢爪牙", "风暴强敌"],
@@ -82,6 +85,7 @@ const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
     treasure: ["古代秘藏", "登顶补给", "龙裔宝匣", "云巅遗物"],
     blessing: ["雷霆祭坛", "星辉石龛", "峰顶圣印", "龙脉祷所"],
     spring: ["云上清泉", "雷霆圣泉", "峰顶雪池", "龙眠水潭"],
+    shop: ["峰顶商栈", "天梯货亭", "登顶商队", "云巅市集"],
   },
 };
 
@@ -185,6 +189,7 @@ function makeRandomTile(
     type,
     label: labels[randomIndex(random, labels.length)],
   };
+  if (type === "shop") tile.safeZone = true;
   if (isCombatTile(type)) {
     tile.enemyId = pickRoamingEnemy(region, random);
   }

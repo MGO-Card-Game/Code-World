@@ -20,6 +20,7 @@ const tileClassNames: Record<MapTile["type"], string> = {
   blessing: "blessing",
   spring: "spring",
   event: "event",
+  shop: "shop",
   gate: "gate",
   boss: "boss",
 };

@@ -36,6 +36,7 @@ function player(overrides: Partial<Player> = {}): Player {
     baseAttack: 4,
     baseDefense: 2,
     gold: 0,
+    statPurchases: 0,
     position: 7,
     checkpointTileId: 1,
     stageProgress: {

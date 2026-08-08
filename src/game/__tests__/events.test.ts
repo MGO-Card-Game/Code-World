@@ -96,6 +96,8 @@ function step(state: GameState): GameState {
     // 自动流程一律点攻击，好让下面的生命上限不变量只跟护符有关
     case "statGrowthChoice":
       return gameReducer(state, { type: "chooseStatGrowth", option: "attack" });
+    case "shop":
+      return gameReducer(state, { type: "leaveShop" });
     case "gameOver":
       return state;
   }

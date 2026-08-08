@@ -9,6 +9,7 @@ import { consumeScroll } from "./resources";
 import { addHistory, createInitialGame, emit, rollDie } from "./state";
 import { restAtStageCamp, stageBossUnlocked } from "./stages";
 import { buyShopItem } from "./economy";
+import { buyShopOffer, leaveShop } from "./shop";
 import { cancelTrade, confirmTrade, submitTradeOffer } from "./trading";
 import { acknowledgePveReward, chooseEquipment, chooseStatGrowth } from "./rewards";
 import { chooseEncounterIntent, chooseEncounterOpponent } from "./encounters";
@@ -299,6 +300,13 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
           }
         }
       }
+      const phaseAfterEquipmentFallback = next.phase as GameState["phase"];
+      if (
+        phaseAfterEquipmentFallback.kind === "shop" &&
+        phaseAfterEquipmentFallback.shop.playerId === playerId
+      ) {
+        leaveShop(next);
+      }
       if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
         advanceCompletedTurn(next);
       }
@@ -315,6 +323,11 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       if (next.phase.choice.playerId !== playerId) return state;
       // 掉线的人替他点生命上限：三档里只有它不改变这名玩家的战斗风格
       chooseStatGrowth(next, "maxHp");
+      if (next.activePlayerId === playerId) advanceCompletedTurn(next);
+      return next;
+    case "shop":
+      if (next.phase.shop.playerId !== playerId) return state;
+      leaveShop(next);
       if (next.activePlayerId === playerId) advanceCompletedTurn(next);
       return next;
     case "gameOver":
@@ -431,6 +444,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return acknowledgePveReward(next) ? next : state;
     case "buyShopItem":
       return buyShopItem(next, action.item) ? next : state;
+    case "buyShopOffer":
+      return buyShopOffer(next, action.offerId) ? next : state;
+    case "leaveShop":
+      return leaveShop(next) ? next : state;
     case "submitScrollChoice":
       if (!submitScrollChoice(next, action.side, action.instanceIds)) return state;
       settleWaivedPvpPenalty(next);

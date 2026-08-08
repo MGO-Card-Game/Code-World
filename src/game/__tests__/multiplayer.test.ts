@@ -387,6 +387,9 @@ describe("暗牌裁剪 viewFor", () => {
         case "statGrowthChoice":
           state = gameReducer(state, { type: "chooseStatGrowth", option: "attack" });
           break;
+        case "shop":
+          state = gameReducer(state, { type: "leaveShop" });
+          break;
         default: break;
       }
 

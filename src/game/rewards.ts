@@ -68,6 +68,9 @@ function resumeAfterEquipmentChoice(
     case "showPveReward":
       state.phase = { kind: "pveReward", notice: resume.notice };
       return true;
+    case "shop":
+      state.phase = { kind: "shop", shop: resume.shop };
+      return true;
   }
 }
 

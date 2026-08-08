@@ -59,7 +59,13 @@
 属性  250 × 1.6^(该玩家累计已购次数)  →  250 / 400 / 640 / 1020 …
 ```
 
-每件商品独立掷一个 **75% ~ 125%** 的系数，乘上基价后取整到 `GOLD_SCALE`（10）的倍数。浮动让同一件货在不同的货架上值不同的钱，「这次要不要买」才成为一个判断，而不是查表。
+卷轴和装备各自独立掷一个 **75% ~ 125%** 的系数，乘上基价后按下面的公式取整到 `GOLD_SCALE`（10）的倍数：
+
+```ts
+Math.round(basePrice * factor / GOLD_SCALE) * GOLD_SCALE
+```
+
+浮动让同一件卷轴或装备在不同的货架上值不同的钱，「这次要不要买」才成为一个判断，而不是查表。**属性提升不参与浮动**，只按累计购买次数计算递增基价并取整到 `GOLD_SCALE`；因此购买后下一次属性提升的实际售价一定上升，不会被两次独立浮动抵消。
 
 ### 4.2 两条数值约束
 
@@ -140,15 +146,15 @@ export interface ShopState {
 | --- | --- |
 | `types.ts` | `TileType` 加 `"shop"`；`ShopStock` / `ShopOffer` / `ShopState`；`GamePhase` 加 `shop` 分支；`GameAction` 加 `buyShopOffer` / `leaveShop`；`EquipmentChoiceState.resume` 加 `{ kind: "shop"; shop: ShopState }`；`Player` 加 `statPurchases: number` |
 | `state.ts` | `createInitialGame` 里给每名玩家的 `statPurchases` 置 0 |
-| `map.ts` | `MAP_TILE_LIMITS` 加 `shop: { min: 1, max: 1 }`；三个区域各 4 个候选格名 |
+| `map.ts` | `MAP_TILE_LIMITS` 加 `shop: { min: 1, max: 1 }`；三个区域各 4 个候选格名；`makeRandomTile` 为 `shop` 写入 `safeZone: true` |
 | `content/tiles.ts` | `TILE_ICON.shop = "¤"` |
 | `tiles.ts` | `resolveTile` 加 `case "shop"`：掷库存、设 phase |
 | `rewards.ts` | `resumeAfterEquipmentChoice` 加 `case "shop"`：phase 设回 `{ kind: "shop", shop }` |
-| `engine.ts` | 分发两个新 action；`handleDisconnectTimeout` 加 `case "shop"` |
+| `engine.ts` | 分发两个新 action；`handleDisconnectTimeout` 加 `case "shop"`，并补齐商店装备选择恢复后的连续兜底 |
 | `multiplayer.ts` | `canAct` 两个新 action；`currentActor` 加 `case "shop"`；`redactPhase` 裁剪卷轴货位的 `kind` |
 | `economy.ts` | `canUseShop` 判据改按格子类型（见下） |
 
-**格数可行性**：`MAP_TILE_LIMITS` 加一格后 min 合计 22 → 23、max 合计 28 → 29，区域容量（28 - 守关门 - 营地 = 26）仍落在 `[23, 29]` 内，`chooseCounts` 不会抛「地图格数量规则无法填满」。`RandomTileType` 由 `Exclude<TileType, "start" | "boss" | "gate">` 推导，`shop` 自动进池，无需另改。
+**格数可行性**：商店格加入、泉水调整为固定两个后，释放的容量暂时转给事件格（6～7 → 7～9）。`MAP_TILE_LIMITS` 的 min 合计为 23、max 合计为 29；区域容量（28 - 守关门 - 营地 = 26）落在 `[23, 29]` 内，`chooseCounts` 不会抛「地图格数量规则无法填满」。`RandomTileType` 由 `Exclude<TileType, "start" | "boss" | "gate">` 推导，`shop` 自动进池，无需另改。
 
 **`canUseShop` 的判据**：`safeZone` 现在有三个使用点——`tiles.ts` 与 `encounters.ts` 的相遇检查（本义），以及 `economy.ts` 借它当营地商店的开张条件。商店格要用 `safeZone: true` 拿到「不触发玩家互动」，但那样营地商店的按钮会在商店格上一并冒出来，两个商店叠在同一格。所以把营地商店的判据改回按格子类型：
 
@@ -162,6 +168,8 @@ return state.phase.kind === "turnComplete"
 营地商店本来就只在营地和守关之门开张，这么写和它实际想表达的一致；`safeZone` 也回到单一含义——「这一格不发生玩家互动」。
 
 **掉线兜底**：`handleDisconnectTimeout` 的 `case "shop"`，超时的若不是店里那名玩家则原样返回；是的话直接离店（phase → `turnComplete`），若他同时是行动方就 `advanceCompletedTurn`。和 `bossGateChoice` 的兜底同形。
+
+还要覆盖「在商店买装备后进入 `equipmentChoice` 才掉线」这一条嵌套链路。服务器的掉线计时器只触发一次，不能指望恢复到 `shop` 后再等第二次超时。因此 `equipmentChoice` 的现有兜底调用 `chooseEquipment(next)` 后，如果恢复出的 phase 是该玩家的 `shop`，必须在同一次 `handleDisconnectTimeout` 中继续 `leaveShop(next)`；随后若他是行动方，立即 `advanceCompletedTurn(next)`。最终返回的状态不能停在 `shop`，否则无人能够再提交「离开商栈」而锁住房间。
 
 **授权**：`canAct` 里两个新动作都要求 `state.phase.kind === "shop" && state.phase.shop.playerId === actor`——店是私人的，别人不能替他花钱。
 
@@ -179,10 +187,11 @@ return state.phase.kind === "turnComplete"
 - 货架恰好 6 位，顺序为卷轴 / 武器 / 护甲 / 鞋子 / 饰品 / 属性，装备部位各对得上。
 - 每一档的最低售价高于该档折算价上限（4.2 的表，用 `equipmentSalvageValue` 算上点石成金）。
 - 售罄的货位再买被拒；金币不足被拒；两者都维持「非法动作不产生新状态」。
-- 满槽买装备切到 `equipmentChoice`，选完回到同一个货架且 `sold` 与金币不变。
-- 买属性后 `statPurchases` 递增，下一次进店该货位价格按 1.6 倍抬升。
+- 满槽买装备切到 `equipmentChoice`，选完回到同一个货架且保持 `sold`；购买费用不会重复扣除，离场装备仍按现有规则折算金币。
+- 买属性后 `statPurchases` 递增；属性货位不掷价格浮动，下一次进店按新的累计次数计算，实际售价按 1.6 倍抬升并取整到 `GOLD_SCALE`。
+- 商店买装备进入 `equipmentChoice` 后，买家掉线超时会在同一次兜底中放弃新装备、离开商店并轮转回合，不会停回无人可操作的 `shop` phase。
 - 非买家视图里卷轴货位没有 `kind`，价格照常可见。
-- 同格有对手时踩商店格不进入相遇，直接进商店。
+- 地图生成出的每个 `shop` 都带 `safeZone: true`；同格有对手时踩商店格不进入相遇，直接进商店。
 
 改动现有测试：
 

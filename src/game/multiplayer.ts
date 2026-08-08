@@ -107,6 +107,10 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
     case "buyShopItem":
       return state.phase.kind === "turnComplete" && state.activePlayerId === actor;
 
+    case "buyShopOffer":
+    case "leaveShop":
+      return state.phase.kind === "shop" && state.phase.shop.playerId === actor;
+
     case "choosePvpPenalty":
       return (
         state.phase.kind === "pvpPenalty" &&
@@ -255,6 +259,18 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
             },
           }
         : phase;
+    case "shop":
+      return phase.shop.playerId === viewer
+        ? phase
+        : {
+            kind: "shop",
+            shop: {
+              ...phase.shop,
+              offers: phase.shop.offers.map((offer) => offer.stock.type === "scroll"
+                ? { ...offer, stock: { type: "scroll" } }
+                : offer),
+            },
+          };
     default:
       return phase;
   }
@@ -326,6 +342,8 @@ export function currentActor(state: GameState): PlayerId {
       return state.phase.notice.playerId;
     case "statGrowthChoice":
       return state.phase.choice.playerId;
+    case "shop":
+      return state.phase.shop.playerId;
     case "battle": {
       const battle = state.phase.battle;
       const attacker = battle.attacker;

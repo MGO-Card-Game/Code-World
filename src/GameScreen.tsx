@@ -22,6 +22,7 @@ import {
 import { PlayerPanel, PlayerSummary } from "./ui/PlayerPanel";
 import { ResourceModal } from "./ui/ResourceModal";
 import { ShopModal } from "./ui/ShopModal";
+import { ShopTileModal } from "./ui/ShopTileModal";
 import {
   EncounterDecisionPanel,
   TradeConfirmationPanel,
@@ -228,6 +229,15 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             choice={state.phase.choice}
             dispatch={dispatch}
             viewerSeat={viewerSeat}
+          />
+        )}
+        {!lingeringBattle && !playback.playing && state.phase.kind === "shop" && (
+          <ShopTileModal
+            key={`shop-tile-${state.phase.shop.playerId}`}
+            state={state}
+            shop={state.phase.shop}
+            viewerSeat={viewerSeat}
+            dispatch={dispatch}
           />
         )}
         {!lingeringBattle && state.phase.kind === "equipmentChoice" && (

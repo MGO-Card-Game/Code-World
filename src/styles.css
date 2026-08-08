@@ -205,6 +205,8 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .tile.start .tile-icon { color: #81cb8f; text-shadow: 0 0 9px #6bbd7c66; }
 .tile.spring .tile-icon { color: #62b6c5; }
 .tile.event .tile-icon { color: #9b79bd; }
+.tile.shop { border-color: #9f7c3f; background: linear-gradient(145deg, #332815, #1d180f); }
+.tile.shop .tile-icon { color: #efc86c; text-shadow: 0 0 10px #dcae4f77; }
 .tile.gate { border-color: #bc8d45; background: linear-gradient(145deg, #392816, #20170f); }
 .tile.gate .tile-icon { color: #f0be60; text-shadow: 0 0 10px #e1a53c88; }
 .tile.boss { border-color: #965a3f; background: linear-gradient(145deg, #382018, #211714); }
@@ -505,6 +507,19 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .shop-options span { color: #9f8250; font-size: 8px; letter-spacing: .14em; }
 .shop-options strong { font: 700 15px "Noto Serif SC", serif; }
 .shop-options small { color: #8d806c; font-size: 9px; }
+.shop-tile-modal { width: min(820px, 100%); }
+.shop-stock-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 20px 0 17px; }
+.shop-offer { position: relative; min-height: 150px; display: grid; grid-template-rows: auto auto 1fr auto; align-content: center; gap: 6px; padding: 14px 12px; border: 1px solid #765f37; background: #18140e; color: #ddc58f; text-align: left; }
+.shop-offer:not(:disabled):hover { border-color: #d4aa54; background: #292014; transform: translateY(-1px); }
+.shop-offer:disabled { cursor: not-allowed; }
+.shop-offer:disabled:not(.sold) { opacity: .62; }
+.shop-offer.sold { opacity: .38; }
+.shop-offer-tag { color: #9f8250; font-size: 8px; letter-spacing: .14em; }
+.shop-offer .card-rarity { position: absolute; right: 10px; top: 10px; font-style: normal; }
+.shop-offer strong { color: #e4ca94; font: 700 14px "Noto Serif SC", serif; }
+.shop-offer small { color: #8d806c; font-size: 9px; line-height: 1.5; }
+.shop-offer b { color: #e1b95e; font-size: 10px; }
+.shop-offer i { position: absolute; right: 9px; bottom: 9px; color: #9f6958; font-size: 8px; font-style: normal; }
 .victory-backdrop { background: radial-gradient(circle, #6b4129cc, #080706ee 52%); }
 .victory-modal { width: min(500px, 100%); padding: 42px; }
 .crown { display: block; color: #e1b95e; font-size: 64px; filter: drop-shadow(0 0 20px #d6923c66); }
@@ -533,6 +548,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   .action-dock { grid-template-columns: 1fr auto; }.action-dock .primary-button { grid-column: 1 / -1; }
   .turn-complete-actions { grid-column: 1 / -1; width: 100%; }.turn-complete-actions > button { flex: 1; }
   .shop-options { grid-template-columns: 1fr; }
+  .shop-stock-grid { grid-template-columns: 1fr; }
   .encounter-intent-options, .trade-comparison { grid-template-columns: 1fr; }
   .trade-gold-field { grid-template-columns: 1fr; }
   .hand-rail { justify-content: flex-start; overflow-x: auto; padding-bottom: 6px; }

@@ -45,7 +45,8 @@ describe("受约束随机地图", () => {
   });
 
   it("每一区域都满足各类格子的最小值和最大值", () => {
-    expect(MAP_TILE_LIMITS.spring).toEqual({ min: 3, max: 4 });
+    expect(MAP_TILE_LIMITS.spring).toEqual({ min: 2, max: 2 });
+    expect(MAP_TILE_LIMITS.event).toEqual({ min: 7, max: 9 });
     for (const seed of [1, 7, 42, 4242, 20260805]) {
       const map = generateMap(seed);
       for (const region of map.regions) {

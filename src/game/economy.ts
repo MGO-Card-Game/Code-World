@@ -142,7 +142,8 @@ export function canUseShop(
 ) {
   return state.phase.kind === "turnComplete"
     && state.activePlayerId === player.id
-    && state.map.tiles[player.position]?.safeZone === true;
+    && (state.map.tiles[player.position]?.type === "start"
+      || state.map.tiles[player.position]?.type === "gate");
 }
 
 export function buyShopItem(

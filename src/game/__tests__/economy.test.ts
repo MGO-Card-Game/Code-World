@@ -163,7 +163,7 @@ describe("营地旅商", () => {
     expect(gameReducer(state, { type: "buyShopItem", item: "healing" })).toBe(state);
 
     player.gold = 99;
-    state.map.tiles[player.position].safeZone = false;
+    state.map.tiles[player.position].type = "event";
     expect(gameReducer(state, { type: "buyShopItem", item: "healing" })).toBe(state);
   });
 

@@ -24,6 +24,7 @@ export type TileType =
   | "blessing"
   | "spring"
   | "event"
+  | "shop"
   | "gate"
   | "boss";
 
@@ -93,6 +94,8 @@ export interface Player {
   baseDefense: number;
   /** 公开货币；通过战斗、宝箱和事件获得，可在安全营地购买补给。 */
   gold: number;
+  /** 商店格累计购买的永久属性次数；跨阶段保留，用于递增定价。 */
+  statPurchases: number;
   position: number;
   /** PvE 与阶段 Boss 战败时返回的本阶段检查点。 */
   checkpointTileId: number;
@@ -291,6 +294,24 @@ export interface PveRewardNoticeState {
 /** 三选一的永久成长；数值和文案在 growth.ts 的 STAT_GROWTH。 */
 export type StatGrowthOption = "attack" | "defense" | "maxHp";
 
+export type ShopStock =
+  | { type: "scroll"; kind?: ScrollKind }
+  | { type: "equipment"; kind: EquipmentKind }
+  | { type: "statGrowth"; option: StatGrowthOption };
+
+export interface ShopOffer {
+  id: number;
+  price: number;
+  sold?: true;
+  stock: ShopStock;
+}
+
+export interface ShopState {
+  playerId: PlayerId;
+  tileIndex: number;
+  offers: ShopOffer[];
+}
+
 export interface StatGrowthChoiceState {
   playerId: PlayerId;
   stageId: MapRegionId;
@@ -304,7 +325,8 @@ export interface EquipmentChoiceState {
     | { kind: "turnComplete" }
     | { kind: "resolveTile"; tileIndex: number }
     | { kind: "grantTreasureEquipment"; remaining: number }
-    | { kind: "showPveReward"; notice: PveRewardNoticeState };
+    | { kind: "showPveReward"; notice: PveRewardNoticeState }
+    | { kind: "shop"; shop: ShopState };
 }
 
 export type GamePhase =
@@ -321,6 +343,7 @@ export type GamePhase =
   | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
   | { kind: "pveReward"; notice: PveRewardNoticeState }
   | { kind: "statGrowthChoice"; choice: StatGrowthChoiceState }
+  | { kind: "shop"; shop: ShopState }
   | { kind: "gameOver"; winnerId: PlayerId };
 
 export type HpChangeReason =
@@ -568,6 +591,8 @@ export type GameAction =
   | { type: "chooseBlessing"; replace: boolean }
   | { type: "acknowledgePveReward" }
   | { type: "buyShopItem"; item: "scroll" | "healing" }
+  | { type: "buyShopOffer"; offerId: number }
+  | { type: "leaveShop" }
   /**
    * 提交本侧本回合要打的全部卷轴（GameRule 8.5，张数不限）。
    * 省略或传空数组表示不使用。两侧都提交后引擎自动结算本回合。

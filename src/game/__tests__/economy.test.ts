@@ -22,13 +22,13 @@ describe("金币奖励", () => {
     const player = state.players.player1;
 
     expect(player.gold).toBe(50);
-    expect(grantGold(state, player, ECONOMY.pveGold, "pveReward")).toBe(50);
-    expect(player.gold).toBe(100);
+    expect(grantGold(state, player, ECONOMY.pveGold, "pveReward")).toBe(25);
+    expect(player.gold).toBe(75);
     expect(state.lastEvents.at(-1)).toMatchObject({
       type: "goldChanged",
       playerId: player.id,
       from: 50,
-      to: 100,
+      to: 75,
       reason: "pveReward",
     });
   });

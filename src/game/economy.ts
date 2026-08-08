@@ -25,10 +25,11 @@ export function roundGold(price: number) {
 }
 
 export const ECONOMY = {
-  pveGold: 5 * GOLD_SCALE,
-  eliteBonusGold: 5 * GOLD_SCALE,
+  // 战斗胜利金币砍半：普通/精英战本就高频，原数值让战斗收益盖过宝箱与事件。
+  pveGold: 2.5 * GOLD_SCALE,
+  eliteBonusGold: 2.5 * GOLD_SCALE,
   /** 阶段首领一局只打得到两次，给到够在新阶段做一次像样补给的量。 */
-  bossGold: 15 * GOLD_SCALE,
+  bossGold: 7.5 * GOLD_SCALE,
   treasureGold: 5 * GOLD_SCALE,
   eventGold: 5 * GOLD_SCALE,
   pvpTransferPercent: 20,

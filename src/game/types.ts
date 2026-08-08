@@ -308,6 +308,7 @@ export type GamePhase =
   | { kind: "gameOver"; winnerId: PlayerId };
 
 export type HpChangeReason =
+  | "camp"
   | "spring"
   | "event"
   | "equipment"

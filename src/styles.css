@@ -201,6 +201,8 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .tile.treasure .tile-icon { color: #d2a64e; }
 .tile.blessing { border-color: #8b76aa; background: linear-gradient(145deg, #271f31, #1b171f); }
 .tile.blessing .tile-icon { color: #c69bea; text-shadow: 0 0 10px #b67be877; }
+.tile.start { border-color: #6f9c76; background: linear-gradient(145deg, #1d2a20, #161d18); }
+.tile.start .tile-icon { color: #81cb8f; text-shadow: 0 0 9px #6bbd7c66; }
 .tile.spring .tile-icon { color: #62b6c5; }
 .tile.event .tile-icon { color: #9b79bd; }
 .tile.gate { border-color: #bc8d45; background: linear-gradient(145deg, #392816, #20170f); }
@@ -231,7 +233,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .board-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 18px; margin-top: 18px; color: #817667; font-size: 9px; letter-spacing: .08em; }
 .board-legend span { display: flex; align-items: center; gap: 5px; }
 .board-legend i { width: 7px; height: 7px; border-radius: 50%; background: #777; }
-.board-legend .legend-battle { background: #bb6651; }.board-legend .legend-treasure { background: #d2a64e; }.board-legend .legend-blessing { background: #c69bea; }.board-legend .legend-spring { background: #62b6c5; }.board-legend .legend-event { background: #9b79bd; }
+.board-legend .legend-camp { background: #81cb8f; }.board-legend .legend-battle { background: #bb6651; }.board-legend .legend-treasure { background: #d2a64e; }.board-legend .legend-blessing { background: #c69bea; }.board-legend .legend-spring { background: #62b6c5; }.board-legend .legend-event { background: #9b79bd; }
 
 .action-dock { max-width: 960px; margin: 20px auto 0; min-height: 83px; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 22px; padding: 14px 17px 14px 23px; background: #211d18; border: 1px solid #5b4c3a; box-shadow: 0 15px 40px #0006; }
 .action-dock p { margin: 5px 0 0; color: #d0c2ad; font-size: 13px; }

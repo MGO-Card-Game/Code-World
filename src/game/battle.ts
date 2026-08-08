@@ -10,7 +10,7 @@ import { grantRandomResourceReward, grantScroll, rewardSecret } from "./resource
 import { enemyStats, getAttack, getDefense, pvpHpTransferAmount } from "./selectors";
 import { addHistory, emit, makeInstanceId, nextRandom, rollDie } from "./state";
 import { ECONOMY, grantGold, pvpGoldTransferAmount } from "./economy";
-import { nextStage, recordEliteVictory, stageBossUnlocked } from "./stages";
+import { nextStage, recordEliteVictory, restAtStageCamp, stageBossUnlocked } from "./stages";
 import type {
   EquipmentDamageContext,
   EquipmentEffects,
@@ -286,6 +286,8 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
           state,
           `${player.name}击败${battleEnemyStats(battle).name}，进入${following.name}！`,
         );
+        // 落点就是下一阶段营地，回血走营地那条规则，不在首领奖励里另开一份
+        restAtStageCamp(state, player, following);
       } else {
         if (stageId) player.stageProgress[stageId].bossDefeated = true;
         state.phase = { kind: "gameOver", winnerId: player.id };

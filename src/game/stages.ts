@@ -1,5 +1,7 @@
+import { addHistory, emit } from "./state";
 import type {
   GameMap,
+  GameState,
   MapRegion,
   MapRegionId,
   Player,
@@ -30,6 +32,34 @@ export function recordEliteVictory(player: Player, regionId: MapRegionId, tileIn
   if (cleared.includes(tileIndex)) return false;
   cleared.push(tileIndex);
   return true;
+}
+
+/**
+ * 阶段营地把生命回满，返回回复量。
+ *
+ * 「经过」就算数，不必停在营地上：路过营地再踩进战斗格的人是满血开打的，
+ * 否则同一条路上停一格与不停一格的差别会大到玩家只敢卡着营地走。
+ *
+ * 击败阶段首领后被送到下一阶段营地也走这里——那一步同样是「到了营地」，
+ * 不必在首领奖励里另写一份回血。
+ */
+export function restAtStageCamp(state: GameState, player: Player, region: MapRegion) {
+  if (player.hp >= player.maxHp) return 0;
+  const from = player.hp;
+  player.hp = player.maxHp;
+  emit(state, {
+    type: "playerHpChanged",
+    playerId: player.id,
+    from,
+    to: player.hp,
+    maxHp: player.maxHp,
+    reason: "camp",
+  });
+  addHistory(
+    state,
+    `${player.name}在「${state.map.tiles[region.entryIndex].label}」休整，生命回满。`,
+  );
+  return player.hp - from;
 }
 
 export function nextStage(map: GameMap, regionId: MapRegionId) {

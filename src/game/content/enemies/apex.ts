@@ -32,7 +32,7 @@ export const APEX_ENEMIES = defineEnemies("apex", {
 
   frostFang: {
     name: "霜牙巨兽",
-    maxHp: 22,
+    maxHp: 24,
     attack: 5,
     defense: 4,
     regions: { mountainside: 1 },

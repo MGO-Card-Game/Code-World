@@ -23,7 +23,7 @@ import {
   rewardSecret,
 } from "./resources";
 import { addHistory, createInitialGame, emit, nextPlayerId, rollDie } from "./state";
-import { stageBossUnlocked } from "./stages";
+import { restAtStageCamp, stageBossUnlocked } from "./stages";
 import {
   buyShopItem,
   ECONOMY,
@@ -992,10 +992,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       next.movementOrigin = positionBefore;
       const region = regionForPosition(next.map, player.position);
       let interceptedAtGate = false;
+      let passedCamp = false;
       for (let step = 0; step < roll; step += 1) {
         const local = player.position - region.startIndex;
         const nextLocal = (local + 1) % MAP_REGION_SIZE;
         player.position = region.startIndex + nextLocal;
+        if (player.position === region.entryIndex) passedCamp = true;
         if (player.position !== region.gateIndex) continue;
         player.stageProgress[region.id].laps += 1;
         if (stageBossUnlocked(player, region)) {
@@ -1016,6 +1018,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         to: player.position,
       });
       const targetTile = next.map.tiles[player.position];
+      addHistory(
+        next,
+        interceptedAtGate
+          ? `${player.name}掷出 ${roll}，抵达「${targetTile.label}」，已满足首领挑战条件。`
+          : `${player.name}掷出 ${roll}，抵达「${targetTile.label}」。`,
+      );
+      // 回血要在结算格子之前：这一步路过营地、下一步踩进战斗格的人应当满血开打
+      if (passedCamp) restAtStageCamp(next, player, region);
       if (interceptedAtGate) {
         next.phase = {
           kind: "bossGateChoice",
@@ -1026,12 +1036,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             bossEnemyId: region.bossEnemyId,
           },
         };
-        addHistory(
-          next,
-          `${player.name}掷出 ${roll}，抵达「${targetTile.label}」，已满足首领挑战条件。`,
-        );
       } else {
-        addHistory(next, `${player.name}掷出 ${roll}，抵达「${targetTile.label}」。`);
         resolveTile(next, targetTile);
       }
       return next;

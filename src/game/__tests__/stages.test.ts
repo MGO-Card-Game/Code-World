@@ -19,6 +19,45 @@ describe("循环阶段地图", () => {
     expect(state.map.tiles[state.players[player.id].position].region).toBe("foothill");
   });
 
+  it("经过阶段营地就回满生命，不需要正好停在营地上", () => {
+    let state = createInitialGame(110);
+    const player = state.players[state.activePlayerId];
+    const region = state.map.regions[0];
+    // 从守关门前一格起步：守关门在前、营地紧随其后，这个种子的骰点足以越过两者
+    player.position = region.endIndex;
+    player.hp = 4;
+
+    state = gameReducer(state, { type: "rollMovement" });
+    const moved = state.players[player.id];
+
+    expect(state.lastMovementRoll).toBeGreaterThan(2);
+    expect(moved.position).not.toBe(region.entryIndex);
+    expect(moved.hp).toBe(moved.maxHp);
+    expect(state.lastEvents).toContainEqual(expect.objectContaining({
+      type: "playerHpChanged",
+      playerId: player.id,
+      from: 4,
+      to: moved.maxHp,
+      reason: "camp",
+    }));
+  });
+
+  it("没有经过营地的移动不会回血", () => {
+    let state = createInitialGame(107);
+    const player = state.players[state.activePlayerId];
+    const region = state.map.regions[0];
+    // 营地在守关门之后；从营地起步，一次掷骰绕不回去
+    player.position = region.entryIndex;
+    player.hp = 4;
+
+    state = gameReducer(state, { type: "rollMovement" });
+
+    expect(state.players[player.id].position).not.toBe(region.entryIndex);
+    expect(state.lastEvents.filter(
+      (event) => event.type === "playerHpChanged" && event.reason === "camp",
+    )).toHaveLength(0);
+  });
+
   it("精英格首次胜利计入阶段目标，重复击败同一格不重复计数", () => {
     let state = createInitialGame(102);
     const player = state.players.player1;
@@ -92,11 +131,14 @@ describe("循环阶段地图", () => {
       stageId: foothill.id,
       tileIndex: foothill.gateIndex,
     });
+    player.hp = 1;
     finishBattle(state, firstBoss, "a");
 
     expect(player.stageProgress.foothill.bossDefeated).toBe(true);
     expect(player.position).toBe(mountainside.entryIndex);
     expect(player.checkpointTileId).toBe(mountainside.entryIndex);
+    // 落点就是云腰营地，残血通关不该带着 1 点血进下一阶段
+    expect(player.hp).toBe(player.maxHp);
     expect(state.phase.kind).toBe("turnComplete");
 
     const summit = state.map.regions[2];

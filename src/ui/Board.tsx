@@ -342,6 +342,7 @@ export function Board({ state, playback, onInspectBoss }: {
       </div>
       <div className="board-legend">
         <span>拖动平移 · 滚轮缩放 · {Math.round(transform.scale * 100)}%</span>
+        <span><i className="legend-camp" />营地 · 经过回满</span>
         <span><i className="legend-battle" />战斗</span>
         <span><i className="legend-treasure" />宝箱</span>
         <span><i className="legend-blessing" />赐福</span>

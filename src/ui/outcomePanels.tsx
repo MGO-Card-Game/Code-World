@@ -11,7 +11,7 @@ import { scrollDefinition } from "../game/content/scrolls";
 import { requirementValueForRegion } from "../game/stages";
 import { STAT_GROWTH, STAT_GROWTH_OPTIONS } from "../game/growth";
 import { getAttack, getDefense, pvpHpTransferAmount } from "../game/selectors";
-import { equipmentSalvageValue, pvpGoldTransferAmount } from "../game/economy";
+import { bossKeyPrice, equipmentSalvageValue, pvpGoldTransferAmount } from "../game/economy";
 import type {
   BlessingChoiceState,
   BossGateChoiceState,
@@ -58,6 +58,8 @@ export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
   const region = state.map.regions.find((candidate) => candidate.id === choice.stageId)!;
   const boss = enemyDefinition(choice.bossEnemyId);
   const canChoose = viewerSeat === choice.playerId;
+  const keyPurchased = player.stageProgress[region.id].bossKeyPurchased;
+  const keyPrice = bossKeyPrice(state.map, region.id);
   return (
     <ModalBackdrop className="boss-gate-backdrop">
       <motion.section
@@ -70,7 +72,11 @@ export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
         <div className="boss-gate-emblem">♛</div>
         <div className="modal-kicker">{region.name} · 守关挑战</div>
         <h2>{boss.name}正在门后等待</h2>
-        <p>{player.name}已经完成本阶段目标，可以立即挑战首领，也可以继续绕行整备。</p>
+        <p>
+          {keyPurchased
+            ? `${player.name}已经持有本阶段钥匙，可以挑战首领，也可以继续绕行整备。`
+            : `${player.name}已经完成本阶段目标，还需购买首领钥匙才能进入。`}
+        </p>
         <div className="boss-requirements">
           {region.requirements.map((requirement) => {
             const value = requirementValueForRegion(player, region.id, requirement);
@@ -84,15 +90,25 @@ export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
         </div>
         {canChoose ? (
           <div className="boss-gate-actions">
-            <button className="primary-button" onClick={() => dispatch({ type: "chooseBossChallenge", challenge: true })}>
-              挑战{boss.name}
-            </button>
+            {keyPurchased ? (
+              <button className="primary-button" onClick={() => dispatch({ type: "chooseBossChallenge", challenge: true })}>
+                挑战{boss.name}
+              </button>
+            ) : (
+              <button
+                className="primary-button"
+                disabled={player.gold < keyPrice}
+                onClick={() => dispatch({ type: "buyBossKey" })}
+              >
+                {player.gold < keyPrice ? `金币不足 · 需要 ${keyPrice}` : `购买钥匙 · ${keyPrice} 金币`}
+              </button>
+            )}
             <button className="primary-button secondary" onClick={() => dispatch({ type: "chooseBossChallenge", challenge: false })}>
-              继续整备
+              {keyPurchased ? "暂不进入" : "暂不购买"}
             </button>
           </div>
         ) : (
-          <p className="waiting-notice">等待{player.name}决定是否挑战……</p>
+          <p className="waiting-notice">等待{player.name}处理首领入口……</p>
         )}
       </motion.section>
     </ModalBackdrop>

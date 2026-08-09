@@ -89,7 +89,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     name: "冰壳蜥",
     maxHp: 18,
     attack: 2,
-    defense: 3,
+    defense: 4,
     regions: { summit: 1 },
     // 厚重冰甲拖慢反应，先攻钉死在低点。
     initiative: { type: "fixed", value: 2 },

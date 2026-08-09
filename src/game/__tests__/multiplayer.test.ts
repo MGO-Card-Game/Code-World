@@ -330,9 +330,18 @@ describe("暗牌裁剪 viewFor", () => {
         case "blessingChoice":
           state = gameReducer(state, { type: "chooseBlessing", replace: false });
           break;
-        case "bossGateChoice":
-          state = gameReducer(state, { type: "chooseBossChallenge", challenge: true });
+        case "bossGateChoice": {
+          const { playerId, stageId } = state.phase.choice;
+          if (!state.players[playerId].stageProgress[stageId].bossKeyPurchased) {
+            const purchased = gameReducer(state, { type: "buyBossKey" });
+            state = purchased === state
+              ? gameReducer(state, { type: "chooseBossChallenge", challenge: false })
+              : purchased;
+          } else {
+            state = gameReducer(state, { type: "chooseBossChallenge", challenge: true });
+          }
           break;
+        }
         case "battle": {
           const battle = state.phase.battle;
           const attackerId = battle.attacker === "a"

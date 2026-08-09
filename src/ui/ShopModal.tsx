@@ -9,6 +9,7 @@ import {
 import { canUseShop, ECONOMY } from "../game/economy";
 import type { GameStateView, OwnedScroll, PlayerId } from "../game/types";
 import { ModalBackdrop, SPRING, type Dispatch, visibleScrolls } from "./shared";
+import { ShopInventorySummary } from "./ShopInventorySummary";
 
 export function ShopModal({ state, viewerSeat, dispatch, onClose }: {
   state: GameStateView;
@@ -47,8 +48,9 @@ export function ShopModal({ state, viewerSeat, dispatch, onClose }: {
       >
         <div className="shop-emblem">¤</div>
         <div className="modal-kicker">安全营地 · 旅商补给</div>
-        <h2>{player.name}持有 {player.gold} 金币</h2>
+        <h2>{player.name}正在补给</h2>
         <p>购买后可以继续选购，关闭商店再结束回合。</p>
+        <ShopInventorySummary player={player} revealScrolls />
         <div className="shop-options">
           <button
             type="button"

@@ -338,7 +338,10 @@ export function Board({ state, playback, onInspectBoss, focused, onToggleFocus }
               })}
               <button
                 type="button"
-                className={`stage-boss-card ${selectedPlayers.some((player) => stageBossUnlocked(player, selectedRegion)) ? "unlocked" : ""}`}
+                className={`stage-boss-card ${selectedPlayers.some((player) =>
+                  stageBossUnlocked(player, selectedRegion)
+                  && player.stageProgress[selectedRegion.id].bossKeyPurchased
+                ) ? "unlocked" : ""}`}
                 onClick={() => onInspectBoss(selectedRegion.id)}
                 aria-label={`查看${selectedBoss.name}情报`}
               >
@@ -362,6 +365,7 @@ export function Board({ state, playback, onInspectBoss, focused, onToggleFocus }
                   {selectedPlayers.map((player) => {
                     const defeated = player.stageProgress[selectedRegion.id].bossDefeated;
                     const unlocked = stageBossUnlocked(player, selectedRegion);
+                    const keyPurchased = player.stageProgress[selectedRegion.id].bossKeyPurchased;
                     const progress = selectedRegion.requirements.map((requirement) => (
                       `${Math.min(requirementValueForRegion(player, selectedRegion.id, requirement), requirement.target)}/${requirement.target}`
                     )).join(" · ");
@@ -369,7 +373,7 @@ export function Board({ state, playback, onInspectBoss, focused, onToggleFocus }
                       <div key={player.id}>
                         <i style={{ "--piece-color": player.color } as React.CSSProperties}>{playerSigil(player)}</i>
                         <span>{player.name}</span>
-                        <b>{defeated ? "已通过" : unlocked ? "可挑战" : progress}</b>
+                        <b>{defeated ? "已通过" : unlocked ? keyPurchased ? "可挑战" : "待购钥匙" : progress}</b>
                       </div>
                     );
                   })}

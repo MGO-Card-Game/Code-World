@@ -121,8 +121,16 @@ export function advanceAutomatically(state: GameState): GameState {
       throw new Error("自动流程选择打招呼，不应进入交易报价");
     case "tradeConfirmation":
       throw new Error("自动流程选择打招呼，不应进入交易确认");
-    case "bossGateChoice":
+    case "bossGateChoice": {
+      const { playerId, stageId } = state.phase.choice;
+      if (!state.players[playerId].stageProgress[stageId].bossKeyPurchased) {
+        const purchased = gameReducer(state, { type: "buyBossKey" });
+        return purchased === state
+          ? gameReducer(state, { type: "chooseBossChallenge", challenge: false })
+          : purchased;
+      }
       return gameReducer(state, { type: "chooseBossChallenge", challenge: true });
+    }
     case "blessingChoice":
       return gameReducer(state, { type: "chooseBlessing", replace: false });
     case "battle": {

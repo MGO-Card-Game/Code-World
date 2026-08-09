@@ -409,14 +409,11 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         addHistory(state, `${player.name}击败峰顶巨龙，夺得登峰之冠！`);
       }
     } else {
-      if (battle.enemyAffix && battle.stageId && battle.tileIndex !== undefined) {
-        const firstClear = recordEliteVictory(
-          player,
-          battle.stageId,
-          battle.tileIndex,
-        );
+      if (battle.enemyAffix && battle.stageId) {
         const region = state.map.regions.find((candidate) => candidate.id === battle.stageId)!;
-        if (firstClear && stageBossUnlocked(player, region)) {
+        const wasUnlocked = stageBossUnlocked(player, region);
+        recordEliteVictory(player, battle.stageId);
+        if (!wasUnlocked && stageBossUnlocked(player, region)) {
           addHistory(state, `${player.name}已满足${region.name}的首领挑战条件！`);
         }
       }

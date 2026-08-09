@@ -98,7 +98,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
     const status = progress.bossDefeated
       ? "已击败"
       : unlocked
-        ? "可挑战"
+        ? progress.bossKeyPurchased ? "可挑战" : "待购钥匙"
         : `${requirementValueForRegion(player, region.id, requirement)}/${requirement.target}`;
     return { stageName: region.name, stageStatus: status };
   };

@@ -82,7 +82,8 @@ export function addHistory(
 function newStageProgress(): StageProgress {
   return {
     laps: 0,
-    defeatedEliteTileIds: [],
+    eliteVictories: 0,
+    bossKeyPurchased: false,
     openedTreasureTileIds: [],
     bossDefeated: false,
   };

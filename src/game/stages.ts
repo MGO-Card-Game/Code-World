@@ -16,8 +16,10 @@ export function requirementValueForRegion(
   requirement: StageRequirement,
 ) {
   switch (requirement.type) {
-    case "uniqueEliteVictories":
-      return player.stageProgress[regionId].defeatedEliteTileIds.length;
+    case "laps":
+      return player.stageProgress[regionId].laps;
+    case "eliteVictories":
+      return player.stageProgress[regionId].eliteVictories;
   }
 }
 
@@ -27,11 +29,8 @@ export function stageBossUnlocked(player: PlayerStats, region: MapRegion) {
   );
 }
 
-export function recordEliteVictory(player: Player, regionId: MapRegionId, tileIndex: number) {
-  const cleared = player.stageProgress[regionId].defeatedEliteTileIds;
-  if (cleared.includes(tileIndex)) return false;
-  cleared.push(tileIndex);
-  return true;
+export function recordEliteVictory(player: Player, regionId: MapRegionId) {
+  player.stageProgress[regionId].eliteVictories += 1;
 }
 
 /**

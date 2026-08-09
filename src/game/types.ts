@@ -38,14 +38,15 @@ export function isCombatTile(type: TileType) {
 export type MapRegionId = "foothill" | "mountainside" | "summit";
 
 export type StageRequirement = {
-  type: "uniqueEliteVictories";
+  type: "laps" | "eliteVictories";
   target: number;
   label: string;
 };
 
 export interface StageProgress {
   laps: number;
-  defeatedEliteTileIds: number[];
+  eliteVictories: number;
+  bossKeyPurchased: boolean;
   openedTreasureTileIds: number[];
   bossDefeated: boolean;
 }
@@ -424,6 +425,7 @@ export type GoldChangeReason =
   | "event"
   | "salvage"
   | "shop"
+  | "bossKey"
   | "trade"
   | "pvpTransfer";
 
@@ -654,6 +656,7 @@ export type GameAction =
     }
   | { type: "cancelTrade"; side: CombatSide }
   | { type: "confirmTrade"; side: CombatSide; accept: boolean }
+  | { type: "buyBossKey" }
   | { type: "chooseBossChallenge"; challenge: boolean }
   | { type: "chooseBlessing"; replace: boolean }
   | { type: "acknowledgePveReward" }

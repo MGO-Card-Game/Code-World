@@ -2,6 +2,54 @@ import { defineEquipment } from "./definition";
 
 /** 武器：主要抬高攻击骰上限，或者改变高点数出现时的结果。 */
 export const WEAPONS = defineEquipment("weapon", {
+  blackIronGreatsword: {
+    name: "黑铁巨剑",
+    description: "攻击时投 2 次并取较低值；额外造成 3 点伤害",
+    rarity: "R",
+    modifiers: [],
+    effects: {
+      beforeRoll({ dieKind, modifiers, addBattleLog }) {
+        if (dieKind !== "attack") return;
+        modifiers.rollAttempts = Math.max(modifiers.rollAttempts, 2);
+        modifiers.rollSelection = "lowest";
+        addBattleLog("黑铁巨剑沉重难驭，本次攻击投 2 次并取较低值。");
+      },
+      afterRoll({ dieKind, modifiers, addBattleLog }) {
+        if (dieKind !== "attack") return;
+        modifiers.bonusDamage += 3;
+        addBattleLog("黑铁巨剑以重量碾过防线，额外造成 3 点伤害。");
+      },
+    },
+  },
+
+  oniBlade: {
+    name: "鬼切",
+    description: "累计击败 3 次精英后解锁：攻击骰上限 +2；攻击被完全抵挡时仍造成 2 点固定伤害",
+    rarity: "SR",
+    modifiers: [],
+    effects: {
+      modifiers({ player }) {
+        const victories = Object.values(player.stageProgress).reduce(
+          (total, progress) => total + progress.eliteVictories,
+          0,
+        );
+        return victories >= 3
+          ? [{ type: "dieSides", die: "attack", value: 2 }]
+          : [];
+      },
+      beforeRoll({ player, dieKind, modifiers, addBattleLog }) {
+        if (dieKind !== "attack") return;
+        const victories = Object.values(player.stageProgress).reduce(
+          (total, progress) => total + progress.eliteVictories,
+          0,
+        );
+        if (victories < 3) return;
+        modifiers.minimumDamage = Math.max(modifiers.minimumDamage, 2);
+        addBattleLog("鬼切已经解锁，本次攻击至少造成 2 点固定伤害。");
+      },
+    },
+  },
+
   sword: {
     name: "铁剑",
     description: "攻击永久 +1",

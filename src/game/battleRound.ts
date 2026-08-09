@@ -59,11 +59,14 @@ export function newRollModifiers(): RollModifiers {
     flatBonus: 0,
     extraDice: 0,
     rollAttempts: 1,
+    rollSelection: "highest",
+    extremeFaces: false,
     minimumRoll: 1,
     maxRollDice: 0,
     fixedRollDice: 0,
     fixedRollValue: 0,
     bonusDamage: 0,
+    minimumDamage: 0,
     damageReduction: 0,
   };
 }
@@ -236,11 +239,16 @@ export function rollForSide(
   const dice = Array.from({ length: count }, (_unused, index) => {
     const attempts = Array.from(
       { length: Math.max(1, modifiers.rollAttempts) },
-      () => rollDie(state, sides),
+      () => modifiers.extremeFaces
+        ? (rollDie(state, 2) === 1 ? 1 : sides)
+        : rollDie(state, sides),
     );
+    const selected = modifiers.rollSelection === "lowest"
+      ? Math.min(...attempts)
+      : Math.max(...attempts);
     const roll = Math.min(
       sides,
-      Math.max(modifiers.minimumRoll, ...attempts),
+      Math.max(modifiers.minimumRoll, selected),
     );
     if (index < modifiers.maxRollDice) return sides;
     // 钉死就是钉死，不再受 minimumRoll 抬举——这张牌的代价就是放弃上下两头
@@ -525,10 +533,13 @@ export function resolveBattleRound(state: GameState) {
   const defenseTotal = defenseBase + defenseRoll.sum + defenseBonus;
   // bonusDamage 不吃防御值，但仍属于本次最终伤害，可以被闪避类效果减免
   const damage = Math.max(
-    0,
-    Math.max(0, attackTotal - defenseTotal)
-      + attackModifiers.bonusDamage
-      - defenseModifiers.damageReduction,
+    attackModifiers.minimumDamage,
+    Math.max(
+      0,
+      Math.max(0, attackTotal - defenseTotal)
+        + attackModifiers.bonusDamage
+        - defenseModifiers.damageReduction,
+    ),
   );
 
   emit(state, {

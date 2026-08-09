@@ -11,6 +11,18 @@ const TALISMAN_DEFENSE = 2;
 
 /** 饰品：骰子控制、探索与条件效果。槽位有两个，是唯一能叠的分类。 */
 export const ACCESSORIES = defineEquipment("accessory", {
+  fateCoin: {
+    name: "命运硬币",
+    description: "你的攻击骰和防御骰只会掷出最小值或最大值",
+    rarity: "PR",
+    modifiers: [],
+    effects: {
+      beforeRoll({ modifiers }) {
+        modifiers.extremeFaces = true;
+      },
+    },
+  },
+
   charm: {
     name: "生命护符",
     description: "生命上限 +4，获得时恢复 4",

@@ -74,11 +74,16 @@ export function actionGuidance(state: GameStateView, movementSides: number): Act
       };
     }
     case "bossGateChoice":
-      return {
-        label: "首领入口",
-        action: "决定是否挑战阶段首领",
-        actorIds: [phase.choice.playerId],
-      };
+      {
+        const choice = phase.choice;
+        const hasKey = state.players[choice.playerId]
+          .stageProgress[choice.stageId].bossKeyPurchased;
+        return {
+          label: "首领入口",
+          action: hasKey ? "决定是否进入挑战首领" : "购买阶段钥匙或暂时离开",
+          actorIds: [choice.playerId],
+        };
+      }
     case "battle": {
       const battle = phase.battle;
       const attacker = battle.attacker;

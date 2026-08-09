@@ -42,18 +42,18 @@ export const MAP_REGIONS: MapRegion[] = [
   {
     id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 27,
     gateIndex: 0, entryIndex: 1, bossEnemyId: "banditChief",
-    requirements: [{ type: "uniqueEliteVictories", target: 1, label: "击败 1 个精英格敌人" }],
+    requirements: [{ type: "laps", target: 3, label: "绕场 3 圈" }],
   },
   {
     id: "mountainside", name: "云雾山腰", startIndex: 28, endIndex: 55,
     gateIndex: 28, entryIndex: 29, bossEnemyId: "frostFang",
-    requirements: [{ type: "uniqueEliteVictories", target: 2, label: "击败 2 个不同精英格敌人" }],
+    requirements: [{ type: "eliteVictories", target: 2, label: "累计击败 2 次精英格敌人" }],
   },
   {
     id: "summit", name: "雷鸣峰顶", startIndex: 56, endIndex: 83,
     gateIndex: 56, entryIndex: 57, bossEnemyId: "dragon",
-    // 龙巢正式条件尚未确定，暂用两个不同山顶精英作为可完整通关的占位规则。
-    requirements: [{ type: "uniqueEliteVictories", target: 2, label: "击败 2 个不同山顶精英" }],
+    // 龙巢正式条件尚未确定，暂用两次山顶精英胜利作为可完整通关的占位规则。
+    requirements: [{ type: "eliteVictories", target: 2, label: "累计击败 2 次山顶精英" }],
   },
 ];
 

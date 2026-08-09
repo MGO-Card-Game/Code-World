@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ECONOMY,
+  bossKeyPrice,
   equipmentSalvageValue,
   grantGold,
   pvpGoldTransferAmount,
@@ -17,6 +18,12 @@ function atSafeCamp(seed = 20260808) {
 }
 
 describe("金币奖励", () => {
+  it("阶段钥匙价格为阶段序号乘以 100", () => {
+    const state = createInitialGame(1);
+    expect(state.map.regions.map((region) => bossKeyPrice(state.map, region.id)))
+      .toEqual([100, 200, 300]);
+  });
+
   it("新玩家从 50 金币开始，奖励金币产生结构化事件", () => {
     const state = createInitialGame(1);
     const player = state.players.player1;

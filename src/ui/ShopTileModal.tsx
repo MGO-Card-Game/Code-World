@@ -13,6 +13,7 @@ import type {
   ShopState,
 } from "../game/types";
 import { ModalBackdrop, SPRING, type Dispatch } from "./shared";
+import { ShopInventorySummary } from "./ShopInventorySummary";
 
 function offerPresentation(offer: ShopOffer) {
   switch (offer.stock.type) {
@@ -72,8 +73,9 @@ export function ShopTileModal({ state, shop, viewerSeat, dispatch }: {
       >
         <div className="shop-emblem">¤</div>
         <div className="modal-kicker">沿途商栈 · 本次货架</div>
-        <h2>{player.name}持有 {player.gold} 金币</h2>
+        <h2>{player.name}正在挑选商品</h2>
         <p>货架会在离店时消失；售罄商品不会补货。</p>
+        <ShopInventorySummary player={player} revealScrolls={canBuy} />
         <div className="shop-stock-grid">
           {shop.offers.map((offer) => {
             const presentation = offerPresentation(offer);

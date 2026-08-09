@@ -10,7 +10,7 @@ import { MAP_REGION_SIZE, regionForPosition } from "./map";
 import { consumeScroll } from "./resources";
 import { addHistory, createInitialGame, emit, rollDie } from "./state";
 import { restAtStageCamp, stageBossUnlocked } from "./stages";
-import { buyShopItem, transferGold } from "./economy";
+import { bossKeyPrice, buyShopItem, spendGold, transferGold } from "./economy";
 import { leaveCasino, spinCasino } from "./casino";
 import { buyShopOffer, leaveShop } from "./shop";
 import { cancelTrade, confirmTrade, submitTradeOffer } from "./trading";
@@ -56,6 +56,7 @@ function chooseBossChallenge(state: GameState, challenge: boolean) {
     return true;
   }
   if (!stageBossUnlocked(player, region)) return false;
+  if (!player.stageProgress[stageId].bossKeyPurchased) return false;
   startBattle(
     state,
     "boss",
@@ -65,6 +66,22 @@ function chooseBossChallenge(state: GameState, challenge: boolean) {
     undefined,
     { stageId, tileIndex: gateTileIndex, retreatTo: player.checkpointTileId },
   );
+  return true;
+}
+
+function buyBossKey(state: GameState) {
+  if (state.phase.kind !== "bossGateChoice") return false;
+  const { playerId, stageId, gateTileIndex } = state.phase.choice;
+  const player = state.players[playerId];
+  const region = state.map.regions.find((candidate) => candidate.id === stageId);
+  if (!player || !region || player.position !== gateTileIndex) return false;
+  if (!stageBossUnlocked(player, region)) return false;
+  const progress = player.stageProgress[stageId];
+  if (progress.bossKeyPurchased) return false;
+  const price = bossKeyPrice(state.map, stageId);
+  if (price <= 0 || !spendGold(state, player, price, "bossKey")) return false;
+  progress.bossKeyPurchased = true;
+  addHistory(state, `${player.name}花费 ${price} 金币购买了${region.name}的首领钥匙。`);
   return true;
 }
 
@@ -803,6 +820,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return settleActionResult(next, state, cancelTrade(next, action));
     case "confirmTrade":
       return settleActionResult(next, state, confirmTrade(next, action));
+    case "buyBossKey":
+      return buyBossKey(next) ? next : state;
     case "chooseBossChallenge":
       return chooseBossChallenge(next, action.challenge) ? next : state;
     case "chooseBlessing":

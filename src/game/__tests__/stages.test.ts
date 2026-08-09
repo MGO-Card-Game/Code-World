@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { finishBattle } from "../battle";
+import { bossKeyPrice } from "../economy";
 import { createInitialGame, gameReducer } from "../engine";
 import { canAct } from "../multiplayer";
 import { makeBattle, resolveRound } from "../testSupport";
 
 describe("循环阶段地图", () => {
-  it("未完成条件时绕过守关门并累计圈数", () => {
+  it("未满三圈时绕过守关门并累计圈数", () => {
     let state = createInitialGame(101);
     const player = state.players[state.activePlayerId];
     const region = state.map.regions[0];
@@ -58,7 +59,7 @@ describe("循环阶段地图", () => {
     )).toHaveLength(0);
   });
 
-  it("精英格首次胜利计入阶段目标，重复击败同一格不重复计数", () => {
+  it("每次精英格胜利都计入阶段目标，重复击败同一格也会计数", () => {
     let state = createInitialGame(102);
     const player = state.players.player1;
     const tile = state.map.tiles.find(
@@ -88,18 +89,15 @@ describe("循环阶段地图", () => {
     winElite();
     winElite();
 
-    expect(state.players[player.id].stageProgress.foothill.defeatedEliteTileIds)
-      .toEqual([tile.id]);
+    expect(state.players[player.id].stageProgress.foothill.eliteVictories).toBe(2);
   });
 
-  it("完成条件后即使骰点有剩余，经过守关门也会截停并由本人决定是否挑战", () => {
+  it("完成条件后经过守关门会截停，购买钥匙后才能挑战", () => {
     let state = createInitialGame(103);
     const player = state.players[state.activePlayerId];
     const region = state.map.regions[0];
     player.position = region.endIndex;
-    player.stageProgress.foothill.defeatedEliteTileIds = [
-      state.map.tiles.find((tile) => tile.region === "foothill" && tile.type === "elite")!.id,
-    ];
+    player.stageProgress.foothill.laps = 2;
 
     state = gameReducer(state, { type: "rollMovement" });
 
@@ -110,12 +108,61 @@ describe("循环阶段地图", () => {
     const other = player.id === "player1" ? "player2" : "player1";
     expect(canAct(state, { type: "chooseBossChallenge", challenge: true }, other)).toBe(false);
 
+    expect(gameReducer(state, { type: "chooseBossChallenge", challenge: true })).toBe(state);
+    expect(gameReducer(state, { type: "buyBossKey" })).toBe(state);
+    state.players[player.id].gold = bossKeyPrice(state.map, region.id);
+    state = gameReducer(state, { type: "buyBossKey" });
+    expect(state.players[player.id].gold).toBe(0);
+    expect(state.players[player.id].stageProgress.foothill.bossKeyPurchased).toBe(true);
+    expect(state.phase.kind).toBe("bossGateChoice");
+    expect(state.lastEvents).toContainEqual(expect.objectContaining({
+      type: "goldChanged",
+      playerId: player.id,
+      from: 100,
+      to: 0,
+      reason: "bossKey",
+    }));
+
     state = gameReducer(state, { type: "chooseBossChallenge", challenge: true });
     expect(state.phase.kind).toBe("battle");
     if (state.phase.kind !== "battle") throw new Error("应进入首领战");
     expect(state.phase.battle.kind).toBe("boss");
     expect(state.phase.battle.enemyId).toBe("banditChief");
     expect(state.phase.battle.stageId).toBe("foothill");
+  });
+
+  it("阶段钥匙按阶段定价，购买后可以暂不进入且钥匙不会丢失", () => {
+    let state = createInitialGame(106);
+    const player = state.players[state.activePlayerId];
+    const [foothill, mountainside, summit] = state.map.regions;
+    expect([
+      bossKeyPrice(state.map, foothill.id),
+      bossKeyPrice(state.map, mountainside.id),
+      bossKeyPrice(state.map, summit.id),
+    ]).toEqual([100, 200, 300]);
+
+    player.position = foothill.gateIndex;
+    player.stageProgress.foothill.laps = 3;
+    player.gold = 100;
+    state.phase = {
+      kind: "bossGateChoice",
+      choice: {
+        playerId: player.id,
+        stageId: foothill.id,
+        gateTileIndex: foothill.gateIndex,
+        bossEnemyId: foothill.bossEnemyId,
+      },
+    };
+
+    expect(canAct(state, { type: "buyBossKey" }, player.id)).toBe(true);
+    const other = player.id === "player1" ? "player2" : "player1";
+    expect(canAct(state, { type: "buyBossKey" }, other)).toBe(false);
+    state = gameReducer(state, { type: "buyBossKey" });
+    state = gameReducer(state, { type: "chooseBossChallenge", challenge: false });
+
+    expect(state.phase.kind).toBe("turnComplete");
+    expect(state.players[player.id].stageProgress.foothill.bossKeyPurchased).toBe(true);
+    expect(state.players[player.id].gold).toBe(0);
   });
 
   it("击败前两阶段首领进入下一环，击败巨龙结束游戏", () => {
@@ -160,12 +207,9 @@ describe("循环阶段地图", () => {
     const state = createInitialGame(105);
     const player = state.players.player1;
     const region = state.map.regions[0];
-    const eliteId = state.map.tiles.find(
-      (tile) => tile.region === region.id && tile.type === "elite",
-    )!.id;
     player.position = region.gateIndex;
     player.checkpointTileId = region.entryIndex;
-    player.stageProgress.foothill.defeatedEliteTileIds = [eliteId];
+    player.stageProgress.foothill.laps = 3;
     const battle = makeBattle({
       kind: "boss",
       aPlayerId: player.id,
@@ -177,6 +221,6 @@ describe("循环阶段地图", () => {
     finishBattle(state, battle, "b");
 
     expect(player.position).toBe(region.entryIndex);
-    expect(player.stageProgress.foothill.defeatedEliteTileIds).toEqual([eliteId]);
+    expect(player.stageProgress.foothill.laps).toBe(3);
   });
 });

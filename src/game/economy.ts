@@ -5,8 +5,10 @@ import { grantScroll, rewardSecret } from "./resources";
 import { addHistory, emit } from "./state";
 import type {
   GameAction,
+  GameMap,
   GameState,
   GoldChangeReason,
+  MapRegionId,
   Player,
 } from "./types";
 
@@ -25,6 +27,7 @@ export function roundGold(price: number) {
 }
 
 export const ECONOMY = {
+  bossKeyPerStage: 100,
   // 战斗胜利金币砍半：普通/精英战本就高频，原数值让战斗收益盖过宝箱与事件。
   pveGold: 2.5 * GOLD_SCALE,
   eliteBonusGold: 2.5 * GOLD_SCALE,
@@ -50,6 +53,13 @@ export const ECONOMY = {
     healing: { price: 4 * GOLD_SCALE, amount: 5 },
   },
 } as const;
+
+/** 第一、二、三阶段的钥匙价格依次为 100、200、300 金币。 */
+export function bossKeyPrice(map: Pick<GameMap, "regions">, stageId: MapRegionId) {
+  const stageIndex = map.regions.findIndex((region) => region.id === stageId);
+  if (stageIndex < 0) return 0;
+  return (stageIndex + 1) * ECONOMY.bossKeyPerStage;
+}
 
 function goldGainMultiplier(player: Pick<Player, "blessings">) {
   return player.blessings.reduce((product, owned) => {
@@ -108,7 +118,7 @@ export function spendGold(
   state: GameState,
   player: Player,
   amount: number,
-  reason: Extract<GoldChangeReason, "shop" | "event"> = "shop",
+  reason: Extract<GoldChangeReason, "shop" | "event" | "bossKey"> = "shop",
 ) {
   const normalized = Math.max(0, Math.floor(amount));
   if (normalized === 0 || player.gold < normalized) return false;

@@ -92,6 +92,7 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
       return owner === actor && confirmation === "pending";
     }
 
+    case "buyBossKey":
     case "chooseBossChallenge":
       return (
         state.phase.kind === "bossGateChoice" &&

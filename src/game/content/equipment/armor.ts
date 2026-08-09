@@ -2,6 +2,36 @@ import { defineEquipment } from "./definition";
 
 /** 防具：抬高防御骰上限，或者降低吃亏时的损失。 */
 export const ARMOR = defineEquipment("armor", {
+  turtleShell: {
+    name: "龟壳",
+    description: "地图移动骰上限 -2；防御骰上限 +4",
+    rarity: "R",
+    modifiers: [
+      { type: "dieSides", die: "movement", value: -2 },
+      { type: "dieSides", die: "defense", value: 4 },
+    ],
+  },
+
+  parryShield: {
+    name: "招架盾",
+    description: "完全抵挡对方攻击后，下一次攻击骰上限 +4",
+    rarity: "SR",
+    modifiers: [],
+    effects: {
+      beforeDamage({ incoming, item, addBattleLog }) {
+        if (incoming !== 0) return;
+        item.battleMemo = 1;
+        addBattleLog("招架盾完全挡下攻击，为下一次反击蓄势。");
+      },
+      beforeRoll({ dieKind, item, modifiers, addBattleLog }) {
+        if (dieKind !== "attack" || item.battleMemo === undefined) return;
+        delete item.battleMemo;
+        modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + 4;
+        addBattleLog("招架盾释放反击架势，本次攻击骰上限 +4。");
+      },
+    },
+  },
+
   shield: {
     name: "木盾",
     description: "防御永久 +1",

@@ -5,7 +5,7 @@ import {
   type EliteAffixDefinition,
 } from "../content/enemies";
 import { newRollModifiers } from "../battleRound";
-import type { BattleHookContext } from "../effects/battleHooks";
+import type { BattleHookContext, EnemyDamageContext } from "../effects/battleHooks";
 import { enemyEffects, enemyStats } from "../selectors";
 import { createInitialGame, gameReducer } from "../engine";
 import { makeBattle, resolveRound } from "../testSupport";
@@ -195,6 +195,84 @@ describe("怪物战斗钩子", () => {
       roll: { sides: 6, dice: [6], sum: 6 },
     });
     expect(modifiers.bonusDamage).toBe(2);
+  });
+
+  it("凝胶质：生化蛞蝓受到的每一次伤害至多 3 点", () => {
+    const state = pveBattle(20260805, "bioSlug", undefined, { attacker: "a" });
+    // 攻击拉到远超封顶线，攻防骰再怎么投，这一击都该停在 3
+    state.players.player1.baseAttack = 50;
+
+    const next = resolveRound(state);
+
+    expect(only(next.lastEvents, "battleDamage").amount).toBe(3);
+  });
+
+  it("凝胶质：只削顶，够不到 3 点的伤害原样落地", () => {
+    /*
+      逼引擎投出一整条低伤害区间要靠碰种子，读起来全是噪音，理由同下面的重斧。
+      钩子接没接上已经由上一条经引擎的用例守住了，这里只验封顶本身的形状。
+    */
+    const [effects] = enemyEffects("bioSlug");
+    const capped = (incoming: number) => {
+      let damage = incoming;
+      effects.beforeDamage?.({
+        incoming,
+        reduceDamage: (by: number) => {
+          damage = Math.min(damage, Math.max(0, damage - by));
+        },
+        capDamage: (max: number) => { damage = Math.min(damage, Math.max(0, max)); },
+        addBattleLog() {},
+      } as unknown as EnemyDamageContext);
+      return damage;
+    };
+
+    expect([0, 1, 2, 3, 4, 9].map(capped)).toEqual([0, 1, 2, 3, 3, 3]);
+  });
+
+  it("凝胶质：卷轴直伤走同一个漏斗，一样被压到 3 点", () => {
+    /*
+      这正是它挂 beforeDamage 而不是防御侧 damageReduction 的理由：
+      直伤不经过攻防差，写在投骰那一层的减免根本拦不到它。
+    */
+    const state = createInitialGame(20260805);
+    state.players.player1.scrolls = [{ instanceId: "dragon-1", kind: "dragonStrike" }];
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId: "bioSlug" }),
+    };
+
+    const next = resolveRound(state, { attack: "dragon-1" });
+
+    // 巨龙打击 10 点，减去防御 1 之后仍有 9，凝胶质把它压到 3
+    const damages = next.lastEvents.filter((event) => event.type === "battleDamage");
+    expect(damages[0].amount).toBe(3);
+  });
+
+  it("激怒：玩家本场每用一张卷轴，愤怒的熊攻击 +1", () => {
+    for (const [used, expected] of [[0, 0], [1, 1], [3, 3]] as const) {
+      const state = resolveRound(
+        pveBattle(20260805, "ragingBear", undefined, {
+          attacker: "b",
+          scrollsUsedA: used,
+        }),
+      );
+      expect(attackBonusOf(state)).toBe(expected);
+    }
+  });
+
+  it("激怒：本回合刚打出的牌当回合就算数", () => {
+    /*
+      计数排在效果结算之前，所以玩家在挨打的回合掏防御牌，这一击就已经被激怒。
+      慢半拍的话牌面写的因果就断了——用牌的那一下反而安全。
+    */
+    const state = pveBattle(20260805, "ragingBear", undefined, { attacker: "b" });
+    state.players.player1.scrolls = [{ instanceId: "guard-1", kind: "guard" }];
+
+    const next = resolveRound(state, { defense: "guard-1" });
+
+    expect(attackBonusOf(next)).toBe(1);
+    if (next.phase.kind !== "battle") throw new Error("这一回合不该结束战斗");
+    expect(next.phase.battle.scrollsUsedA).toBe(1);
   });
 
   it("雾毒蜘蛛：攻击骰掷出上限时追加 1 点毒伤", () => {

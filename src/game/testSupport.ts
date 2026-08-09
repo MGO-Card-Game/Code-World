@@ -32,6 +32,8 @@ export function makeBattle(
     initiativeA: 6,
     initiativeB: 1,
     log: [],
+    scrollsUsedA: 0,
+    scrollsUsedB: 0,
     choiceA: { status: "pending" },
     choiceB: bPlayerId ? { status: "pending" } : { status: "declined" },
     ...overrides,

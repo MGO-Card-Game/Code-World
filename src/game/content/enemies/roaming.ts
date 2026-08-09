@@ -94,4 +94,71 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     // 厚重冰甲拖慢反应，先攻钉死在低点。
     initiative: { type: "fixed", value: 2 },
   },
+
+  bioSlug: {
+    name: "生化蛞蝓",
+    maxHp: 12,
+    attack: 3,
+    defense: 1,
+    /*
+      「山脚只作为精英出现」表达不了：精英不是档位而是贴在漫游怪身上的词缀，
+      makeRandomTile 对战斗格和精英格调的是同一个 pickRoamingEnemy。
+      写了 foothill 权重它就会在山脚的普通战斗格里出现，权重压到最低聊作补偿。
+    */
+    regions: { foothill: 1, mountainside: 1, summit: 1 },
+    abilities: [{
+      name: "凝胶质",
+      description: "受到的每一次伤害至多为 3 点。",
+    }],
+    effects: {
+      /*
+        挂 beforeDamage 而不是防御侧的 damageReduction：那个是"减掉固定几点"，
+        表达不了封顶——对面攻击越高它就该挡掉越多。也正因为挂在伤害漏斗上，
+        卷轴直伤同样会被压住，不会出现"攻防打不动、直伤照穿"的绕路。
+
+        代价要清楚：这只怪把所有爆发手段（追伤、重击卷轴、黑铁巨剑）一起废掉，
+        逼玩家老老实实一刀一刀磨。基础玩家（20/5/2）对它的期望伤害从每回合
+        145/36≈4.03 降到 89/36≈2.47，12 点血的等效厚度接近 20。
+      */
+      beforeDamage({ incoming, capDamage, addBattleLog }) {
+        if (incoming <= 3) return;
+        capDamage(3);
+        addBattleLog("生化蛞蝓的凝胶质吸收了冲击，本次伤害被压到 3 点。");
+      },
+    },
+    // 一团蠕动的胶质，比史莱姆快不了多少。
+    initiative: { type: "fixed", value: 2 },
+  },
+
+  ragingBear: {
+    name: "愤怒的熊",
+    maxHp: 20,
+    attack: 1,
+    defense: 6,
+    regions: { mountainside: 1, summit: 1 },
+    abilities: [{
+      name: "激怒",
+      description: "玩家本场每使用一张卷轴，它的攻击 +1。",
+    }],
+    effects: {
+      /*
+        张数由 BattleState 记账（scrollsUsedA/B），效果自己数不出来——牌打完就离手了。
+        取对手那一侧：PvE 里玩家固定是 a 侧，但按 opponentSide 读才不依赖这件事。
+
+        这是一只反制卷轴的怪：防御 6 高到常规攻击几乎打不穿（玩家 5+d6 对 6+d6，
+        期望伤害只有 20/36≈0.56），而唯一的破法——卷轴——每用一张就把它喂强一分。
+        它是"忍住别开牌"的考题，不是靠资源硬碾的怪。
+      */
+      beforeRoll({ dieKind, opponentScrollsUsed, modifiers, addBattleLog }) {
+        if (dieKind !== "attack") return;
+        if (opponentScrollsUsed <= 0) return;
+        modifiers.flatBonus += opponentScrollsUsed;
+        addBattleLog(
+          `愤怒的熊被 ${opponentScrollsUsed} 张卷轴激怒，本次攻击 +${opponentScrollsUsed}。`,
+        );
+      },
+    },
+    // 熊起势慢但爆发快，先攻不设极端值。
+    initiative: { type: "range", min: 2, max: 5 },
+  },
 });

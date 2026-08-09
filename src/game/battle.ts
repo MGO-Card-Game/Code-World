@@ -14,10 +14,14 @@ import {
   grantScroll,
   rewardSecret,
 } from "./resources";
-import { enemyStats, getAttack, getDefense, pvpHpTransferAmount } from "./selectors";
+import { enemyEffects, enemyStats, getAttack, getDefense, pvpHpTransferAmount } from "./selectors";
 import { addHistory, emit, makeInstanceId, nextRandom, rollDie } from "./state";
 import { ECONOMY, grantGold, pvpGoldTransferAmount } from "./economy";
 import { nextStage, recordEliteVictory, restAtStageCamp, stageBossUnlocked } from "./stages";
+import type {
+  EnemyDamageContext,
+  EnemyEffects,
+} from "./effects/battleHooks";
 import type {
   EquipmentDamageContext,
   EquipmentEffects,
@@ -124,6 +128,8 @@ export function startBattle(
     initiativeB,
     round: 1,
     log: [],
+    scrollsUsedA: 0,
+    scrollsUsedB: 0,
     choiceA: { status: "pending" },
     // 敌人不使用卷轴（GameRule 8.6），直接视为已提交
     choiceB: bPlayerId ? { status: "pending" } : { status: "declined" },
@@ -164,6 +170,16 @@ export function sideMaxHp(state: GameState, battle: BattleState, side: CombatSid
   const playerId = battlePlayerForSide(battle, side);
   if (playerId) return state.players[playerId].maxHp;
   return battleEnemyStats(battle).maxHp;
+}
+
+export function sideScrollsUsed(battle: BattleState, side: CombatSide) {
+  return side === "a" ? battle.scrollsUsedA : battle.scrollsUsedB;
+}
+
+/** 记下这一侧本回合打出的牌数，供「对手每用一张卷轴……」这类效果读取。 */
+export function countScrollUse(battle: BattleState, side: CombatSide, count: number) {
+  if (side === "a") battle.scrollsUsedA += count;
+  else battle.scrollsUsedB += count;
 }
 
 export function finishPvp(state: GameState, battle: BattleState, winnerSide: CombatSide) {
@@ -520,12 +536,15 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
 
 /** 返回目标是否被卷轴直接击败。 */
 /**
- * 受击方装备的减伤钩子，返回实际该扣的伤害。
+ * 受击方的减伤钩子，返回实际该扣的伤害。
  *
- * 只接受更小的结果，见 EquipmentDamageContext.damage：多件装备一起挂钩子时，
- * 结算顺序就影响不了最终数值。敌人一侧没有装备，forEachEquipmentEffects 会安静跳过。
+ * 只接受更小的结果，见 EquipmentDamageContext.damage：多个钩子一起挂时，
+ * 结算顺序就影响不了最终数值。装备与怪物两条通路写在同一个函数里而不是各跑一遍，
+ * 是因为"只能改小"这件事必须由同一个 shrinkTo 收口——两处各夹一次的话，
+ * 装备减免完再让怪物封顶，和反过来算，结果就不一样了。
+ * 两个遍历各自会跳过不适用的一侧：敌人没有装备，玩家没有怪物效果。
  */
-function applyEquipmentBeforeDamage(
+function applyBeforeDamage(
   state: GameState,
   battle: BattleState,
   sourceSide: CombatSide,
@@ -558,6 +577,25 @@ function applyEquipmentBeforeDamage(
         minimumHpAfter = Math.max(minimumHpAfter, floor);
         shrinkTo(ownHp - floor);
       },
+      addBattleLog(text) {
+        battle.log.unshift(text);
+        battle.log = battle.log.slice(0, 8);
+      },
+    };
+    effects.beforeDamage(context);
+  });
+  forEachEnemyEffects(battle, targetSide, (effects) => {
+    if (!effects.beforeDamage) return;
+    const context: EnemyDamageContext = {
+      state,
+      battle,
+      side: targetSide,
+      sourceSide,
+      ownHp,
+      ownMaxHp,
+      incoming,
+      reduceDamage: (by) => shrinkTo(damage - Math.max(0, by)),
+      capDamage: (max) => shrinkTo(max),
       addBattleLog(text) {
         battle.log.unshift(text);
         battle.log = battle.log.slice(0, 8);
@@ -620,7 +658,7 @@ export function dealBattleDamage(
   rawDamage: number,
   logLine: (damage: number) => string,
 ) {
-  const { damage, minimumHpAfter } = applyEquipmentBeforeDamage(
+  const { damage, minimumHpAfter } = applyBeforeDamage(
     state,
     battle,
     sourceSide,
@@ -715,6 +753,21 @@ export function forEachEquipmentEffects(
   for (const item of [...player.equipment]) {
     const effects = equipmentDefinition(item.kind).effects;
     if (effects) visit(effects, item, player);
+  }
+}
+
+/**
+ * 遍历该侧敌人的效果：本体的，加上精英词缀的。
+ * 该侧是玩家时没有敌人，直接跳过——正好和 forEachEquipmentEffects 互补。
+ */
+export function forEachEnemyEffects(
+  battle: BattleState,
+  side: CombatSide,
+  visit: (effects: EnemyEffects) => void,
+) {
+  if (battlePlayerForSide(battle, side)) return;
+  for (const effects of enemyEffects(battle.enemyId!, battle.enemyAffix)) {
+    visit(effects);
   }
 }
 

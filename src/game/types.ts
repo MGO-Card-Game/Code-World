@@ -192,6 +192,14 @@ export interface BattleState {
   initiativeA: number;
   initiativeB: number;
   log: string[];
+  /**
+   * 本场战斗中各方累计打出的卷轴张数。
+   *
+   * 记在战斗上而不是玩家上：这是"这一场里你已经用掉多少"，战斗结束即作废；
+   * 怪物那些「玩家每用一张卷轴……」的效果只有从这里才数得出来。
+   */
+  scrollsUsedA: number;
+  scrollsUsedB: number;
   /** 本回合双方的卷轴选择，两侧都非 pending 时才结算 */
   choiceA: ScrollChoice;
   choiceB: ScrollChoice;

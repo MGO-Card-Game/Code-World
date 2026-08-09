@@ -94,6 +94,38 @@ export interface BattleHookContext {
   ownMaxHp: number;
   opponentHp: number;
   opponentMaxHp: number;
+  /**
+   * 本场战斗中双方各自已经打出的卷轴张数。
+   *
+   * 和血量同理由上下文给出：张数记在 BattleState 上（见 scrollsUsedA），
+   * 效果自己去数手牌是数不出来的——牌打完就离手了。
+   */
+  ownScrollsUsed: number;
+  opponentScrollsUsed: number;
+  addBattleLog: (text: string) => void;
+}
+
+/**
+ * 即将落到这只怪头上的一次伤害，与装备的 EquipmentDamageContext 同一时机。
+ *
+ * 存在的理由和那边一样：防守方的 afterRoll 读不到对手的合计，"受到的伤害至多为 N"
+ * 这类效果只能站在结果上看。改伤同样只能变小，顺序无关性靠它成立。
+ */
+export interface EnemyDamageContext {
+  state: GameState;
+  battle: BattleState;
+  /** 受击的一侧，也就是这只怪所在的一侧 */
+  side: CombatSide;
+  sourceSide: CombatSide;
+  /** 扣血前的战斗生命值 */
+  ownHp: number;
+  ownMaxHp: number;
+  /** 任何钩子动手之前的伤害，是快照而不是实时值，理由同装备那份 */
+  incoming: number;
+  /** 减免固定伤害量。 */
+  reduceDamage: (by: number) => void;
+  /** 把这一次伤害压到不超过 max。 */
+  capDamage: (max: number) => void;
   addBattleLog: (text: string) => void;
 }
 
@@ -111,4 +143,11 @@ export interface EnemyEffects {
   beforeRoll?: (context: BattleHookContext) => void;
   /** 掷骰后、算总和之前。此时改 flatBonus 仍会计入本次合计。 */
   afterRoll?: (context: BattleHookContext & { roll: RollResult }) => void;
+  /**
+   * 伤害落地前，只对受击方调用。
+   *
+   * 挂在 dealBattleDamage 这个唯一漏斗上，所以攻防结算和卷轴直伤都会经过——
+   * 减伤类怪物才不会出现"攻防差压得住、直伤照样穿"的缺口。
+   */
+  beforeDamage?: (context: EnemyDamageContext) => void;
 }

@@ -7,13 +7,16 @@ import {
   choiceFor,
   chosenInstanceIds,
   combatantName,
+  countScrollUse,
   dealBattleDamage,
   finishBattle,
+  forEachEnemyEffects,
   forEachEquipmentEffects,
   resetChoices,
   setChoice,
   sideHp,
   sideMaxHp,
+  sideScrollsUsed,
   sideStats,
 } from "./battle";
 import { consumeScrolls } from "./resources";
@@ -21,7 +24,6 @@ import { applyBlessingCombatRoll } from "./blessings";
 import {
   enemyDiceCountBonus,
   enemyDieSidesBonus,
-  enemyEffects,
   getDiceCountBonus,
   getDieSidesBonus,
   playableScrolls,
@@ -29,7 +31,6 @@ import {
 import { emit, rollDie } from "./state";
 import type {
   BattleHookContext,
-  EnemyEffects,
   RollModifiers,
   RollResult,
 } from "./effects/battleHooks";
@@ -282,6 +283,8 @@ export function battleHookContext(
     ownMaxHp: sideMaxHp(state, battle, side),
     opponentHp: sideHp(battle, opponentSide),
     opponentMaxHp: sideMaxHp(state, battle, opponentSide),
+    ownScrollsUsed: sideScrollsUsed(battle, side),
+    opponentScrollsUsed: sideScrollsUsed(battle, opponentSide),
     addBattleLog(text) {
       battle.log.unshift(text);
       battle.log = battle.log.slice(0, 8);
@@ -304,21 +307,6 @@ export function equipmentBattleContext(
     player,
     item,
   };
-}
-
-/**
- * 遍历该侧敌人的效果：本体的，加上精英词缀的。
- * 该侧是玩家时没有敌人，直接跳过——正好和 forEachEquipmentEffects 互补。
- */
-export function forEachEnemyEffects(
-  battle: BattleState,
-  side: CombatSide,
-  visit: (effects: EnemyEffects) => void,
-) {
-  if (battlePlayerForSide(battle, side)) return;
-  for (const effects of enemyEffects(battle.enemyId!, battle.enemyAffix)) {
-    visit(effects);
-  }
 }
 
 /** 掷骰前的装备钩子。卷轴先结算完才轮到这里，见 EquipmentEffects。 */
@@ -436,6 +424,13 @@ export function resolveBattleRound(state: GameState) {
   const attackScrollKinds = attackerId
     ? consumeScrolls(state, state.players[attackerId], attackScrollIds)
     : [];
+  /*
+    计数排在效果结算之前，所以本回合打出的牌对本回合就已经算数了。
+
+    反过来（先结算再计数）会让「对手每用一张卷轴，攻击 +1」这类效果慢半拍：
+    玩家在被攻击的回合打防御牌，怪物要到下一回合才变强，牌面写的因果就断了。
+  */
+  countScrollUse(battle, attackerSide, attackScrollKinds.length);
   const attackModifiers = newRollModifiers();
   if (applyScrollEffects(
     state,
@@ -465,6 +460,7 @@ export function resolveBattleRound(state: GameState) {
   const defenseScrollKinds = defenderId
     ? consumeScrolls(state, state.players[defenderId], defenseScrollIds)
     : [];
+  countScrollUse(battle, defenderSide, defenseScrollKinds.length);
   const defenseModifiers = newRollModifiers();
   if (applyScrollEffects(
     state,

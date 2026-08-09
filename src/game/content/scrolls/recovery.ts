@@ -18,6 +18,21 @@ export const RECOVERY_SCROLLS = {
     effects: [{ type: "heal", amount: 3 }],
   },
 
+  gameMeat: {
+    name: "野味",
+    description: "恢复 5 点生命",
+    rarity: "N",
+    timings: ["map", "beforeAttackRoll", "beforeDefenseRoll"],
+    /**
+     * 篝火事件专属，不进随机卡池。
+     *
+     * 它是一张无代价的战地药剂：同样回 5 点，却不必放弃移动。作为一次性事件的
+     * 产物没问题，混进宝箱和战斗奖励就等于让战地药剂的代价白设了。
+     */
+    drawable: false,
+    effects: [{ type: "heal", amount: 5 }],
+  },
+
   battlefieldMedicine: {
     name: "战地药剂",
     description: "恢复 5 点生命；地图使用时放弃本回合移动，战斗中使用时下次无法移动",

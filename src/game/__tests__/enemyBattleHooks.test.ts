@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ELITE_AFFIXES,
+  ELITE_BASE_MODIFIERS,
   type EliteAffixDefinition,
 } from "../content/enemies";
 import { newRollModifiers } from "../battleRound";
@@ -125,10 +126,10 @@ describe("怪物战斗钩子", () => {
   });
 
   it("濒死反扑：低于一半才触发，正好一半不算", () => {
-    // 史莱姆当前 6 + 精英基础 4 = 10，半血正好是 5
-    expect(enemyStats("slime", "cornered").maxHp).toBe(10);
+    // 史莱姆当前 8 + 精英基础 8 = 16，半血正好是 8
+    expect(enemyStats("slime", "cornered").maxHp).toBe(16);
 
-    for (const [hpB, expected] of [[5, 0], [4, 3]] as const) {
+    for (const [hpB, expected] of [[8, 0], [7, 3]] as const) {
       const state = resolveRound(
         pveBattle(20260805, "slime", "cornered", { attacker: "b", hpB }),
       );
@@ -137,8 +138,8 @@ describe("怪物战斗钩子", () => {
   });
 
   it("霜息：霜牙巨兽高于一半血时攻击 +2，与濒死反扑正好相反", () => {
-    // 霜牙巨兽 24 血，半血是 12；「高于一半」不含正好一半
-    for (const [hpB, expected] of [[12, 0], [13, 2]] as const) {
+    // 霜牙巨兽 40 血，半血是 20；「高于一半」不含正好一半
+    for (const [hpB, expected] of [[20, 0], [21, 2]] as const) {
       const state = resolveRound(
         pveBattle(20260805, "frostFang", undefined, { attacker: "b", hpB }),
       );
@@ -221,10 +222,18 @@ describe("精英怪属性折算", () => {
       attack: 2,
       defense: 1,
     });
-    // 精英基础只 +4 血，攻防全交给词缀；狂暴 +1 攻
+    /*
+      精英基础只加血，攻防全交给词缀；狂暴 +1 攻。
+      血量取自 ELITE_BASE_MODIFIERS 而不是写死数字——这一条守的是「加成叠在
+      本体之上」这个结构，不是某一次平衡里的具体数值，调平衡不该让它变红。
+    */
+    const eliteHpBonus = ELITE_BASE_MODIFIERS
+      .filter((modifier) => modifier.type === "maxHp")
+      .reduce((sum, modifier) => sum + modifier.value, 0);
+    expect(eliteHpBonus).toBeGreaterThan(0);
     expect(enemyStats("wolf", "frenzied")).toMatchObject({
       name: "狂暴的山狼",
-      maxHp: wolf.maxHp + 4,
+      maxHp: wolf.maxHp + eliteHpBonus,
       attack: 3,
       defense: 1,
     });

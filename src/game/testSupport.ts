@@ -82,3 +82,96 @@ export function resolveRound(
   }
   return next;
 }
+
+/**
+ * 自动跑一步：任何阶段都给出一个合法动作，直到 gameOver。
+ *
+ * 收在这里而不是各测试自己写一份，是因为它必须**穷尽** GamePhase。以前三处
+ * 各有一份副本，动画队列那份还是漏了几个分支的残缺版，遇到没覆盖的阶段就
+ * 悄悄提前退出——测试照样绿，只是实际只跑了几步。写成 switch 之后，新增一种
+ * 阶段会让类型检查在这里报错，而不是让某个整局跑测试悄悄缩水。
+ *
+ * 这个自动玩家的策略刻意保持最笨：相遇一律打招呼、解锁就挑战首领、加点一律选
+ * 攻击、进商店空手离开、从不用疗牌。策略一变随机流就变，所有整局跑测试的轨迹
+ * 都会跟着变，所以改它之前先想清楚是不是真的需要。
+ */
+export function advanceAutomatically(state: GameState): GameState {
+  switch (state.phase.kind) {
+    case "awaitingRoll":
+      return gameReducer(state, { type: "rollMovement" });
+    case "turnComplete":
+      return gameReducer(state, { type: "endTurn" });
+    case "encounterChoice":
+      return gameReducer(state, {
+        type: "chooseEncounterOpponent",
+        opponentId: state.phase.choice.opponentIds[0],
+      });
+    case "scrollTargetChoice":
+      return gameReducer(state, {
+        type: "chooseScrollTarget",
+        targetId: state.phase.choice.candidateIds[0],
+      });
+    case "encounterDecision":
+      return gameReducer(state, {
+        type: "chooseEncounterIntent",
+        side: state.phase.encounter.choiceA.status === "pending" ? "a" : "b",
+        intent: "greet",
+      });
+    case "tradeOffer":
+      throw new Error("自动流程选择打招呼，不应进入交易报价");
+    case "tradeConfirmation":
+      throw new Error("自动流程选择打招呼，不应进入交易确认");
+    case "bossGateChoice":
+      return gameReducer(state, { type: "chooseBossChallenge", challenge: true });
+    case "blessingChoice":
+      return gameReducer(state, { type: "chooseBlessing", replace: false });
+    case "battle": {
+      const battle = state.phase.battle;
+      const attackerId = battle.attacker === "a" ? battle.aPlayerId : battle.bPlayerId;
+      const defenderId = battle.attacker === "a" ? battle.bPlayerId : battle.aPlayerId;
+      return resolveRound(state, {
+        attack: attackerId
+          ? state.players[attackerId].scrolls.find((item) => item.kind === "might")?.instanceId
+          : undefined,
+        defense: defenderId
+          ? state.players[defenderId].scrolls.find((item) => item.kind === "guard")?.instanceId
+          : undefined,
+      });
+    }
+    case "pvpPenalty": {
+      const loser = state.players[state.phase.penalty.loserId];
+      const scroll = loser.scrolls[0];
+      if (scroll) {
+        return gameReducer(state, {
+          type: "choosePvpPenalty",
+          choice: "resource",
+          resourceType: "scroll",
+          instanceId: scroll.instanceId,
+        });
+      }
+      const equipment = loser.equipment[0];
+      if (equipment) {
+        return gameReducer(state, {
+          type: "choosePvpPenalty",
+          choice: "resource",
+          resourceType: "equipment",
+          instanceId: equipment.instanceId,
+        });
+      }
+      throw new Error("无可支付代价的相遇战不应停留在 pvpPenalty 阶段");
+    }
+    case "equipmentChoice":
+      return gameReducer(state, { type: "chooseEquipment" });
+    case "pveReward":
+      return gameReducer(state, { type: "acknowledgePveReward" });
+    // 一律点攻击，好让整局的生命上限不变量只跟护符有关
+    case "statGrowthChoice":
+      return gameReducer(state, { type: "chooseStatGrowth", option: "attack" });
+    case "shop":
+      return gameReducer(state, { type: "leaveShop" });
+    case "casino":
+      return gameReducer(state, { type: "leaveCasino" });
+    case "gameOver":
+      return state;
+  }
+}

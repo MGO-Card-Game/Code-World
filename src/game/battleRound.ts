@@ -127,7 +127,7 @@ export function applyScrollEffect(
       return false;
     case "forfeitMovement": {
       const playerId = battlePlayerForSide(battle, sourceSide);
-      if (playerId) state.players[playerId].skipNextMovement = true;
+      if (playerId) state.players[playerId].skipNextMovement = { reason: "战地药剂" };
       battle.log.unshift(
         `${combatantName(state, battle, sourceSide)}将在下一次地图行动中无法移动。`,
       );

@@ -14,6 +14,7 @@ import {
   BlessingChoicePanel,
   BossGatePanel,
   EncounterChoicePanel,
+  ScrollTargetChoicePanel,
   EquipmentChoicePanel,
   GameOverPanel,
   PenaltyPanel,
@@ -299,6 +300,16 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             playing={playback.playing}
             viewerSeat={viewerSeat}
             onMinimize={() => setHiddenDecisionKey(decision?.key ?? null)}
+          />
+        )}
+        {!lingeringBattle && !playback.playing && state.phase.kind === "scrollTargetChoice" && (
+          <ScrollTargetChoicePanel
+            key="event-target-choice"
+            state={state}
+            choice={state.phase.choice}
+            dispatch={dispatch}
+            playing={playback.playing}
+            viewerSeat={viewerSeat}
           />
         )}
         {!lingeringBattle && !playback.playing && state.phase.kind === "encounterChoice" && (

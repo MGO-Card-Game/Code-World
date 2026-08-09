@@ -12,7 +12,7 @@ import {
   remainingMs,
 } from "./eventQueue";
 import { createInitialGame, gameReducer } from "../game/engine";
-import { resolveRound } from "../game/testSupport";
+import { advanceAutomatically } from "../game/testSupport";
 import type { GameEvent } from "../game/types";
 
 function narration(id: number): GameEvent {
@@ -203,27 +203,13 @@ describe("事件播放队列", () => {
     let queue = enqueue(createEventQueue(), state.lastEvents);
     const played: number[] = [];
 
+    /*
+      走 testSupport 那份穷尽了 GamePhase 的自动玩家。这里以前是它的残缺副本，
+      只认五种阶段、其余一律 break——奖励弹层这类阶段一出现整个循环就提前退出，
+      实际只播了几条事件，断言却照样绿。
+    */
     for (let step = 0; step < 30 && state.phase.kind !== "gameOver"; step += 1) {
-      if (state.phase.kind === "awaitingRoll") {
-        state = gameReducer(state, { type: "rollMovement" });
-      } else if (state.phase.kind === "turnComplete") {
-        state = gameReducer(state, { type: "endTurn" });
-      } else if (state.phase.kind === "battle") {
-        state = resolveRound(state);
-      } else if (state.phase.kind === "encounterChoice") {
-        state = gameReducer(state, {
-          type: "chooseEncounterOpponent",
-          opponentId: state.phase.choice.opponentIds[0],
-        });
-      } else if (state.phase.kind === "encounterDecision") {
-        state = gameReducer(state, {
-          type: "chooseEncounterIntent",
-          side: state.phase.encounter.choiceA.status === "pending" ? "a" : "b",
-          intent: "greet",
-        });
-      } else {
-        break;
-      }
+      state = advanceAutomatically(state);
       queue = enqueue(queue, state.lastEvents);
 
       // 播完当前积压再继续，模拟界面等待动画结束才允许下一次操作

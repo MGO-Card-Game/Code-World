@@ -123,28 +123,46 @@ export function pvpGoldTransferAmount(loser: Pick<Player, "gold">) {
   return Math.floor(balance * ECONOMY.pvpTransferPercent / 100);
 }
 
-export function transferPvpGold(state: GameState, loser: Player, winner: Player) {
-  const amount = pvpGoldTransferAmount(loser);
+/**
+ * 玩家之间搬钱，返回实际搬走的数额。
+ *
+ * 刻意不走 goldGainMultiplier：转移不是"获得"，点石成金那 20% 一旦在这里生效，
+ * 两名玩家来回转账就能凭空造钱。相遇战代价和勒索共用这一条通路，
+ * 就是为了让这个判断只存在一处。
+ */
+export function transferGold(
+  state: GameState,
+  from: Player,
+  to: Player,
+  requested: number,
+  reason: Extract<GoldChangeReason, "pvpTransfer" | "event">,
+) {
+  // 抢不出对方没有的钱，也不会把余额搬成负数
+  const amount = Math.max(0, Math.min(Math.floor(requested), Math.floor(from.gold)));
   if (amount <= 0) return 0;
-  const loserBefore = loser.gold;
-  const winnerBefore = winner.gold;
-  loser.gold -= amount;
-  winner.gold += amount;
+  const fromBefore = from.gold;
+  const toBefore = to.gold;
+  from.gold -= amount;
+  to.gold += amount;
   emit(state, {
     type: "goldChanged",
-    playerId: loser.id,
-    from: loserBefore,
-    to: loser.gold,
-    reason: "pvpTransfer",
+    playerId: from.id,
+    from: fromBefore,
+    to: from.gold,
+    reason,
   });
   emit(state, {
     type: "goldChanged",
-    playerId: winner.id,
-    from: winnerBefore,
-    to: winner.gold,
-    reason: "pvpTransfer",
+    playerId: to.id,
+    from: toBefore,
+    to: to.gold,
+    reason,
   });
   return amount;
+}
+
+export function transferPvpGold(state: GameState, loser: Player, winner: Player) {
+  return transferGold(state, loser, winner, pvpGoldTransferAmount(loser), "pvpTransfer");
 }
 
 export function canUseShop(

@@ -75,13 +75,14 @@ describe("赐福内容", () => {
     expect(picked).toContain("midasTouch");
   });
 
-  it("巨人之力与龙鳞护体分别提供 3 点攻击和防御", () => {
+  it("巨人之力与龙鳞护体分别提供 2 点攻击和防御", () => {
     const state = createInitialGame(1);
     giveBlessing(state.players.player1, "giantStrength");
     giveBlessing(state.players.player2, "dragonScale");
 
-    expect(getAttack(state.players.player1)).toBe(8);
-    expect(getDefense(state.players.player2)).toBe(5);
+    // 基础 攻 5 / 防 2，各加 2
+    expect(getAttack(state.players.player1)).toBe(7);
+    expect(getDefense(state.players.player2)).toBe(4);
   });
 
   it("命运垂青把攻防骰最低点数提高到 3", () => {
@@ -278,7 +279,7 @@ describe("赐福持有与 PvP 覆盖", () => {
     expect(loser.blessings).toEqual([]);
     expect(winner.blessings).toEqual([blessing]);
     expect(getAttack(loser)).toBe(5);
-    expect(getAttack(winner)).toBe(8);
+    expect(getAttack(winner)).toBe(7);
     expect(state.phase.kind).toBe("pvpPenalty");
   });
 
@@ -304,7 +305,8 @@ describe("赐福持有与 PvP 覆盖", () => {
 
     expect(resolved.players[winner.id].blessings).toEqual([offered]);
     expect(resolved.players[loser.id].blessings).toEqual([]);
-    expect(getAttack(resolved.players[winner.id])).toBe(8);
+    // 换成巨人之力：攻击拿到 +2，原本龙鳞的防御加成随之消失，回到基础 2
+    expect(getAttack(resolved.players[winner.id])).toBe(7);
     expect(getDefense(resolved.players[winner.id])).toBe(2);
     expect(resolved.phase.kind).toBe("turnComplete");
   });

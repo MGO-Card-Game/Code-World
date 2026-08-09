@@ -7,6 +7,7 @@ import {
 import { SCROLLS } from "../game/content/scrolls";
 import { blessingDefinition } from "../game/content/blessings";
 import { enemyDefinition } from "../game/content/enemies";
+import { scrollDefinition } from "../game/content/scrolls";
 import { requirementValueForRegion } from "../game/stages";
 import { STAT_GROWTH, STAT_GROWTH_OPTIONS } from "../game/growth";
 import { getAttack, getDefense, pvpHpTransferAmount } from "../game/selectors";
@@ -16,6 +17,7 @@ import type {
   BossGateChoiceState,
   EquipmentChoiceState,
   EncounterChoiceState,
+  ScrollTargetChoiceState,
   GameStateView,
   PlayerId,
   PlayerView,
@@ -284,6 +286,61 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
           </div>
         ) : (
           <p className="waiting-notice">等待{winner.name}选择赐福……</p>
+        )}
+      </motion.section>
+    </ModalBackdrop>
+  );
+}
+
+export function ScrollTargetChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: ScrollTargetChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[choice.playerId];
+  const definition = scrollDefinition(choice.scrollKind);
+  const canChoose = viewerSeat === choice.playerId;
+
+  return (
+    <ModalBackdrop>
+      <motion.section
+        className="encounter-choice-modal"
+        initial={{ opacity: 0, scale: 0.94, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={SPRING}
+      >
+        <div className="modal-kicker">{definition.name}</div>
+        <h2>{player.name}选择目标</h2>
+        <p>{definition.description}</p>
+        {canChoose ? (
+          <div className="encounter-options">
+            {choice.candidateIds.map((targetId) => {
+              const target = state.players[targetId];
+              // 掉线的人照样能被选中：他不需要做任何操作，掉线不该换来免疫
+              const unavailable = state.unavailablePlayerIds.includes(targetId);
+              return (
+                <button
+                  type="button"
+                  key={targetId}
+                  disabled={playing}
+                  style={{ "--player-color": target.color } as React.CSSProperties}
+                  onClick={() => dispatch({ type: "chooseScrollTarget", targetId })}
+                >
+                  <span>{target.name}</span>
+                  <strong>金币 {target.gold}</strong>
+                  <small>
+                    {`位置 ${state.map.tiles[target.position]?.label ?? "—"}`}
+                    {unavailable ? " · 暂时离线" : ""}
+                  </small>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="waiting-notice">等待{player.name}选择目标……</p>
         )}
       </motion.section>
     </ModalBackdrop>

@@ -1,14 +1,37 @@
-import type { MapRegionId } from "../../types";
+import type { MapRegionId, ScrollKind } from "../../types";
 import type { EquipmentCategory } from "../equipment/definition";
 
 export type MapEventCategory = "recovery" | "hazard" | "reward" | "boon" | "casino";
 export type MapEventResource = "scroll" | "equipment" | "random";
 export type MapEventBaseStat = "attack" | "defense";
 
+/**
+ * 一个可以由掷骰决定的数值。
+ *
+ * 写成数字就是固定值；写成 `{ dice, sides }` 由引擎在结算时掷骰。掷骰必须由引擎
+ * 走 state 的随机流，不能在配置里自己 Math.random——同种子重放和联机双端要得到
+ * 同一个结果，靠的就是「谁消耗随机数、消耗几个」是确定的。
+ */
+export type MapEventAmount =
+  | number
+  | {
+      dice: number;
+      sides: number;
+      /** 掷骰点数之和再乘这个系数，默认 1。金钱雨这类「点数 × 单位」用得到。 */
+      multiplier?: number;
+    };
+
 export interface AmountNarrationContext {
   playerName: string;
-  /** 实际变化量，已经经过生命上下限折算。 */
+  /** 实际变化量，已经经过生命上下限与金币倍率折算。 */
   amount: number;
+  /**
+   * 掷骰点数之和；固定数值的效果没有这一项。
+   *
+   * 和 amount 分开是因为两者经常对不上：温泉掷出 9 点但只差 3 点满血时，
+   * 玩家该看到的是「掷出 9，恢复 3」，而不是凭空少掉的 6 点。
+   */
+  roll?: number;
 }
 
 export interface RewardNarrationContext {
@@ -20,8 +43,19 @@ export interface RewardNarrationContext {
 export interface BaseStatNarrationContext {
   playerName: string;
   stat: MapEventBaseStat;
-  /** 实际增加量；引擎会把负数配置折算为 0。 */
+  /**
+   * 实际变化量，可正可负，已经过下限折算。
+   *
+   * 配置想扣 1 点但玩家的基础值已经是 0 时，这里会是 0——文案该照它写，
+   * 不然会出现「防御下降 1 点」但面板上数字没动的情况。
+   */
   amount: number;
+}
+
+/** 交出卷轴的一方；拿来主义这类跨玩家效果按人各写一条旁白。 */
+export interface DonorNarrationContext {
+  playerName: string;
+  donorName: string;
 }
 
 export interface PlayerNarrationContext {
@@ -37,12 +71,12 @@ export interface PlayerNarrationContext {
 export type MapEventEffectDefinition =
   | {
       type: "heal";
-      amount: number;
+      amount: MapEventAmount;
       narration: (context: AmountNarrationContext) => string;
     }
   | {
       type: "damage";
-      amount: number;
+      amount: MapEventAmount;
       /** 默认保留至少 1 点生命，维持当前事件格不会直接击败玩家的规则。 */
       minimumHp?: number;
       narration: (context: AmountNarrationContext) => string;
@@ -53,15 +87,70 @@ export type MapEventEffectDefinition =
       narration: (context: RewardNarrationContext) => string;
     }
   | {
-      type: "increaseBaseStat";
+      /**
+       * 指名发牌，和 grantResource 的随机发放分工明确：kind 是必填的。
+       *
+       * 事件专属牌（drawable: false）只能由这里发出去——写成随机卷轴的话，
+       * 宝箱和战斗奖励也会开始掉这张牌，事件的独占性就没了。
+       */
+      type: "grantScroll";
+      kind: ScrollKind;
+      /** 发放张数，默认 1；每一张各产生一条旁白，暗牌裁剪逐条生效。 */
+      count?: number;
+      narration: (context: RewardNarrationContext) => string;
+    }
+  | {
+      /**
+       * 让玩家的下一次地图行动失去移动机会，和战地药剂的代价共用同一个字段。
+       *
+       * reason 会直接出现在回合开始的旁白里，所以填的是给玩家看的短语。
+       */
+      type: "skipNextMovement";
+      reason: string;
+      narration: (context: PlayerNarrationContext) => string;
+    }
+  | {
+      /**
+       * 永久改动基础攻防，可正可负。
+       *
+       * 负数会被引擎拦在 0 以上：这套结算是攻防相减，基础值一旦为负，每一次
+       * 交手都在白送伤害，和「事件不会直接击败玩家」是同一条底线。
+       */
+      type: "adjustBaseStat";
       stat: MapEventBaseStat;
       amount: number;
       narration: (context: BaseStatNarrationContext) => string;
     }
   | {
       type: "grantGold";
-      amount: number;
+      amount: MapEventAmount;
       narration: (context: AmountNarrationContext) => string;
+    }
+  | {
+      /**
+       * 按当前余额的百分比扣钱。
+       *
+       * 刻意不做固定额：固定额对刚开局和攒了一路的玩家份量差太远，而这类事件
+       * 想要的是「按身家收费」。真需要固定额时再加一种数值形状。
+       */
+      type: "loseGold";
+      percent: number;
+      narration: (context: AmountNarrationContext) => string;
+    }
+  | {
+      /**
+       * 向其余每名玩家各收取一张随机卷轴；手上没牌的人自动跳过。
+       *
+       * 交出哪一张由引擎随机决定，不劳玩家选——让每位对手依次挑牌需要一个多人
+       * 轮流出牌的阶段（形状接近 tradeOffer），那是另一件事，不该塞进事件结算。
+       */
+      type: "takeScrollFromEachOpponent";
+      narration: (context: DonorNarrationContext) => string;
+      /**
+       * 一张都没收到时的旁白。必填而不是可选：漏掉它时踩中这一格的玩家会看到
+       * 事件格毫无反应——没有旁白、没有结构化事件，和卡住了没法区分。
+       */
+      emptyNarration: (context: PlayerNarrationContext) => string;
     }
   | {
       type: "grantEquipment";

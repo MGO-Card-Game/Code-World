@@ -7,7 +7,7 @@ export const BOON_EVENTS = defineMapEvents("boon", {
     // 永久成长比一次性事件稀少：单项权重是旧事件的一半。
     regions: { foothill: 0.5, mountainside: 0.5, summit: 0.5 },
     effects: [{
-      type: "increaseBaseStat",
+      type: "adjustBaseStat",
       stat: "attack",
       amount: 1,
       narration: ({ playerName, amount }) =>
@@ -20,7 +20,7 @@ export const BOON_EVENTS = defineMapEvents("boon", {
     description: "基础防御永久增加 1 点。",
     regions: { foothill: 0.5, mountainside: 0.5, summit: 0.5 },
     effects: [{
-      type: "increaseBaseStat",
+      type: "adjustBaseStat",
       stat: "defense",
       amount: 1,
       narration: ({ playerName, amount }) =>

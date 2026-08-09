@@ -17,6 +17,40 @@ describe("卷轴主题表", () => {
     expect(ALL_KINDS).toHaveLength(partsTotal);
   });
 
+  it("独占型效果必须是卡上唯一的一条", () => {
+    /*
+      useMapScroll 是按效果类型分派的，命中哪一支就直接把整张牌交给它处理、
+      随即返回。所以这几种效果的同伴会被**静默丢掉**——不报错、不掉日志，
+      只是配的效果没生效。疗牌那一支有 supported 兜底（不认识的组合直接拒），
+      这几支没有，只能在这里守。
+
+      targetPlayer 还多一层理由：它会把结算停在选人阶段，排在它后面的效果
+      连执行的机会都没有。
+    */
+    const EXCLUSIVE = [
+      "chooseMovement",
+      "teleport",
+      "teleportAnywhere",
+      "advanceTiles",
+      "targetPlayer",
+    ];
+
+    let checked = 0;
+    for (const kind of ALL_KINDS) {
+      const effects = SCROLLS[kind].effects;
+      const exclusive = effects.filter((effect) => EXCLUSIVE.includes(effect.type));
+      if (exclusive.length === 0) continue;
+      checked += 1;
+      expect(
+        effects.length,
+        `${SCROLLS[kind].name}（${kind}）带了独占效果 ${exclusive[0].type}，`
+          + "同一张牌上的其他效果会被静默丢掉",
+      ).toBe(1);
+    }
+    // 一张都没查到的话这条断言等于没跑
+    expect(checked).toBeGreaterThan(0);
+  });
+
   it("主题分组与攻防类型是两个维度，不该互相绑定", () => {
     // 攻防转换组里既有只能攻的力量卷轴，也有只能防的护盾卷轴和铁壁令
     const swingCategories = new Set(

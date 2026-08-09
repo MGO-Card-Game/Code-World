@@ -11,6 +11,8 @@ export {
   defineMapEvents,
   type AmountNarrationContext,
   type BaseStatNarrationContext,
+  type DonorNarrationContext,
+  type MapEventAmount,
   type MapEventBody,
   type MapEventBaseStat,
   type MapEventCategory,

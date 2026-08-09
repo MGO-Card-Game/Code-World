@@ -1,7 +1,7 @@
 import { equipmentDefinition } from "./content/equipment";
 import { scrollDefinition } from "./content/scrolls";
 import type { ScrollDefinition } from "./content/scrolls";
-import type { ScrollEffectDefinition } from "./effects/cardEffects";
+import type { ScrollEffectDefinition, TargetedScrollEffect } from "./effects/cardEffects";
 import { getDieSidesBonus } from "./selectors";
 import { finishBattle, startBattle } from "./battle";
 import { submitScrollChoice } from "./battleRound";
@@ -10,7 +10,7 @@ import { MAP_REGION_SIZE, regionForPosition } from "./map";
 import { consumeScroll } from "./resources";
 import { addHistory, createInitialGame, emit, rollDie } from "./state";
 import { restAtStageCamp, stageBossUnlocked } from "./stages";
-import { buyShopItem } from "./economy";
+import { buyShopItem, transferGold } from "./economy";
 import { leaveCasino, spinCasino } from "./casino";
 import { buyShopOffer, leaveShop } from "./shop";
 import { cancelTrade, confirmTrade, submitTradeOffer } from "./trading";
@@ -22,6 +22,7 @@ import {
   settleUnavailablePvpPenalty,
   settleWaivedPvpPenalty,
 } from "./pvpPenalty";
+import { advanceAlongLoop, landDirectlyAt } from "./movement";
 import { resolveTile, settleTileDebt } from "./tiles";
 import { advanceCompletedTurn, rebaseEventIds } from "./turns";
 import type {
@@ -65,57 +66,6 @@ function chooseBossChallenge(state: GameState, challenge: boolean) {
     { stageId, tileIndex: gateTileIndex, retreatTo: player.checkpointTileId },
   );
   return true;
-}
-
-interface LoopAdvanceResult {
-  region: MapRegion;
-  interceptedAtGate: boolean;
-  passedCamp: boolean;
-  targetTile: MapTile;
-}
-
-/**
- * 沿区域环路逐格前进 roll 格：处理守关门计次拦截、营地回血判定与经过效果。
- * 掷骰移动和"灵活行动"这类卷轴共用同一条路径，保证两者手感完全一致。
- */
-function advanceAlongLoop(state: GameState, player: Player, roll: number): LoopAdvanceResult {
-  const region = regionForPosition(state.map, player.position);
-  let interceptedAtGate = false;
-  let passedCamp = false;
-  for (let step = 0; step < roll; step += 1) {
-    const local = player.position - region.startIndex;
-    const nextLocal = (local + 1) % MAP_REGION_SIZE;
-    player.position = region.startIndex + nextLocal;
-    if (player.position === region.entryIndex) passedCamp = true;
-    if (player.position !== region.gateIndex) continue;
-    player.stageProgress[region.id].laps += 1;
-    if (stageBossUnlocked(player, region)) {
-      interceptedAtGate = true;
-      break;
-    }
-  }
-  return { region, interceptedAtGate, passedCamp, targetTile: state.map.tiles[player.position] };
-}
-
-/**
- * 直接把玩家挪到 region 内的绝对格子 targetPosition，不经过任何中间格。
- * teleport 系效果（固定距离/任意门）共用：只结算落点本身，含落点正好是
- * 营地或守关门的情况；沿途什么都不触发。
- */
-function landDirectlyAt(
-  state: GameState,
-  player: Player,
-  region: MapRegion,
-  targetPosition: number,
-): { interceptedAtGate: boolean; targetTile: MapTile } {
-  player.position = targetPosition;
-  let interceptedAtGate = false;
-  if (player.position === region.gateIndex) {
-    player.stageProgress[region.id].laps += 1;
-    interceptedAtGate = stageBossUnlocked(player, region);
-  }
-  if (player.position === region.entryIndex) restAtStageCamp(state, player, region);
-  return { interceptedAtGate, targetTile: state.map.tiles[player.position] };
 }
 
 /** 移动结束后的收尾：拦在守关门前进首领挑战选择，否则正常结算落点格子。 */
@@ -302,6 +252,175 @@ function useTeleportAnywhereScroll(
   return true;
 }
 
+/**
+ * 「不掷骰，直接前进 N 格」——和掷骰移动逐格走同一条路，落点照常结算。
+ */
+function useAdvanceScroll(
+  state: GameState,
+  player: Player,
+  instanceId: string,
+  scrollKind: OwnedScroll["kind"],
+  definition: ScrollDefinition,
+  distance: number,
+) {
+  if (state.phase.kind !== "awaitingRoll") return false;
+  consumeScroll(state, player, instanceId);
+  const positionBefore = player.position;
+  state.movementOrigin = positionBefore;
+  state.lastMovementRoll = distance;
+  const { region, interceptedAtGate, passedCamp, targetTile } =
+    advanceAlongLoop(state, player, distance);
+  emit(state, { type: "playerMoved", playerId: player.id, from: positionBefore, to: player.position });
+  addHistory(
+    state,
+    `${player.name}使用${definition.name}，前进 ${distance} 格抵达「${targetTile.label}」${
+      interceptedAtGate ? "，已满足首领挑战条件" : ""
+    }。`,
+  );
+  if (passedCamp) restAtStageCamp(state, player, region);
+  settleMovementDestination(state, player, region, interceptedAtGate, targetTile);
+  applyEquipmentMapScrollUse(state, player, scrollKind);
+  return true;
+}
+
+/**
+ * 某条针对型效果此刻能选谁。
+ *
+ * 名单由引擎锁定后写进阶段，客户端不能自行指定——这和相遇战选对手是同一条约定。
+ */
+function targetCandidates(state: GameState, player: Player, apply: TargetedScrollEffect) {
+  const others = state.turnOrder.filter((id) => id !== player.id);
+  if (apply.type !== "swapPositions") return others;
+  /*
+    换位只能在同一区域内。跨区域换位是这批牌里最大的规则漏洞：山脚的玩家和
+    山顶的玩家换一次，就绕开了两道守关门和两场阶段首领白拿进度。
+  */
+  const regionId = regionForPosition(state.map, player.position).id;
+  return others.filter(
+    (id) => regionForPosition(state.map, state.players[id].position).id === regionId,
+  );
+}
+
+/** 换位牌代替本次移动，所以和其他移动牌一样只能在还没掷骰时打出。 */
+function replacesMovement(apply: TargetedScrollEffect) {
+  return apply.type === "swapPositions";
+}
+
+/**
+ * 打出一张要选人的牌：先把牌消耗掉，再停在选人阶段。
+ *
+ * 先消耗是刻意的，和战斗里 consumeScrolls 同一条约定——打出去的牌不退回，
+ * 中途掉线也不会把牌变回手上。
+ */
+function useTargetedScroll(
+  state: GameState,
+  player: Player,
+  instanceId: string,
+  scrollKind: OwnedScroll["kind"],
+  definition: ScrollDefinition,
+  effect: Extract<ScrollEffectDefinition, { type: "targetPlayer" }>,
+  effectIndex: number,
+) {
+  const resume = state.phase.kind === "awaitingRoll" ? "awaitingRoll" : "turnComplete";
+  if (replacesMovement(effect.apply) && resume !== "awaitingRoll") return false;
+  const candidateIds = targetCandidates(state, player, effect.apply);
+  if (candidateIds.length === 0) return false;
+
+  consumeScroll(state, player, instanceId);
+  state.phase = {
+    kind: "scrollTargetChoice",
+    choice: { playerId: player.id, candidateIds, scrollKind, effectIndex, resume },
+  };
+  addHistory(state, `${player.name}打出${definition.name}，正在选择目标。`);
+  applyEquipmentMapScrollUse(state, player, scrollKind);
+  return true;
+}
+
+/** 施加选定目标之后的效果。只能经 useTargetedScroll 抵达。 */
+function applyTargetedScrollEffect(
+  state: GameState,
+  player: Player,
+  target: Player,
+  apply: TargetedScrollEffect,
+  scrollName: string,
+) {
+  switch (apply.type) {
+    case "stealGold": {
+      const amount = transferGold(state, target, player, apply.amount, "event");
+      addHistory(
+        state,
+        amount > 0
+          ? `${player.name}用${scrollName}从${target.name}身上勒索到 ${amount} 金币。`
+          : `${target.name}掏不出一枚金币，${scrollName}落了空。`,
+      );
+      return;
+    }
+    case "forceMovementRoll": {
+      target.forcedMovementRoll = apply.value;
+      addHistory(
+        state,
+        `${target.name}被${player.name}的${scrollName}缠住，下一次掷骰移动只能走 ${apply.value} 格。`,
+      );
+      return;
+    }
+    case "pushBack": {
+      const region = regionForPosition(state.map, target.position);
+      const local = target.position - region.startIndex;
+      const back = ((local - apply.distance) % MAP_REGION_SIZE + MAP_REGION_SIZE)
+        % MAP_REGION_SIZE;
+      const from = target.position;
+      target.position = region.startIndex + back;
+      emit(state, { type: "playerMoved", playerId: target.id, from, to: target.position });
+      addHistory(
+        state,
+        `${target.name}跟着${player.name}的${scrollName}倒退了 ${apply.distance} 格，`
+          + `退回「${state.map.tiles[target.position].label}」。`,
+      );
+      return;
+    }
+    case "swapPositions": {
+      const playerFrom = player.position;
+      const targetFrom = target.position;
+      state.movementOrigin = playerFrom;
+      player.position = targetFrom;
+      target.position = playerFrom;
+      /*
+        两边都发 playerMoved，界面才会同时画出两枚棋子的移动。
+        圈数一概不动：换位不是走过去的，跨守关门算圈会让互相换位刷出挑战资格。
+      */
+      emit(state, { type: "playerMoved", playerId: player.id, from: playerFrom, to: player.position });
+      emit(state, { type: "playerMoved", playerId: target.id, from: targetFrom, to: target.position });
+      const targetTile = state.map.tiles[player.position];
+      addHistory(
+        state,
+        `${player.name}用${scrollName}与${target.name}交换了位置，落在「${targetTile.label}」。`,
+      );
+      // 只有出牌者结算新格子；目标那一侧按规则什么都不触发
+      resolveTile(state, targetTile);
+      return;
+    }
+  }
+}
+
+/** 选定目标；候选名单由出牌时锁定，不接受客户端自行指定。 */
+function chooseScrollTarget(state: GameState, targetId: Player["id"]) {
+  if (state.phase.kind !== "scrollTargetChoice") return false;
+  const { playerId, candidateIds, scrollKind, effectIndex, resume } = state.phase.choice;
+  if (!candidateIds.includes(targetId) || targetId === playerId) return false;
+  const player = state.players[playerId];
+  const target = state.players[targetId];
+  if (!player || !target) return false;
+
+  const definition = scrollDefinition(scrollKind);
+  const effect = definition.effects[effectIndex];
+  if (effect?.type !== "targetPlayer") return false;
+
+  // 换位那一支会自己结算落点并定下阶段，所以先摆回默认阶段再施加效果
+  state.phase = { kind: resume };
+  applyTargetedScrollEffect(state, player, target, effect.apply, definition.name);
+  return true;
+}
+
 /** 地图阶段使用；返回 false 时保持“非法动作不产生新状态”的约定。 */
 function useMapScroll(
   state: GameState,
@@ -329,6 +448,36 @@ function useMapScroll(
   const teleportAnywhere = definition.effects.some((effect) => effect.type === "teleportAnywhere");
   if (teleportAnywhere) {
     return useTeleportAnywhereScroll(state, player, instanceId, owned.kind, definition, targetPosition);
+  }
+
+  const advance = definition.effects.find(
+    (effect): effect is Extract<ScrollEffectDefinition, { type: "advanceTiles" }> =>
+      effect.type === "advanceTiles",
+  );
+  if (advance) {
+    return useAdvanceScroll(
+      state,
+      player,
+      instanceId,
+      owned.kind,
+      definition,
+      Math.max(1, Math.floor(advance.distance)),
+    );
+  }
+
+  const targetedIndex = definition.effects.findIndex((effect) => effect.type === "targetPlayer");
+  if (targetedIndex >= 0) {
+    const targeted = definition.effects[targetedIndex];
+    if (targeted.type !== "targetPlayer") return false;
+    return useTargetedScroll(
+      state,
+      player,
+      instanceId,
+      owned.kind,
+      definition,
+      targeted,
+      targetedIndex,
+    );
   }
 
   const supported = definition.effects.every(
@@ -403,6 +552,16 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
     case "turnComplete":
       if (next.activePlayerId !== playerId) return state;
       addHistory(next, `${timedOut.name}掉线超时，自动结束回合。`);
+      advanceCompletedTurn(next);
+      return next;
+    /*
+      选人的是踩中事件格的人，掉线就直接放弃这次针对——被点名的一方不需要
+      操作，所以这里不必像相遇那样从候选名单里剔人。
+    */
+    case "scrollTargetChoice":
+      if (next.phase.choice.playerId !== playerId) return state;
+      next.phase = { kind: "turnComplete" };
+      addHistory(next, `${timedOut.name}掉线超时，放弃本次针对。`);
       advanceCompletedTurn(next);
       return next;
     case "encounterChoice":
@@ -590,7 +749,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (next.phase.kind !== "awaitingRoll") return state;
       const player = next.players[next.activePlayerId];
       const sides = Math.max(2, 6 + getDieSidesBonus(player, "movement"));
-      const roll = rollDie(next, sides) + blessingMovementRollBonus(player);
+      /*
+        被绊倒时点数直接钉死，赐福的移动加成也不叠上去——"下次掷骰点数为 1"
+        说的是最终点数。这一支不消耗随机数，同种子重放照样对得上：
+        消耗量只取决于状态，而状态本身是复现的。
+      */
+      const forced = player.forcedMovementRoll;
+      delete player.forcedMovementRoll;
+      const roll = forced ?? rollDie(next, sides) + blessingMovementRollBonus(player);
       next.lastMovementRoll = roll;
       const positionBefore = player.position;
       next.movementOrigin = positionBefore;
@@ -627,6 +793,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "chooseEncounterOpponent":
       return chooseEncounterOpponent(next, action.opponentId) ? next : state;
+    case "chooseScrollTarget":
+      return settleActionResult(next, state, chooseScrollTarget(next, action.targetId));
     case "chooseEncounterIntent":
       return settleActionResult(next, state, chooseEncounterIntent(next, action));
     case "submitTradeOffer":

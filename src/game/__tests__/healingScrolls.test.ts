@@ -156,7 +156,7 @@ describe("战斗阶段使用疗牌", () => {
 
     state = resolveRound(state, { attack: "medicine-1" });
 
-    expect(state.players.player1.skipNextMovement).toBe(true);
+    expect(state.players.player1.skipNextMovement).toEqual({ reason: "战地药剂" });
     expect(only(state.lastEvents, "battleHealed").amount).toBe(5);
   });
 
@@ -164,13 +164,13 @@ describe("战斗阶段使用疗牌", () => {
     const initial = createInitialGame(7);
     initial.activePlayerId = "player2";
     initial.phase = { kind: "turnComplete" };
-    initial.players.player1.skipNextMovement = true;
+    initial.players.player1.skipNextMovement = { reason: "战地药剂" };
 
     const state = gameReducer(initial, { type: "endTurn" });
 
     expect(state.activePlayerId).toBe("player1");
     expect(state.phase.kind).toBe("turnComplete");
     expect(state.players.player1.skipNextMovement).toBeUndefined();
-    expect(state.message.text).toContain("无法移动");
+    expect(state.message.text).toContain("受战地药剂影响，本回合无法移动");
   });
 });

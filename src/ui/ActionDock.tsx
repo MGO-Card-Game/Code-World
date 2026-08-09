@@ -34,6 +34,12 @@ export function actionGuidance(state: GameStateView, movementSides: number): Act
         action: "选择相遇对象",
         actorIds: [phase.choice.challengerId],
       };
+    case "scrollTargetChoice":
+      return {
+        label: "选定目标",
+        action: "选择一名玩家",
+        actorIds: [phase.choice.playerId],
+      };
     case "encounterDecision": {
       const encounter = phase.encounter;
       return {

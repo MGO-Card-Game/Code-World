@@ -58,7 +58,57 @@ export type ScrollEffectDefinition =
    * 不受距离限制。和 teleport 同理，只结算落点本身，不触发沿途任何效果。
    */
   | { type: "teleportAnywhere" }
+  /**
+   * 地图阶段专用，代替掷移动骰：不掷骰，直接沿环路前进固定格数。
+   * 走的是逐格前进那条路（营地回血、守关门计次照旧），落点照常结算。
+   */
+  | { type: "advanceTiles"; distance: number }
+  /**
+   * 地图阶段专用：先让出牌者挑一名其他玩家，再对他施加 apply。
+   *
+   * 会把结算暂停在一个选择阶段，所以一张牌上只能有这一条效果——
+   * 排在它后面的效果永远走不到。
+   */
+  | { type: "targetPlayer"; apply: TargetedScrollEffect }
   | { type: "custom"; resolve: ScrollEffectResolver };
+
+/**
+ * 选定目标之后施加在目标身上的效果。
+ *
+ * 单独成一个联合而不是混进主联合：它们只能经 targetPlayer 抵达，
+ * 混在一起会让「有没有选人」这件事在两处 switch 里互相渗漏。
+ */
+export type TargetedScrollEffect =
+  | {
+      /** 从目标身上抢钱；对方不够就有多少抢多少，不会抢成负数。 */
+      type: "stealGold";
+      amount: number;
+    }
+  | {
+      /** 钉死目标下一次掷骰移动的点数 */
+      type: "forceMovementRoll";
+      value: number;
+    }
+  | {
+      /**
+       * 把目标沿环路往回挪若干格。
+       *
+       * 只改位置，不结算落点：resolveTile 是围绕 activePlayerId 写的，替别人
+       * 结算格子会把战斗、商店这些阶段挂到错误的人头上。倒退也刻意不计守关门
+       * 圈数——否则来回推人就能刷出首领挑战资格。
+       */
+      type: "pushBack";
+      distance: number;
+    }
+  | {
+      /**
+       * 与目标交换位置，代替本次移动。只有出牌者会结算换到的新格子。
+       *
+       * 候选名单会被收窄到同一区域内：跨区域换位等于绕开守关门和阶段首领
+       * 白拿进度，那是比这张牌本身大得多的规则漏洞。
+       */
+      type: "swapPositions";
+    };
 
 /** 声明式效果覆盖不了的卷轴，直接在卡牌定义里写这个函数。 */
 export interface ScrollEffectContext {

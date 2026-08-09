@@ -13,7 +13,8 @@ export function advanceCompletedTurn(state: GameState) {
   state.lastMovementRoll = undefined;
   state.movementOrigin = undefined;
   const incoming = state.players[state.activePlayerId];
-  if (incoming.skipNextMovement) {
+  const skipped = incoming.skipNextMovement;
+  if (skipped) {
     delete incoming.skipNextMovement;
     state.phase = { kind: "turnComplete" };
   } else {
@@ -26,8 +27,8 @@ export function advanceCompletedTurn(state: GameState) {
   });
   addHistory(
     state,
-    state.phase.kind === "turnComplete"
-      ? `${incoming.name}受战地药剂影响，本回合无法移动。`
+    skipped
+      ? `${incoming.name}受${skipped.reason}影响，本回合无法移动。`
       : `轮到${incoming.name}行动。`,
   );
 }

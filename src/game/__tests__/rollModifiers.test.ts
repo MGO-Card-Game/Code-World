@@ -166,8 +166,14 @@ describe("一回合多张卷轴", () => {
     ];
     const SEQUENTIAL = [
       "directDamage", "heal", "forfeitMovement", "chooseMovement", "teleport",
-      "teleportAnywhere", "custom",
+      "teleportAnywhere", "advanceTiles", "custom",
+      "targetPlayer",
     ];
+    /*
+      地图独占型的那几种（chooseMovement / teleport / teleportAnywhere /
+      advanceTiles / targetPlayer）压根不会一回合打出多张：它们各自独占整张牌，
+      而这条规矩由 content/scrolls/category.test.ts 守着，不是靠这里的注释。
+    */
 
     for (const kind of Object.keys(SCROLLS) as ScrollKind[]) {
       for (const effect of SCROLLS[kind].effects) {

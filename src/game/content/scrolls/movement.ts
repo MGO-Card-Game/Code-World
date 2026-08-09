@@ -33,6 +33,18 @@ export const MOVEMENT_SCROLLS = {
     effects: [{ type: "teleport", maxDistance: 1 }],
   },
 
+  somersault: {
+    name: "翻跟头",
+    description: "地图阶段使用：不掷骰，直接前进 2 格，代替正常移动；沿途效果与落点都照常触发",
+    /*
+      和触手可得（跃 1 格）的区别是"走"与"跳"：这张会逐格前进，路过营地照样回血、
+      经过守关门照样计圈。走 2 格的期望收益低于掷骰的 3.5，值在于点数确定。
+    */
+    rarity: "N",
+    timings: ["map"],
+    effects: [{ type: "advanceTiles", distance: 2 }],
+  },
+
   anywhereDoor: {
     name: "任意门",
     description: "地图阶段使用：直接传送至当前阶段地图上的任意一格，代替正常移动；不触发沿途任何效果",

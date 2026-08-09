@@ -1,5 +1,6 @@
 import type { EliteAffixKind, EnemyKind } from "./content/enemies";
 import type { EquipmentKind } from "./content/equipment";
+
 import type { ScrollKind } from "./content/scrolls";
 import type { BlessingKind } from "./content/blessings";
 
@@ -101,8 +102,21 @@ export interface Player {
   checkpointTileId: number;
   /** 三个阶段各自独立的环数、目标和一次性格子状态。 */
   stageProgress: Record<MapRegionId, StageProgress>;
-  /** 战斗中使用战地药剂后，下一次自己的地图行动会失去移动机会。 */
-  skipNextMovement?: true;
+  /**
+   * 下一次自己的地图行动会失去移动机会。
+   *
+   * reason 是给玩家看的短语（"战地药剂"、"沼泽"……），回合开始的旁白直接引用它。
+   * 战斗里的代价和地图事件用的是同一个字段，因为两者对玩家来说是同一件事——
+   * 各存一份状态的话，同时中招时就会漏掉一次。
+   */
+  skipNextMovement?: { reason: string };
+  /**
+   * 下一次掷骰移动的点数被钉死成这个值（绊倒）。
+   *
+   * 只作用于真正掷骰的那一次：用移动卷轴代替掷骰时这个标记原样留着，等到下次
+   * 真掷骰才兑现——"下次掷骰点数为 1"说的就是掷骰，没掷就还没发生。
+   */
+  forcedMovementRoll?: number;
   scrolls: OwnedScroll[];
   equipment: OwnedEquipment[];
   blessings: OwnedBlessing[];
@@ -336,6 +350,30 @@ export interface CasinoState {
   spins: number;
 }
 
+/**
+ * 打出的卷轴要求出牌者从其余玩家里挑一个目标。
+ *
+ * 存的是「哪张牌的第几条效果」而不是效果本身：GameState 要能 structuredClone、
+ * JSON 广播、按同种子重放，而效果定义里可以挂函数——和卷轴、装备只存
+ * { instanceId, kind } 是同一条约定，结算时回内容表查。
+ *
+ * 牌在开这个阶段之前就已经消耗掉了，所以这里不留 instanceId：打出去的牌不退回，
+ * 和战斗里 consumeScrolls 的约定一致。
+ */
+export interface ScrollTargetChoiceState {
+  /** 做选择的人，也就是出牌的人 */
+  playerId: PlayerId;
+  /**
+   * 可选目标。掉线的玩家照样在名单里——他不需要做任何操作，
+   * 掉线不该换来一层免疫。
+   */
+  candidateIds: PlayerId[];
+  scrollKind: ScrollKind;
+  effectIndex: number;
+  /** 选完之后回到哪个阶段；换位这类代替移动的牌不用它，落点结算会自己定阶段。 */
+  resume: "awaitingRoll" | "turnComplete";
+}
+
 export interface EquipmentChoiceState {
   playerId: PlayerId;
   offered: OwnedEquipment;
@@ -353,6 +391,7 @@ export type GamePhase =
   | { kind: "awaitingRoll" }
   | { kind: "turnComplete" }
   | { kind: "encounterChoice"; choice: EncounterChoiceState }
+  | { kind: "scrollTargetChoice"; choice: ScrollTargetChoiceState }
   | { kind: "encounterDecision"; encounter: EncounterDecisionState }
   | { kind: "tradeOffer"; trade: TradeOfferState }
   | { kind: "tradeConfirmation"; trade: TradeConfirmationState }
@@ -458,12 +497,13 @@ export type GameEventBody =
       instanceId: string;
       kind: ScrollKind;
     }
+  /** kind 会被 viewFor 对交接双方之外的人裁掉，理由同 scrollGranted */
   | {
       type: "scrollTransferred";
       fromId: PlayerId;
       toId: PlayerId;
       instanceId: string;
-      kind: ScrollKind;
+      kind?: ScrollKind;
     }
   | {
       type: "equipmentGranted";
@@ -603,6 +643,7 @@ export type GameAction =
   | { type: "useMapScroll"; instanceId: string; distance?: number; targetPosition?: number }
   | { type: "endTurn" }
   | { type: "chooseEncounterOpponent"; opponentId: PlayerId }
+  | { type: "chooseScrollTarget"; targetId: PlayerId }
   | { type: "chooseEncounterIntent"; side: CombatSide; intent: EncounterIntent }
   | {
       type: "submitTradeOffer";

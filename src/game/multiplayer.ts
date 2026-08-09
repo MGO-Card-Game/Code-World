@@ -55,6 +55,12 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
         state.phase.choice.challengerId === actor
       );
 
+    case "chooseScrollTarget":
+      return (
+        state.phase.kind === "scrollTargetChoice" &&
+        state.phase.choice.playerId === actor
+      );
+
     case "chooseEncounterIntent": {
       if (state.phase.kind !== "encounterDecision") return false;
       const encounter = state.phase.encounter;
@@ -162,6 +168,21 @@ function redactEvent(event: GameEvent, viewer: PlayerId): GameEvent {
     case "scrollGranted":
       if (event.playerId === viewer) return event;
       return { id: event.id, type: "scrollGranted", playerId: event.playerId, instanceId: event.instanceId };
+
+    /*
+      转手的牌只有交接双方知道。这张牌没有被打出，「加值体现在攻防合计里藏不住」
+      那条理由在这里不成立——相遇战代价和拿来主义的旁白都刻意不点名是哪一张，
+      结构化事件却把 kind 原样广播的话，前面那份克制就白做了。
+    */
+    case "scrollTransferred":
+      if (event.fromId === viewer || event.toId === viewer) return event;
+      return {
+        id: event.id,
+        type: "scrollTransferred",
+        fromId: event.fromId,
+        toId: event.toId,
+        instanceId: event.instanceId,
+      };
 
     default:
       return event;
@@ -319,6 +340,8 @@ export function currentActor(state: GameState): PlayerId {
   switch (state.phase.kind) {
     case "encounterChoice":
       return state.phase.choice.challengerId;
+    case "scrollTargetChoice":
+      return state.phase.choice.playerId;
     case "encounterDecision": {
       const encounter = state.phase.encounter;
       if (encounter.choiceA.status === "pending") return encounter.aPlayerId;

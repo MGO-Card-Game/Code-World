@@ -8,9 +8,12 @@ import type {
 } from "./types";
 import { isCombatTile } from "./types";
 
-/** 10×6 矩形外框恰好有 28 个格子，三个阶段各占一圈。 */
-export const MAP_COLUMNS = 10;
-export const MAP_REGION_SIZE = 28;
+/** 12×6 矩形外框恰好有 32 个格子，三个阶段各占一圈。 */
+export const MAP_COLUMNS = 12;
+export const MAP_REGION_SIZE = 32;
+/** 扩图前的 26 个随机功能格保持原配额；新增位置暂用普通战斗格填充。 */
+export const MAP_EXPANSION_BATTLE_TILES = 4;
+const MAP_RANDOM_TILE_COUNT = MAP_REGION_SIZE - 2 - MAP_EXPANSION_BATTLE_TILES;
 
 export interface TileCountRange {
   min: number;
@@ -25,7 +28,7 @@ export type RandomTileType = Exclude<TileType, "start" | "boss" | "gate">;
  *
  * 加类型时要连带核对可行性：min 合计必须 ≤ 区域容量 ≤ max 合计，
  * 否则 chooseCounts 会抛「地图格数量规则无法填满」。
- * 现在是 min 23、max 29，每圈扣除守关门与营地后容量为 26。
+ * 现在是 min 23、max 29，原随机功能格容量保持为 26；扩出的 4 格另行填入普通战斗。
  * 泉水与商店固定两个；商店增加的名额从宝箱配额中划出。
  */
 export const MAP_TILE_LIMITS: Record<RandomTileType, TileCountRange> = {
@@ -40,18 +43,18 @@ export const MAP_TILE_LIMITS: Record<RandomTileType, TileCountRange> = {
 
 export const MAP_REGIONS: MapRegion[] = [
   {
-    id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 27,
+    id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 31,
     gateIndex: 0, entryIndex: 1, bossEnemyId: "banditChief",
     requirements: [{ type: "laps", target: 3, label: "绕场 3 圈" }],
   },
   {
-    id: "mountainside", name: "云雾山腰", startIndex: 28, endIndex: 55,
-    gateIndex: 28, entryIndex: 29, bossEnemyId: "frostFang",
+    id: "mountainside", name: "云雾山腰", startIndex: 32, endIndex: 63,
+    gateIndex: 32, entryIndex: 33, bossEnemyId: "frostFang",
     requirements: [{ type: "eliteVictories", target: 2, label: "累计击败 2 次精英格敌人" }],
   },
   {
-    id: "summit", name: "雷鸣峰顶", startIndex: 56, endIndex: 83,
-    gateIndex: 56, entryIndex: 57, bossEnemyId: "dragon",
+    id: "summit", name: "雷鸣峰顶", startIndex: 64, endIndex: 95,
+    gateIndex: 64, entryIndex: 65, bossEnemyId: "dragon",
     // 龙巢正式条件尚未确定，暂用两次山顶精英胜利作为可完整通关的占位规则。
     requirements: [{ type: "eliteVictories", target: 2, label: "累计击败 2 次山顶精英" }],
   },
@@ -151,9 +154,17 @@ function hasThreeBattlesInARow(types: TileType[]) {
   );
 }
 
-function makeTypePool(capacity: number, random: () => number, preceding: TileType[]) {
+function makeTypePool(
+  capacity: number,
+  random: () => number,
+  preceding: TileType[],
+  additions: readonly TileType[] = [],
+) {
   const counts = chooseCounts(capacity, random);
-  const pool = RANDOM_TYPES.flatMap((type) => Array<TileType>(counts[type]).fill(type));
+  const pool = [
+    ...RANDOM_TYPES.flatMap((type) => Array<TileType>(counts[type]).fill(type)),
+    ...additions,
+  ];
   for (let attempt = 0; attempt < 80; attempt += 1) {
     shuffle(pool, random);
     if (!hasThreeBattlesInARow([...preceding, ...pool])) return pool;
@@ -163,12 +174,26 @@ function makeTypePool(capacity: number, random: () => number, preceding: TileTyp
   const arranged: TileType[] = [];
   while (remaining.length > 0) {
     const context = [...preceding, ...arranged];
-    const lastTwoAreBattles = context.length >= 2
-      && isCombatTile(context.at(-1)!)
-      && isCombatTile(context.at(-2)!);
+    let trailingBattles = 0;
+    for (let index = context.length - 1; index >= 0; index -= 1) {
+      if (!isCombatTile(context[index])) break;
+      trailingBattles += 1;
+    }
+    const combatRemaining = remaining.filter(isCombatTile).length;
+    const nonCombatRemaining = remaining.length - combatRemaining;
     const candidates = remaining
       .map((type, index) => ({ type, index }))
-      .filter(({ type }) => !lastTwoAreBattles || !isCombatTile(type));
+      .filter(({ type }) => trailingBattles < 2 || !isCombatTile(type))
+      .filter(({ type }) => {
+        const nextTrailing = isCombatTile(type) ? trailingBattles + 1 : 0;
+        const combatAfter = combatRemaining - (isCombatTile(type) ? 1 : 0);
+        const nonCombatAfter = nonCombatRemaining - (isCombatTile(type) ? 0 : 1);
+        // 每个非战斗格都能再隔开至多两个战斗格；提前耗尽隔断会让尾部无解。
+        return combatAfter <= (2 - nextTrailing) + nonCombatAfter * 2;
+      });
+    if (candidates.length === 0) {
+      throw new Error("地图格排列无法避开连续三个战斗格");
+    }
     const chosen = candidates[randomIndex(random, candidates.length)];
     arranged.push(chosen.type);
     remaining.splice(chosen.index, 1);
@@ -210,8 +235,13 @@ export function generateMap(seed: number): GameMap {
   const tiles: MapTile[] = [];
 
   for (const region of MAP_REGIONS) {
-    const capacity = MAP_REGION_SIZE - 2;
-    const types = makeTypePool(capacity, random, ["gate", "start"]);
+    const additions = Array<TileType>(MAP_EXPANSION_BATTLE_TILES).fill("battle");
+    const types = makeTypePool(
+      MAP_RANDOM_TILE_COUNT,
+      random,
+      ["gate", "start"],
+      additions,
+    );
     let poolIndex = 0;
 
     for (let id = region.startIndex; id <= region.endIndex; id += 1) {

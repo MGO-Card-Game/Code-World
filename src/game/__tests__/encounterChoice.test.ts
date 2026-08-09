@@ -9,6 +9,11 @@ function gameWithTwoOpponentsAtDestination(seed = 4242) {
   const initial = createInitialGame(seed, {}, ["player1", "player2", PLAYER3]);
   const probe = gameReducer(structuredClone(initial), { type: "rollMovement" });
   const destination = probe.players[initial.activePlayerId].position;
+  const destinationTile = initial.map.tiles[destination];
+  destinationTile.type = "event";
+  delete destinationTile.safeZone;
+  delete destinationTile.enemyId;
+  delete destinationTile.eliteAffix;
   const opponentIds = initial.turnOrder.filter((id) => id !== initial.activePlayerId);
   for (const id of opponentIds) initial.players[id].position = destination;
   return { state: initial, opponentIds, destination };

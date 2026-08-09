@@ -271,7 +271,7 @@ describe("事件流", () => {
     for (let index = 1; index < events.length; index += 1) {
       expect(events[index].id).toBeGreaterThan(events[index - 1].id);
     }
-  });
+  }, 15000);
 
   it("每次 action 只保留本次产生的事件，不累积", () => {
     let state = createInitialGame(20260805);

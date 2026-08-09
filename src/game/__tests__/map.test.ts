@@ -5,6 +5,7 @@ import {
   findRestTileAtOrBefore,
   generateMap,
   MAP_COLUMNS,
+  MAP_EXPANSION_BATTLE_TILES,
   MAP_REGION_SIZE,
   MAP_TILE_LIMITS,
 } from "../map";
@@ -27,12 +28,12 @@ describe("受约束随机地图", () => {
     expect(generateMap(20260805)).not.toEqual(generateMap(20260806));
   });
 
-  it("每个区域固定 28 格，守关门与营地占据环路开头", () => {
+  it("每个区域固定 32 格，守关门与营地占据环路开头", () => {
     const map = generateMap(4242);
 
     expect(map.columns).toBe(MAP_COLUMNS);
-    expect(MAP_COLUMNS).toBe(10);
-    expect(MAP_REGION_SIZE).toBe(28);
+    expect(MAP_COLUMNS).toBe(12);
+    expect(MAP_REGION_SIZE).toBe(32);
     expect(map.regions).toHaveLength(3);
     expect(map.tiles).toHaveLength(MAP_REGION_SIZE * 3);
     for (const region of map.regions) {
@@ -55,8 +56,9 @@ describe("受约束随机地图", () => {
         const tiles = map.tiles.slice(region.startIndex, region.endIndex + 1);
         for (const type of RANDOM_TYPES) {
           const count = tiles.filter((tile) => tile.type === type).length;
-          expect(count).toBeGreaterThanOrEqual(MAP_TILE_LIMITS[type].min);
-          expect(count).toBeLessThanOrEqual(MAP_TILE_LIMITS[type].max);
+          const expansion = type === "battle" ? MAP_EXPANSION_BATTLE_TILES : 0;
+          expect(count).toBeGreaterThanOrEqual(MAP_TILE_LIMITS[type].min + expansion);
+          expect(count).toBeLessThanOrEqual(MAP_TILE_LIMITS[type].max + expansion);
         }
       }
     }

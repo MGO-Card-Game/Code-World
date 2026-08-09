@@ -145,6 +145,16 @@ describe("绊索", () => {
     expect(resolved.players[targetId].forcedMovementRoll).toBe(1);
 
     // 推进到目标自己的回合再掷骰
+    const actor = resolved.players[resolved.activePlayerId];
+    const region = resolved.map.regions[0];
+    for (let distance = 1; distance <= 6; distance += 1) {
+      const local = (actor.position - region.startIndex + distance) % MAP_REGION_SIZE;
+      const tile = resolved.map.tiles[region.startIndex + local];
+      tile.type = "start";
+      tile.safeZone = true;
+      delete tile.enemyId;
+      delete tile.eliteAffix;
+    }
     resolved = gameReducer(resolved, { type: "rollMovement" });
     while (resolved.phase.kind !== "turnComplete") {
       throw new Error(`出牌者这一步不该停在 ${resolved.phase.kind}`);

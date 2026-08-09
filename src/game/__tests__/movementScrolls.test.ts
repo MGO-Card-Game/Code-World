@@ -55,7 +55,7 @@ describe("遥控骰子（自选移动点数）", () => {
   it("指定点数移动，逐格前进，途中经过营地照常回血、计入守关门圈数", () => {
     const initial = createInitialGame(7);
     const player = initial.players[initial.activePlayerId];
-    player.position = 27; // 山脚：守关门在 0，营地在 1
+    player.position = initial.map.regions[0].endIndex; // 守关门在 0，营地在 1
     player.hp = 10;
     initial.map.tiles[2].type = "start"; // 落点设为无副作用格，断言不被随机内容干扰
     const instanceId = giveScroll(initial, "remoteDice");
@@ -93,7 +93,8 @@ describe("短程传送符（跳跃）", () => {
   it("跃过营地和守关门时都不结算：不回血、不计圈数，只有落点格子生效", () => {
     const initial = createInitialGame(7);
     const player = initial.players[initial.activePlayerId];
-    player.position = 27; // 与遥控骰子用例相同的起点和距离，落点同样是 2
+    const region = initial.map.regions[0];
+    player.position = region.endIndex; // 与遥控骰子用例相同的起点和距离，落点同样是 2
     player.hp = 10;
     initial.map.tiles[2].type = "start";
     const instanceId = giveScroll(initial, "shortRangeTeleportCharm");
@@ -106,14 +107,14 @@ describe("短程传送符（跳跃）", () => {
     expect(state.players[state.activePlayerId].stageProgress.foothill.laps).toBe(0); // 没有触发守关门计次
     expect(state.lastEvents.some((event) => event.type === "playerHpChanged")).toBe(false);
     expect(state.lastEvents.some((event) => event.type === "movementRolled")).toBe(false);
-    expect(only(state.lastEvents, "playerMoved")).toMatchObject({ from: 27, to: 2 });
+    expect(only(state.lastEvents, "playerMoved")).toMatchObject({ from: region.endIndex, to: 2 });
     expect(only(state.lastEvents, "scrollConsumed").kind).toBe("shortRangeTeleportCharm");
   });
 
   it("直接落在营地格上时仍然回血", () => {
     const initial = createInitialGame(7);
     const player = initial.players[initial.activePlayerId];
-    player.position = 26; // +3 恰好落在营地（位置 1）
+    player.position = initial.map.regions[0].endIndex - 1; // +3 恰好落在营地（位置 1）
     player.hp = 10;
     const instanceId = giveScroll(initial, "shortRangeTeleportCharm");
     initial.phase = { kind: "awaitingRoll" };
@@ -167,11 +168,16 @@ describe("任意门（不限距离的传送）", () => {
 
   it("目标超出当前阶段范围或缺省时拒绝", () => {
     const state = createInitialGame(7);
-    state.players[state.activePlayerId].position = 5; // 山脚：0～27
+    const region = state.map.regions[0];
+    state.players[state.activePlayerId].position = 5;
     const instanceId = giveScroll(state, "anywhereDoor");
     state.phase = { kind: "awaitingRoll" };
 
-    expect(gameReducer(state, { type: "useMapScroll", instanceId, targetPosition: 28 })).toBe(state);
+    expect(gameReducer(state, {
+      type: "useMapScroll",
+      instanceId,
+      targetPosition: region.endIndex + 1,
+    })).toBe(state);
     expect(gameReducer(state, { type: "useMapScroll", instanceId, targetPosition: -1 })).toBe(state);
     expect(gameReducer(state, { type: "useMapScroll", instanceId })).toBe(state);
     expect(state.players[state.activePlayerId].scrolls).toHaveLength(1);

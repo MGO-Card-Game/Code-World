@@ -356,11 +356,21 @@ export interface StatGrowthChoiceState {
   stageId: MapRegionId;
 }
 
+/** 赌场转盘一次已经结算、但尚未由玩家确认的结果。 */
+export type CasinoResult =
+  | { kind: "bust"; price: number }
+  | { kind: "gold"; price: number; amount: number }
+  | { kind: "scroll"; price: number; name: string; publicName: string }
+  | { kind: "equipment"; price: number; name: string }
+  | { kind: "statGrowth"; price: number; option: StatGrowthOption };
+
 /** 赌场转盘的进店状态；spins 决定下一次转动的价格，见 casinoSpinPrice。 */
 export interface CasinoState {
   playerId: PlayerId;
   tileIndex: number;
   spins: number;
+  /** 存在时必须先确认结果，不能直接再次转动或离场。 */
+  result?: CasinoResult;
 }
 
 /**
@@ -677,6 +687,7 @@ export type GameAction =
   | { type: "leaveShop" }
   /** 赌场转盘：花费本次价格转一次，奖励是一张卷轴或一件装备。 */
   | { type: "spinCasino" }
+  | { type: "acknowledgeCasinoResult" }
   | { type: "leaveCasino" }
   /**
    * 提交本侧本回合要打的全部卷轴（GameRule 8.5，张数不限）。

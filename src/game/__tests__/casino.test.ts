@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { roundGold } from "../economy";
 import { CASINO_PRICES, casinoSpinPrice } from "../casino";
 import { createInitialGame, gameReducer, handleDisconnectTimeout } from "../engine";
-import { canAct, currentActor } from "../multiplayer";
+import { canAct, currentActor, viewFor } from "../multiplayer";
 import type { CasinoState, GameState, PlayerId } from "../types";
 
 function enterCasino(seed = 20260808) {
@@ -105,6 +105,7 @@ describe("赌场转盘游玩", () => {
       expect(result.phase.kind).toBe("casino");
       if (result.phase.kind !== "casino") throw new Error("应停留在赌场");
       expect(result.phase.casino.spins).toBe(1);
+      expect(result.phase.casino.result).toBeDefined();
 
       const after = result.players[playerId];
       if (after.scrolls.length > 0) {
@@ -139,9 +140,14 @@ describe("赌场转盘游玩", () => {
     const { spun, playerId } = found;
     if (spun.phase.kind !== "equipmentChoice") throw new Error("应进入装备选择");
 
-    expect(spun.phase.choice.resume).toEqual({
+    expect(spun.phase.choice.resume).toMatchObject({
       kind: "casino",
-      casino: { playerId, tileIndex: spun.players[playerId].position, spins: 1 },
+      casino: {
+        playerId,
+        tileIndex: spun.players[playerId].position,
+        spins: 1,
+        result: { kind: "equipment", price: casinoSpinPrice(0) },
+      },
     });
     const goldAfterSpend = spun.players[playerId].gold;
 
@@ -149,6 +155,7 @@ describe("赌场转盘游玩", () => {
     expect(resumed.phase.kind).toBe("casino");
     if (resumed.phase.kind !== "casino") throw new Error("选择后应回到赌场");
     expect(resumed.phase.casino.spins).toBe(1);
+    expect(resumed.phase.casino.result?.kind).toBe("equipment");
     // 放弃新装备会折算金币退回来，但花掉的转动费用不会被重复扣
     expect(resumed.players[playerId].gold).toBeGreaterThan(goldAfterSpend);
   });
@@ -168,6 +175,55 @@ describe("赌场转盘游玩", () => {
     expect(canAct(state, { type: "spinCasino" }, other)).toBe(false);
     expect(canAct(state, { type: "leaveCasino" }, playerId)).toBe(true);
     expect(canAct(state, { type: "leaveCasino" }, other)).toBe(false);
+  });
+
+  it("转动后必须先确认揭晓结果，确认前不能再次下注或离场", () => {
+    const { state, playerId } = enterCasino(9104);
+    state.players[playerId].gold = 10_000;
+    const spun = gameReducer(state, { type: "spinCasino" });
+    if (spun.phase.kind !== "casino" || !spun.phase.casino.result) {
+      throw new Error("转动后应停在赌场结果揭晓状态");
+    }
+
+    expect(canAct(spun, { type: "spinCasino" }, playerId)).toBe(false);
+    expect(canAct(spun, { type: "leaveCasino" }, playerId)).toBe(false);
+    expect(canAct(spun, { type: "acknowledgeCasinoResult" }, playerId)).toBe(true);
+    expect(gameReducer(spun, { type: "spinCasino" })).toBe(spun);
+    expect(gameReducer(spun, { type: "leaveCasino" })).toBe(spun);
+
+    const acknowledged = gameReducer(spun, { type: "acknowledgeCasinoResult" });
+    expect(acknowledged.phase.kind).toBe("casino");
+    if (acknowledged.phase.kind !== "casino") throw new Error("确认后应回到赌场");
+    expect(acknowledged.phase.casino.result).toBeUndefined();
+    expect(acknowledged.phase.casino.spins).toBe(1);
+    expect(canAct(acknowledged, { type: "spinCasino" }, playerId)).toBe(true);
+    expect(canAct(acknowledged, { type: "leaveCasino" }, playerId)).toBe(true);
+  });
+
+  it("卷轴结果只向获奖玩家揭示名称，旁观者只能看到一张卷轴", () => {
+    let scrollResult: GameState | undefined;
+    let owner: PlayerId | undefined;
+    for (let seed = 1; seed <= 500 && !scrollResult; seed += 1) {
+      const entered = enterCasino(seed);
+      entered.state.players[entered.playerId].gold = 10_000;
+      const spun = gameReducer(entered.state, { type: "spinCasino" });
+      if (spun.phase.kind === "casino" && spun.phase.casino.result?.kind === "scroll") {
+        scrollResult = spun;
+        owner = entered.playerId;
+      }
+    }
+    if (!scrollResult || !owner) throw new Error("未找到卷轴结果种子");
+    const other = scrollResult.turnOrder.find((id) => id !== owner) as PlayerId;
+    const ownerView = viewFor(scrollResult, owner);
+    const otherView = viewFor(scrollResult, other);
+    if (ownerView.phase.kind !== "casino" || ownerView.phase.casino.result?.kind !== "scroll") {
+      throw new Error("获奖玩家应看到卷轴结果");
+    }
+    if (otherView.phase.kind !== "casino" || otherView.phase.casino.result?.kind !== "scroll") {
+      throw new Error("旁观者应看到已裁剪的卷轴结果");
+    }
+    expect(ownerView.phase.casino.result.name).not.toBe("一张卷轴");
+    expect(otherView.phase.casino.result.name).toBe("一张卷轴");
   });
 });
 

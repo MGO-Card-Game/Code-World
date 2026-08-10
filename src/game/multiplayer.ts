@@ -120,7 +120,18 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
 
     case "spinCasino":
     case "leaveCasino":
-      return state.phase.kind === "casino" && state.phase.casino.playerId === actor;
+      return (
+        state.phase.kind === "casino" &&
+        state.phase.casino.playerId === actor &&
+        !state.phase.casino.result
+      );
+
+    case "acknowledgeCasinoResult":
+      return (
+        state.phase.kind === "casino" &&
+        state.phase.casino.playerId === actor &&
+        Boolean(state.phase.casino.result)
+      );
 
     case "choosePvpPenalty":
       return (
@@ -295,6 +306,19 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
               offers: phase.shop.offers.map((offer) => offer.stock.type === "scroll"
                 ? { ...offer, stock: { type: "scroll" } }
                 : offer),
+            },
+          };
+    case "casino":
+      return phase.casino.playerId === viewer || phase.casino.result?.kind !== "scroll"
+        ? phase
+        : {
+            kind: "casino",
+            casino: {
+              ...phase.casino,
+              result: {
+                ...phase.casino.result,
+                name: phase.casino.result.publicName,
+              },
             },
           };
     default:

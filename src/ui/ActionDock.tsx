@@ -141,7 +141,7 @@ export function actionGuidance(state: GameStateView, movementSides: number): Act
     case "casino":
       return {
         label: "赌场转盘",
-        action: "决定转动转盘或离开",
+        action: phase.casino.result ? "确认本次转盘结果" : "决定转动转盘或离开",
         actorIds: [phase.casino.playerId],
       };
     case "gameOver":

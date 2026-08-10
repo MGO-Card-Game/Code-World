@@ -4,7 +4,7 @@ import {
   createInitialGame,
 } from "./state";
 import { buyShopItem } from "./economy";
-import { leaveCasino, spinCasino } from "./casino";
+import { acknowledgeCasinoResult, leaveCasino, spinCasino } from "./casino";
 import { buyShopOffer, leaveShop } from "./shop";
 import { cancelTrade, confirmTrade, submitTradeOffer } from "./trading";
 import { acknowledgePveReward, chooseEquipment, chooseStatGrowth } from "./rewards";
@@ -100,6 +100,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return leaveShop(next) ? next : state;
     case "spinCasino":
       return spinCasino(next) ? next : state;
+    case "acknowledgeCasinoResult":
+      return acknowledgeCasinoResult(next) ? next : state;
     case "leaveCasino":
       return leaveCasino(next) ? next : state;
     case "submitScrollChoice":

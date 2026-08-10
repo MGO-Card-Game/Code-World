@@ -1,6 +1,6 @@
 import { finishBattle } from "./battle";
 import { chooseEncounterIntent } from "./encounters";
-import { leaveCasino } from "./casino";
+import { acknowledgeCasinoResult, leaveCasino } from "./casino";
 import {
   chooseBlessing,
   settleUnavailablePvpPenalty,
@@ -174,6 +174,7 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
         phaseAfterEquipmentFallback.kind === "casino" &&
         phaseAfterEquipmentFallback.casino.playerId === playerId
       ) {
+        acknowledgeCasinoResult(next);
         leaveCasino(next);
       }
       if ((next.phase as GameState["phase"]).kind === "turnComplete" && next.activePlayerId === playerId) {
@@ -201,6 +202,7 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       return next;
     case "casino":
       if (next.phase.casino.playerId !== playerId) return state;
+      acknowledgeCasinoResult(next);
       leaveCasino(next);
       if (next.activePlayerId === playerId) advanceCompletedTurn(next);
       return next;

@@ -49,6 +49,7 @@ const CASINO_OUTCOME_WEIGHTS: readonly (readonly [CasinoOutcome, number])[] = [
 export function spinCasino(state: GameState): boolean {
   if (state.phase.kind !== "casino") return false;
   const casino = state.phase.casino;
+  if (casino.result) return false;
   const player = state.players[casino.playerId];
   if (!player || player.position !== casino.tileIndex) return false;
 
@@ -63,6 +64,7 @@ export function spinCasino(state: GameState): boolean {
   const outcome = pickWeighted(CASINO_OUTCOME_WEIGHTS, () => nextRandom(state));
   switch (outcome) {
     case "bust":
+      nextCasino.result = { kind: "bust", price };
       addHistory(state, `${player.name}花费 ${price} 金币转动轮盘，指针停在空格，一无所获。`);
       return true;
     case "gold": {
@@ -72,11 +74,18 @@ export function spinCasino(state: GameState): boolean {
         roundGold(price * CASINO_PRICES.goldPayoutMultiplier),
         "event",
       );
+      nextCasino.result = { kind: "gold", price, amount };
       addHistory(state, `${player.name}花费 ${price} 金币转动轮盘，中了 ${amount} 金币。`);
       return true;
     }
     case "scroll": {
       const reward = grantScroll(state, player);
+      nextCasino.result = {
+        kind: "scroll",
+        price,
+        name: reward.name,
+        publicName: reward.publicName,
+      };
       const line = (rewardName: string) =>
         `${player.name}花费 ${price} 金币转动轮盘，获得${rewardName}。`;
       addHistory(state, line(reward.name), rewardSecret(player, line, reward));
@@ -84,6 +93,7 @@ export function spinCasino(state: GameState): boolean {
     }
     case "equipment": {
       const reward = grantEquipment(state, player, undefined, { kind: "casino", casino: nextCasino });
+      nextCasino.result = { kind: "equipment", price, name: reward.name };
       const line = (rewardName: string) =>
         `${player.name}花费 ${price} 金币转动轮盘，获得${rewardName}。`;
       addHistory(state, line(reward.name), rewardSecret(player, line, reward));
@@ -92,6 +102,7 @@ export function spinCasino(state: GameState): boolean {
     case "statGrowth": {
       const option = STAT_GROWTH_OPTIONS[Math.floor(nextRandom(state) * STAT_GROWTH_OPTIONS.length)];
       applyStatGrowth(state, player, option);
+      nextCasino.result = { kind: "statGrowth", price, option };
       addHistory(
         state,
         `${player.name}花费 ${price} 金币转动轮盘，转出头奖：${STAT_GROWTH[option].name}！`,
@@ -101,8 +112,16 @@ export function spinCasino(state: GameState): boolean {
   }
 }
 
+export function acknowledgeCasinoResult(state: GameState): boolean {
+  if (state.phase.kind !== "casino" || !state.phase.casino.result) return false;
+  const { result: _result, ...casino } = state.phase.casino;
+  state.phase = { kind: "casino", casino };
+  return true;
+}
+
 export function leaveCasino(state: GameState): boolean {
   if (state.phase.kind !== "casino") return false;
+  if (state.phase.casino.result) return false;
   const player = state.players[state.phase.casino.playerId];
   if (!player) return false;
   state.phase = { kind: "turnComplete" };

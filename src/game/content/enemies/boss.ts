@@ -52,9 +52,9 @@ export const BOSS_ENEMIES = defineEnemies("boss", {
 
   dragon: {
     name: "峰顶巨龙",
-    maxHp: 80,
-    attack: 10,
-    defense: 8,
+    maxHp: 75,
+    attack: 8,
+    defense: 6,
     abilities: [
       { name: "龙鳞", description: "防御骰上限 +2（D6 提升为 D8）。" },
       {

@@ -4,7 +4,7 @@ import type { MapTile } from "../types";
 export const TILE_ICON: Record<MapTile["type"], string> = {
   start: "⌂",
   battle: "⚔",
-  elite: "⚔",
+  elite: "☠",
   treasure: "◆",
   blessing: "✧",
   spring: "✦",

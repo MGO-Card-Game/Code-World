@@ -67,6 +67,64 @@ export const ARMOR = defineEquipment("armor", {
     },
   },
 
+  crackedBulwark: {
+    name: "裂口重盾",
+    description: "防御骰上限 +2；本场战斗一旦受到伤害，此后防御骰上限 -1",
+    rarity: "N",
+    modifiers: [{ type: "dieSides", die: "defense", value: 2 }],
+    effects: {
+      /*
+        N 档取舍卡不能写成「+1 换 -1」：骰面的收益和代价是线性的，一换一净收益为 0，
+        而边境皮甲这种无代价 N 卡净收益是 +0.5——一换一直接变废卡。「+2 换 -1」倒是
+        划算，但攻↔防、防↔移、移↔防三条轴向已经被 R 档的裂甲战斧、沉重壁垒和猎踪靴
+        占满了，N 抢过去就把那三张顶掉。
+
+        所以这里换一种代价形式：收益会衰减。开场 +2，挨过打之后掉到 +1。
+        沉重壁垒（R）的 +2 从头到尾都成立，代价是永久的移动 -1；这张的 +2 只在
+        你还没被打中的时候成立，长局里它的实际期望低于 R 档，档位关系立得住。
+
+        暗格记的是「已经裂了」，所以读到之后不清空——它要管整场，由 clearBattleMemos
+        在战斗结束时统一回收。incoming <= 0 不算数：防住了的那些回合盾没裂。
+      */
+      beforeDamage({ incoming, item, addBattleLog }) {
+        if (item.battleMemo !== undefined) return;
+        if (incoming <= 0) return;
+        item.battleMemo = 1;
+        addBattleLog("裂口重盾被这一击震开，本场防御骰上限 -1。");
+      },
+      beforeRoll({ dieKind, item, modifiers }) {
+        if (dieKind !== "defense") return;
+        if (item.battleMemo === undefined) return;
+        // 抵掉 modifiers 里那 +2 中的 1 点：最终骰面是 sidesOverride + sidesBonus，
+        // 基础 6 + 2 = D8，裂开之后 5 + 2 = D7
+        modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) - 1;
+      },
+    },
+  },
+
+  blacksmithsApron: {
+    name: "铁匠围裙",
+    description: "防御骰上限 +1；单次受到的伤害达到 4 点及以上时，伤害减少 2",
+    rarity: "N",
+    modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
+    effects: {
+      /*
+        三件减伤甲的分工：灰铁胸甲只咬第一口，磨损铁甲每口都磨 1（R），
+        这张只挑大的挡。小额伤害它一点不管，所以在被小刀慢割的对局里
+        它就是一件普通的 +1 防具——这正是它留在 N 档的理由。
+
+        阈值读的是 incoming，也就是任何钩子动手之前的快照。用实时值的话，
+        同时穿着磨损铁甲时那 1 点减免会把 4 点伤害压到 3，这张就白白失效了；
+        护甲关心的是这一击本身有多重，不是别人减完还剩多少。
+      */
+      beforeDamage({ incoming, reduceDamage, addBattleLog }) {
+        if (incoming < 4) return;
+        reduceDamage(2);
+        addBattleLog("铁匠围裙的厚革吃下这记重击，伤害减少 2。");
+      },
+    },
+  },
+
   heavyBulwark: {
     name: "沉重壁垒",
     description: "防御骰上限 +2，但地图移动骰上限 -1",

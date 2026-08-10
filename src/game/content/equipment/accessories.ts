@@ -64,6 +64,43 @@ export const ACCESSORIES = defineEquipment("accessory", {
     },
   },
 
+  frayedBracers: {
+    name: "破损护腕",
+    description: "攻击和防御骰上限各 +1；每使用一张卷轴，损失 1 点生命",
+    rarity: "N",
+    modifiers: [
+      { type: "dieSides", die: "attack", value: 1 },
+      { type: "dieSides", die: "defense", value: 1 },
+    ],
+    effects: {
+      /*
+        黑日碎片的 N 档前身：少了移动骰那一条，代价一模一样。两张同时穿得起
+        （饰品有两个槽），那时每张卷轴就要收 2 点血——这是刻意留着的组合，
+        代价类装备叠起来越来越疼是它该有的样子。
+
+        「损失生命」不是「受到伤害」的那一整套理由见黑日碎片：走 loseHp，
+        不过 beforeDamage，否则灰铁胸甲会拿这 1 点自损白吃掉一次充能。
+      */
+      onScrollUsed({ player, loseHp }) {
+        loseHp(1, `破损护腕的裂口渗出血来，${player.name}损失 1 点生命。`);
+      },
+    },
+  },
+
+  scavengersSatchel: {
+    name: "拾荒者背袋",
+    description: "每场战斗开始时获得一张「拾荒者背袋」卷轴，可将本次防御 +2",
+    rarity: "N",
+    modifiers: [],
+    effects: {
+      // 套路同裂纹骰面/命运王冠/逐日靴：每场战斗一次的主动技 = 开战时发一张战斗限定牌。
+      // 和同为 N 档的裂纹骰面分工：那张管骰子的两头，这张只是一次纯防御补正。
+      onBattleStart({ grantBattleScroll }) {
+        grantBattleScroll("scavengersSatchelGuard");
+      },
+    },
+  },
+
   huntersPointer: {
     name: "猎人的指针",
     description: "地图移动骰上限 +1",

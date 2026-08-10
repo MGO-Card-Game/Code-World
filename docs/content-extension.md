@@ -287,7 +287,11 @@ beforeRoll({ dieKind, item, modifiers }) {
 
 空档不参加抽取，其权重由剩下的档位按比例承接——所以上面四个数字只有在每一档都至少有一张卡时才等于实际概率。装备与卷轴四档现已齐全，当前都正好是 50 / 30 / 15 / 5；装备发放的临时卷轴继续用 `drawable: false` 排除在随机卡池外。
 
-> 改权重会打乱整个随机流。「整局跑通」类测试（`engine.test.ts`、`events.test.ts`、`multiplayer.test.ts`）用的是 `testSupport.ts` 里的 `PLAYTHROUGH_SEED` / `PLAYTHROUGH_CAP`，同一颗种子的对局长度可能从一千多步跳到一万六。跑挂了先确认是不是这个原因，再决定是换种子还是抬上限。
+> 改权重会打乱整个随机流，**加一张卡也一样**。「整局跑通」类测试（`engine.test.ts`、`events.test.ts`、`multiplayer.test.ts`）用的是 `testSupport.ts` 里的 `PLAYTHROUGH_SEED` / `PLAYTHROUGH_CAP`，同一颗种子的对局长度可能从一千多步跳到两万多。跑挂了先确认是不是这个原因，再决定怎么办。
+>
+> 顺序是固定的：**先量，再抬上限，永远不换种子**。补一批 N 档装备时 `PLAYTHROUGH_SEED` 从 17433 步涨到 24562 步，烧穿了当时 20000 的上限——这说明上限贴着实际步数定得太紧，不说明种子有问题。`engine.test.ts` 里 skip 的那条用例写了为什么不能靠换种子糊过去。
+>
+> 另一类症状是**超时而不是烧穿上限**：某条用例在循环体里做了随步数增长的活（`multiplayer.test.ts` 每步都要 `viewFor` 再全量扫一遍 `history`，整体 O(步数²)），那它本来就不该跑到步数上限。给这种用例一个自己的、写死的步数预算，再配一条"确实覆盖到了"的断言守着，别把它挂在全局上限上。
 
 ## 验证
 

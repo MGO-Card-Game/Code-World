@@ -19,6 +19,55 @@ export const SHOES = defineEquipment("shoes", {
     ],
   },
 
+  veteransMarchBoots: {
+    name: "老兵行军靴",
+    description: "移动骰上限 +1；本场战斗从第 3 回合起，攻击与防御各 +1",
+    rarity: "N",
+    modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
+    effects: {
+      /*
+        迅雷战靴（SR）的反面：那张在第 1 回合爆发，这张前两回合完全没有收益，
+        换来的是打得越久越强。速胜的对局里它就是一双 +1 移动的鞋，
+        这就是它的 N 档定位。
+
+        battle.round 每个攻击回合 +1、攻防每轮交替，所以「第 3 回合起」意味着
+        双方各已经出手过一次。不判 dieKind：攻防两侧都加，钩子本来就只在
+        自己参与的那一侧被调用，一轮里只会命中其中一个。
+      */
+      beforeRoll({ dieKind, battle, modifiers, addBattleLog }) {
+        if (battle.round < 3) return;
+        modifiers.flatBonus += 1;
+        addBattleLog(
+          `老兵行军靴踩稳了阵脚，本次${dieKind === "attack" ? "攻击" : "防御"} +1。`,
+        );
+      },
+    },
+  },
+
+  gamekeepersBoots: {
+    name: "猎场看守靴",
+    description: "移动骰上限 +1；对手是精英或首领时，防御骰上限 +1",
+    rarity: "N",
+    modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
+    effects: {
+      /*
+        判据和寒铁长枪一致（首领，或者带了精英词缀的普通怪），只是搬到防守侧：
+        那张是打强敌更疼，这张是挨强敌更抗。对普通怪完全没有收益，
+        所以它是一双「平时白板、硬仗才立起来」的鞋。
+
+        写成 sidesOverride 而不是 flatBonus，和血誓指环、无名骑士遗甲同一种量纲——
+        卡面前半句说的也是骰面上限，同一张卡上不该混用两种加法。
+      */
+      beforeRoll({ dieKind, battle, modifiers, addBattleLog }) {
+        if (dieKind !== "defense") return;
+        const facesEliteOrBoss = battle.kind === "boss" || battle.enemyAffix !== undefined;
+        if (!facesEliteOrBoss) return;
+        modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + 1;
+        addBattleLog("猎场看守靴认得这类猎物，本次防御骰上限 +1。");
+      },
+    },
+  },
+
   runnersBoots: {
     name: "逃亡者短靴",
     description: "移动骰上限 +1；本场战斗第一次结算己方防御骰时，防御骰上限额外 +1",

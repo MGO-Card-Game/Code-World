@@ -95,6 +95,19 @@ export const COMBAT_SWING_SCROLLS = {
     drawable: false,
   },
 
+  /*
+    拾荒者背袋（饰品·N）在每场战斗开始时发一张这个，战斗结束回收。
+    和逐日靴那张的区别只有量级和时机：那张攻防都能打，这张只进防守时机。
+  */
+  scavengersSatchelGuard: {
+    name: "拾荒者背袋",
+    description: "本场战斗限定 · 本次防御 +2",
+    rarity: "N",
+    timings: ["beforeDefenseRoll"],
+    effects: [{ type: "flatBonus", value: 2 }],
+    drawable: false,
+  },
+
   decapitationOrder: {
     name: "斩首命令",
     description: "本次攻击对首领或敌方玩家额外造成 3 点伤害",

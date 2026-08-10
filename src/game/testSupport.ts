@@ -15,9 +15,13 @@ import type { BattleState, CombatSide, GameState } from "./types";
  * 上限只是死循环的保险丝，不是性能预算。它对正常结束的对局零成本，
  * 所以留足余量，别让它退化成"这颗种子恰好够快"的暗坑
  * （5000 这个旧上限就是这样：抽样 21 颗种子里有 4 颗本来就会超）。
+ *
+ * 20000 这一版又退化成了同一个暗坑：这颗种子当时要 17433 步，余量不到 15%，
+ * 补一批 N 档装备把随机流挪一挪，它就涨到 24562 步、直接烧穿上限。
+ * 40000 是照着"跑得完的那一局有一倍余量"定的，不是照着当前步数贴着定的。
  */
 export const PLAYTHROUGH_SEED = 3;
-export const PLAYTHROUGH_CAP = 20000;
+export const PLAYTHROUGH_CAP = 40000;
 
 /** 构造一个战斗状态，补齐卷轴选择等样板字段 */
 export function makeBattle(

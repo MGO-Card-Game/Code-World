@@ -2,12 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialGame, gameReducer } from "../engine";
 import { canAct, isHiddenScroll, viewFor } from "../multiplayer";
 import { pvpHpTransferAmount } from "../selectors";
-import {
-  makeBattle,
-  PLAYTHROUGH_CAP,
-  PLAYTHROUGH_SEED,
-  resolveRound,
-} from "../testSupport";
+import { makeBattle, PLAYTHROUGH_SEED, resolveRound } from "../testSupport";
 import type { GameState, PlayerId } from "../types";
 
 function withBattle(seed = 20260805): GameState {
@@ -311,7 +306,17 @@ describe("暗牌裁剪 viewFor", () => {
     let state = createInitialGame(PLAYTHROUGH_SEED);
     let checkedSecrets = 0;
 
-    for (let step = 0; step < PLAYTHROUGH_CAP && state.phase.kind !== "gameOver"; step += 1) {
+    /*
+      这一条**不能**跑到 PLAYTHROUGH_CAP。循环体每一步都要为两名观看者各做一次
+      viewFor，再把整条 history 从头扫一遍核对机密文案，而 history 随步数增长——
+      整体开销是 O(步数²)。上限那个量级下它要跑十几分钟，早就不是"慢"而是跑不完。
+
+      步数上限本来就是死循环的保险丝，不是这条用例要的东西：它核的是"每一帧的
+      裁剪都对"，而裁剪逻辑与对局跑多远无关，前若干步已经覆盖了抽牌、转手、
+      相遇战这些会产生机密文案的路径（下面 checkedSecrets 那条断言守着这一点）。
+    */
+    const SECRECY_SCAN_STEPS = 1500;
+    for (let step = 0; step < SECRECY_SCAN_STEPS && state.phase.kind !== "gameOver"; step += 1) {
       switch (state.phase.kind) {
         case "awaitingRoll": state = gameReducer(state, { type: "rollMovement" }); break;
         case "turnComplete": state = gameReducer(state, { type: "endTurn" }); break;
@@ -447,10 +452,9 @@ describe("暗牌裁剪 viewFor", () => {
       }
     }
 
-    // 这一局跑不到 gameOver，原因见 engine.test.ts 里 skip 的「自动对局能在步数
-    // 上限内通关」；保密断言与是否通关无关，整段跑下来照样逐帧核对。
-    // 确认这一局确实产生过需要保密的文案，否则上面的断言等于没跑
+    // 确认这一段确实产生过需要保密的文案，否则上面那些断言等于没跑。
+    // 这条也是 SECRECY_SCAN_STEPS 的守卫：步数调小到覆盖不住抽牌与转手时，
+    // 这里会先红，而不是让一整套裁剪断言悄悄空转。
     expect(checkedSecrets).toBeGreaterThan(0);
-    // 超时理由同 engine.test.ts：跑不完就会烧满步数上限
-  }, 60_000);
+  });
 });

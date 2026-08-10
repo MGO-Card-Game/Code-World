@@ -78,6 +78,56 @@ export const WEAPONS = defineEquipment("weapon", {
     },
   },
 
+  whetstoneDagger: {
+    name: "磨石短匕",
+    description: "攻击骰上限 +1；攻击骰最低点数为 2",
+    rarity: "N",
+    modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
+    effects: {
+      /*
+        和旧骑士长剑正好是一对：那张奖励掷出最高面，这张削掉最低面。
+        minimumRoll 卷轴和赐福都在用，装备这边它是第一次出现。
+
+        刻意不写战报。这条修正每次攻击都在，而 beforeRoll 发生在投骰之前，
+        根本判断不出它这次有没有真的顶到——每轮都播一条"最低点数为 2"，
+        战报里全是噪音，玩家反而看不见真正发生了什么。
+
+        取 max 而不是直接赋值：卷轴的铁壁令、精准卷轴抬得比 2 高，
+        装备不该把它们压回来。
+      */
+      beforeRoll({ dieKind, modifiers }) {
+        if (dieKind !== "attack") return;
+        modifiers.minimumRoll = Math.max(modifiers.minimumRoll, 2);
+      },
+    },
+  },
+
+  sigilCarversKnife: {
+    name: "符匠刻刀",
+    description: "攻击骰上限 +1；本场战斗你每打出一张卷轴，本次攻击 +1（最多 +2）",
+    rarity: "N",
+    modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
+    effects: {
+      /*
+        和黑日碎片互为镜像：那张对每张卷轴收 1 点血，这张为每张卷轴发 1 点攻击。
+
+        张数读上下文的 ownScrollsUsed，不要自己去数手牌——牌打完就离手了。
+        battleRound 的 countScrollUse 排在装备钩子之前，所以本回合刚打出的牌
+        本回合就算数，牌面写的因果不慢半拍。
+
+        封顶 2 是 N 档的定位所在：不封顶的话，一局攒够手牌就能把它推到
+        SR 以上的量级，而封顶之后它的天花板是固定的 +2。
+      */
+      beforeRoll({ dieKind, ownScrollsUsed, modifiers, addBattleLog }) {
+        if (dieKind !== "attack") return;
+        const bonus = Math.min(2, ownScrollsUsed);
+        if (bonus <= 0) return;
+        modifiers.flatBonus += bonus;
+        addBattleLog(`符匠刻刀吸下本场卷轴的余墨，本次攻击 +${bonus}。`);
+      },
+    },
+  },
+
   monsterHunterBlade: {
     name: "猎魔短刃",
     description: "攻击骰上限 +1；攻击生命值低于一半的目标时，攻击额外 +1",

@@ -265,7 +265,12 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
 
 describe("事件流", () => {
   it("为每条事件分配唯一且单调递增的 id", () => {
-    const { events } = playThrough(20260805);
+    /*
+      步数写死，不要用 PLAYTHROUGH_CAP：20260805 这颗种子跑不到 gameOver，
+      套上上限就等于"每次都烧满保险丝"，上限一调这条用例的开销就跟着翻倍。
+      而 id 单调这件事和对局跑多远无关，两千步早已覆盖各类事件。
+    */
+    const { events } = playThrough(20260805, 2000);
 
     expect(events.length).toBeGreaterThan(50);
     for (let index = 1; index < events.length; index += 1) {

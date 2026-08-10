@@ -55,8 +55,49 @@ export function ResourceModal({
   const [pendingDistance, setPendingDistance] = useState<Record<string, number>>({});
   // 任意门：待选的绝对格子编号，同样按卡实例各记一份
   const [pendingTarget, setPendingTarget] = useState<Record<string, number>>({});
+  // 移动参数不放在会随 hover 位移的卡面上，改由手牌区下方的固定面板承载。
+  const [configuringScrollId, setConfiguringScrollId] = useState<string | null>(null);
   const movementSides = Math.max(2, 6 + getDieSidesBonus(player, "movement"));
   const currentRegion = regionForPosition(map, player.position);
+  const configuringScroll = cards.find((scroll) => scroll.instanceId === configuringScrollId);
+  const configuringDefinition = configuringScroll
+    ? scrollDefinition(configuringScroll.kind)
+    : undefined;
+  const configuringMovementEffect = configuringDefinition?.effects.find(
+    (effect) => effect.type === "chooseMovement" || effect.type === "teleport",
+  );
+  const configuringAnywhereDoor = configuringDefinition?.effects.some(
+    (effect) => effect.type === "teleportAnywhere",
+  ) ?? false;
+  const configuringMaxDistance = configuringMovementEffect
+    ? configuringMovementEffect.type === "chooseMovement"
+      ? movementSides
+      : configuringMovementEffect.maxDistance
+    : undefined;
+  const configuredDistance = configuringScroll && configuringMaxDistance
+    ? Math.min(
+        configuringMaxDistance,
+        Math.max(
+          1,
+          pendingDistance[configuringScroll.instanceId] ?? configuringMaxDistance,
+        ),
+      )
+    : undefined;
+  const configuredTarget = configuringScroll && configuringAnywhereDoor
+    ? Math.min(
+        currentRegion.endIndex,
+        Math.max(
+          currentRegion.startIndex,
+          pendingTarget[configuringScroll.instanceId] ?? player.position,
+        ),
+      )
+    : undefined;
+  const previewDistance = configuredDistance ?? 0;
+  const previewPosition = configuredTarget ?? (
+    currentRegion.startIndex
+    + ((player.position - currentRegion.startIndex + previewDistance) % (currentRegion.endIndex - currentRegion.startIndex + 1))
+  );
+  const previewTile = map.tiles[previewPosition];
 
   return (
     <ModalBackdrop className="resource-backdrop" onClick={onClose}>
@@ -96,28 +137,10 @@ export function ResourceModal({
               const movementEffect = definition.effects.find(
                 (effect) => effect.type === "chooseMovement" || effect.type === "teleport",
               );
-              const maxDistance = movementEffect
-                ? movementEffect.type === "chooseMovement"
-                  ? movementSides
-                  : movementEffect.maxDistance
-                : undefined;
-              const distance = Math.min(
-                maxDistance ?? 1,
-                Math.max(1, pendingDistance[scroll.instanceId] ?? maxDistance ?? 1),
-              );
               // 任意门：目标是当前阶段内的绝对格子编号，不受距离限制
               const isAnywhereDoor = definition.effects.some(
                 (effect) => effect.type === "teleportAnywhere",
               );
-              const targetPosition = isAnywhereDoor
-                ? Math.min(
-                    currentRegion.endIndex,
-                    Math.max(
-                      currentRegion.startIndex,
-                      pendingTarget[scroll.instanceId] ?? player.position,
-                    ),
-                  )
-                : undefined;
               const isMovementScroll = !!movementEffect || isAnywhereDoor;
               const mapUseDisabled =
                 (isHealEffect && player.hp >= player.maxHp) ||
@@ -127,12 +150,16 @@ export function ResourceModal({
                 <motion.article
                   key={scroll.instanceId}
                   layout
-                  className={`hand-card scroll-${scroll.kind} card-${category}`}
+                  className={`hand-card scroll-${scroll.kind} card-${category} ${isMovementScroll ? "movement-configurable" : ""}`}
                   style={{ marginLeft: index === 0 ? 0 : spacing, zIndex }}
                   initial={{ opacity: 0, y: 60, scale: 0.7, rotate: 0 }}
                   animate={{ opacity: 1, y: lift, scale: 1, rotate }}
                   exit={{ opacity: 0, y: -60, scale: 0.6, transition: { duration: 0.24 } }}
-                  whileHover={{ y: lift - 24, rotate: 0, scale: 1.09, zIndex: 60 }}
+                  whileHover={
+                    isMovementScroll
+                      ? { y: lift, rotate, scale: 1, zIndex: 60 }
+                      : { y: lift - 24, rotate: 0, scale: 1.09, zIndex: 60 }
+                  }
                   transition={SPRING}
                 >
                   <span className={`card-rarity rarity-${SCROLLS[scroll.kind].rarity.toLowerCase()}`}>
@@ -147,90 +174,6 @@ export function ResourceModal({
                   </span>
                   <span className="hand-card-name">{SCROLLS[scroll.kind].name}</span>
                   <span className="hand-card-effect">{SCROLLS[scroll.kind].description}</span>
-                  {movementEffect && mapUsePhase && (
-                    <div className="hand-card-distance">
-                      <button
-                        type="button"
-                        aria-label="减少格数"
-                        disabled={mapUseDisabled || distance <= 1}
-                        onClick={() =>
-                          setPendingDistance((prev) => ({
-                            ...prev,
-                            [scroll.instanceId]: Math.max(1, distance - 1),
-                          }))
-                        }
-                      >
-                        −
-                      </button>
-                      <span>{distance} 格</span>
-                      <button
-                        type="button"
-                        aria-label="增加格数"
-                        disabled={mapUseDisabled || distance >= (maxDistance ?? distance)}
-                        onClick={() =>
-                          setPendingDistance((prev) => ({
-                            ...prev,
-                            [scroll.instanceId]: Math.min(maxDistance ?? distance, distance + 1),
-                          }))
-                        }
-                      >
-                        ＋
-                      </button>
-                    </div>
-                  )}
-                  {isAnywhereDoor && mapUsePhase && (
-                    <div className="hand-card-distance hand-card-target">
-                      <button
-                        type="button"
-                        aria-label="目标格前移"
-                        disabled={mapUseDisabled || targetPosition! <= currentRegion.startIndex}
-                        onClick={() =>
-                          setPendingTarget((prev) => ({
-                            ...prev,
-                            [scroll.instanceId]: Math.max(currentRegion.startIndex, targetPosition! - 1),
-                          }))
-                        }
-                      >
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        aria-label="目标格编号"
-                        min={currentRegion.startIndex}
-                        max={currentRegion.endIndex}
-                        value={targetPosition}
-                        disabled={mapUseDisabled}
-                        title={map.tiles[targetPosition!]?.label}
-                        onChange={(event) => {
-                          const raw = Number(event.target.value);
-                          if (!Number.isInteger(raw)) return;
-                          setPendingTarget((prev) => ({
-                            ...prev,
-                            [scroll.instanceId]: Math.min(
-                              currentRegion.endIndex,
-                              Math.max(currentRegion.startIndex, raw),
-                            ),
-                          }));
-                        }}
-                      />
-                      <button
-                        type="button"
-                        aria-label="目标格后移"
-                        disabled={mapUseDisabled || targetPosition! >= currentRegion.endIndex}
-                        onClick={() =>
-                          setPendingTarget((prev) => ({
-                            ...prev,
-                            [scroll.instanceId]: Math.min(currentRegion.endIndex, targetPosition! + 1),
-                          }))
-                        }
-                      >
-                        ＋
-                      </button>
-                    </div>
-                  )}
-                  {isAnywhereDoor && mapUsePhase && (
-                    <span className="hand-card-target-label">{map.tiles[targetPosition!]?.label}</span>
-                  )}
                   {mapUsable && mapUsePhase && (
                     <button
                       type="button"
@@ -245,15 +188,19 @@ export function ResourceModal({
                               ? "已经移动后不能使用战地药剂"
                               : undefined
                       }
-                      onClick={() =>
-                        onUseMapScroll(
-                          scroll.instanceId,
-                          movementEffect ? distance : undefined,
-                          isAnywhereDoor ? targetPosition : undefined,
-                        )
-                      }
+                      onClick={() => {
+                        if (isMovementScroll) {
+                          setConfiguringScrollId(scroll.instanceId);
+                          return;
+                        }
+                        onUseMapScroll(scroll.instanceId);
+                      }}
                     >
-                      {mapUseDisabled ? "现在不能使用" : "立即使用"}
+                      {mapUseDisabled
+                        ? "现在不能使用"
+                        : isMovementScroll
+                          ? "选择移动"
+                          : "立即使用"}
                     </button>
                   )}
                 </motion.article>
@@ -264,6 +211,140 @@ export function ResourceModal({
             <p className="hand-empty">{hiddenCount > 0 ? `${hiddenCount} 张暗牌` : "尚未获得卷轴"}</p>
           )}
         </div>
+
+        <AnimatePresence>
+          {configuringScroll && configuringDefinition && mapUsePhase === "awaitingRoll" && (
+            <motion.section
+              key={configuringScroll.instanceId}
+              className="movement-config-panel"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={SPRING}
+              aria-labelledby="movement-config-title"
+            >
+              <div className="movement-config-copy">
+                <span>配置移动卷轴</span>
+                <strong id="movement-config-title">{configuringDefinition.name}</strong>
+                <small>{configuringDefinition.description}</small>
+              </div>
+
+              {configuringMovementEffect && configuredDistance !== undefined && configuringMaxDistance !== undefined && (
+                <div className="movement-stepper" aria-label="选择移动格数">
+                  <button
+                    type="button"
+                    aria-label="减少格数"
+                    disabled={configuredDistance <= 1}
+                    onClick={() => setPendingDistance((previous) => ({
+                      ...previous,
+                      [configuringScroll.instanceId]: Math.max(1, configuredDistance - 1),
+                    }))}
+                  >
+                    −
+                  </button>
+                  <div>
+                    <strong>{configuredDistance}</strong>
+                    <span>格</span>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="增加格数"
+                    disabled={configuredDistance >= configuringMaxDistance}
+                    onClick={() => setPendingDistance((previous) => ({
+                      ...previous,
+                      [configuringScroll.instanceId]: Math.min(
+                        configuringMaxDistance,
+                        configuredDistance + 1,
+                      ),
+                    }))}
+                  >
+                    ＋
+                  </button>
+                </div>
+              )}
+
+              {configuringAnywhereDoor && configuredTarget !== undefined && (
+                <div className="movement-stepper movement-target-stepper" aria-label="选择目标格">
+                  <button
+                    type="button"
+                    aria-label="目标格前移"
+                    disabled={configuredTarget <= currentRegion.startIndex}
+                    onClick={() => setPendingTarget((previous) => ({
+                      ...previous,
+                      [configuringScroll.instanceId]: Math.max(
+                        currentRegion.startIndex,
+                        configuredTarget - 1,
+                      ),
+                    }))}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    aria-label="目标格编号"
+                    min={currentRegion.startIndex}
+                    max={currentRegion.endIndex}
+                    value={configuredTarget}
+                    onChange={(event) => {
+                      const raw = Number(event.target.value);
+                      if (!Number.isInteger(raw)) return;
+                      setPendingTarget((previous) => ({
+                        ...previous,
+                        [configuringScroll.instanceId]: Math.min(
+                          currentRegion.endIndex,
+                          Math.max(currentRegion.startIndex, raw),
+                        ),
+                      }));
+                    }}
+                  />
+                  <button
+                    type="button"
+                    aria-label="目标格后移"
+                    disabled={configuredTarget >= currentRegion.endIndex}
+                    onClick={() => setPendingTarget((previous) => ({
+                      ...previous,
+                      [configuringScroll.instanceId]: Math.min(
+                        currentRegion.endIndex,
+                        configuredTarget + 1,
+                      ),
+                    }))}
+                  >
+                    ＋
+                  </button>
+                </div>
+              )}
+
+              <div className="movement-preview">
+                <span>预计落点</span>
+                <strong>{String(previewPosition).padStart(2, "0")} · {previewTile?.label ?? "未知格子"}</strong>
+              </div>
+              <div className="movement-config-actions">
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setConfiguringScrollId(null)}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => {
+                    onUseMapScroll(
+                      configuringScroll.instanceId,
+                      configuredDistance,
+                      configuredTarget,
+                    );
+                    setConfiguringScrollId(null);
+                    onClose();
+                  }}
+                >
+                  确认使用
+                </button>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
         <h3 className="resource-heading">装备 <span>{player.equipment.length} 件</span></h3>
         <div className="chips resource-chips">

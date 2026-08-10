@@ -64,6 +64,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
   const activeStage = stagePresentation(activePlayer);
   const decision = pendingDecision(state);
   const decisionHidden = decision !== null && hiddenDecisionKey === decision.key;
+  const choosingScrollTarget = state.phase.kind === "scrollTargetChoice";
   const mapUsePhase =
     inspecting === viewerSeat &&
     inspecting === state.activePlayerId &&
@@ -81,6 +82,15 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
   useEffect(() => {
     setSelectedPlayerId(viewerSeat);
   }, [viewerSeat]);
+
+  // 干扰卷轴成功打出后规则层会进入选人阶段。资源页和阶段弹层层级相同，
+  // 若继续保留资源页，它会因渲染顺序靠后而遮住目标选择；这里只响应已确认的
+  // phase 变化，因此被规则拒绝的卷轴动作不会误关资源页。
+  useEffect(() => {
+    if (!choosingScrollTarget) return;
+    setInspecting(null);
+    setInspectingEquipment(null);
+  }, [choosingScrollTarget]);
   const dockMessage = playback.playing ? caption || state.message.text : state.message.text;
 
   return (
@@ -155,7 +165,11 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             <span aria-hidden="true">人</span>
             <strong>角色</strong>
           </button>
-          <button type="button" onClick={() => setInspecting(selectedPlayer.id)}>
+          <button
+            type="button"
+            disabled={choosingScrollTarget}
+            onClick={() => setInspecting(selectedPlayer.id)}
+          >
             <span aria-hidden="true">囊</span>
             <strong>资源</strong>
           </button>
@@ -251,7 +265,7 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
             onClose={() => setShopOpen(false)}
           />
         )}
-        {inspecting && (
+        {inspecting && !choosingScrollTarget && (
           <ResourceModal
             key={`resource-${inspecting}`}
             player={state.players[inspecting]}

@@ -27,6 +27,20 @@ describe("game engine", () => {
     expect(state.players.player2.name).toBe("长风");
   });
 
+  it("复用只读地图，同时隔离会变化的对局状态", () => {
+    const state = createInitialGame(20260805);
+    const actor = state.activePlayerId;
+    const positionBefore = state.players[actor].position;
+
+    const next = gameReducer(state, { type: "rollMovement" });
+
+    expect(next).not.toBe(state);
+    expect(next.map).toBe(state.map);
+    expect(next.players).not.toBe(state.players);
+    expect(next.players[actor]).not.toBe(state.players[actor]);
+    expect(state.players[actor].position).toBe(positionBefore);
+  });
+
   it("replays deterministically from the same seed", () => {
     let first = createInitialGame(20260805);
     let second = createInitialGame(20260805);

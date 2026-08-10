@@ -12,6 +12,7 @@ import {
   equipmentCategory,
 } from "./content/equipment";
 import { SCROLLS } from "./content/scrolls";
+import { cloneGameState } from "./state";
 
 /**
  * 调试用的状态工具。
@@ -28,7 +29,7 @@ export const ALL_SCROLL_KINDS = Object.keys(SCROLLS) as ScrollKind[];
 export const ALL_EQUIPMENT_KINDS = Object.keys(EQUIPMENT) as EquipmentKind[];
 
 function clone(state: GameState): GameState {
-  return structuredClone(state);
+  return cloneGameState(state);
 }
 
 function makeScroll(state: GameState, kind: ScrollKind): OwnedScroll {

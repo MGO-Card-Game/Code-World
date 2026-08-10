@@ -19,6 +19,18 @@ import type {
 export const PLAYER_IDS: PlayerId[] = ["player1", "player2", "player3", "player4"];
 export const DEFAULT_PLAYER_IDS: PlayerId[] = PLAYER_IDS.slice(0, 2);
 
+/**
+ * 为规则结算创建可变草稿。
+ *
+ * 地图在开局时生成，之后所有规则都只读取它；把它从 structuredClone 中剥离，
+ * 可以避免每个 action 都重复复制整张棋盘。其余字段仍然深拷贝，因此现有规则模块
+ * 可以继续安全地原地修改玩家、阶段和事件，不会污染传入的旧状态。
+ */
+export function cloneGameState(state: GameState): GameState {
+  const { map, ...dynamicState } = state;
+  return { ...structuredClone(dynamicState), map };
+}
+
 export function nextPlayerId(
   state: Pick<GameState, "activePlayerId" | "turnOrder"> &
     Partial<Pick<GameState, "unavailablePlayerIds">>,

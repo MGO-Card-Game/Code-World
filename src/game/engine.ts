@@ -8,7 +8,13 @@ import { submitScrollChoice } from "./battleRound";
 import { blessingMovementRollBonus } from "./blessings";
 import { MAP_REGION_SIZE, regionForPosition } from "./map";
 import { consumeScroll } from "./resources";
-import { addHistory, createInitialGame, emit, rollDie } from "./state";
+import {
+  addHistory,
+  cloneGameState,
+  createInitialGame,
+  emit,
+  rollDie,
+} from "./state";
 import { restAtStageCamp, stageBossUnlocked } from "./stages";
 import { bossKeyPrice, buyShopItem, spendGold, transferGold } from "./economy";
 import { leaveCasino, spinCasino } from "./casino";
@@ -555,7 +561,7 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
     return state;
   }
 
-  const next = structuredClone(state);
+  const next = cloneGameState(state);
   next.lastEvents = [];
   const timedOut = next.players[playerId];
 
@@ -758,7 +764,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       state.nextEventId,
     );
   }
-  const next = structuredClone(state);
+  const next = cloneGameState(state);
   next.lastEvents = [];
 
   switch (action.type) {

@@ -81,15 +81,12 @@ export interface RollResult {
  * 血量刻意由上下文给出，而不是让效果自己读 player.hp：PvP 的战斗生命值存在
  * battle.hpA / hpB 上，战斗期间 player.hp 根本不动，直接读会拿到开战前的数值。
  */
-export interface BattleHookContext {
+export interface BattleEffectContext {
   state: GameState;
   battle: BattleState;
   /** 效果持有者所在的一侧 */
   side: CombatSide;
   opponentSide: CombatSide;
-  /** 本次投的是攻击骰还是防御骰 */
-  dieKind: Exclude<DiceKind, "movement">;
-  modifiers: RollModifiers;
   ownHp: number;
   ownMaxHp: number;
   opponentHp: number;
@@ -103,6 +100,28 @@ export interface BattleHookContext {
   ownScrollsUsed: number;
   opponentScrollsUsed: number;
   addBattleLog: (text: string) => void;
+}
+
+export interface BattleHookContext extends BattleEffectContext {
+  /** 本次投的是攻击骰还是防御骰 */
+  dieKind: Exclude<DiceKind, "movement">;
+  modifiers: RollModifiers;
+}
+
+export interface EnemyBeforeRollContext extends BattleHookContext {
+  /** 对对手造成会被其防御值减免的能力伤害；返回对手是否被击倒。 */
+  dealDamage: (rawDamage: number, abilityName: string) => boolean;
+}
+
+/** 一次敌方攻击及其伤害已经完整结算，且防守方仍然存活。 */
+export interface EnemyAfterAttackContext extends BattleEffectContext {
+  attacksPerformed: number;
+  /** 本次普通攻击最终实际扣除的生命。 */
+  damageDealt: number;
+  /** 能力造成的生命损失不经过受击减伤；返回怪物是否因此倒下。 */
+  loseHp: (amount: number, logLine: string) => boolean;
+  /** 让玩家的下一次攻击承受一次性减值。 */
+  penalizeNextPlayerAttack: (by: number, logLine: string) => void;
 }
 
 /**
@@ -140,7 +159,7 @@ export interface EnemyDamageContext {
  */
 export interface EnemyEffects {
   /** 掷骰前。可以改本次投骰参数，也是唯一能读到对手状态的时机。 */
-  beforeRoll?: (context: BattleHookContext) => void;
+  beforeRoll?: (context: EnemyBeforeRollContext) => void;
   /** 掷骰后、算总和之前。此时改 flatBonus 仍会计入本次合计。 */
   afterRoll?: (context: BattleHookContext & { roll: RollResult }) => void;
   /**
@@ -150,4 +169,6 @@ export interface EnemyEffects {
    * 减伤类怪物才不会出现"攻防差压得住、直伤照样穿"的缺口。
    */
   beforeDamage?: (context: EnemyDamageContext) => void;
+  /** 攻击伤害与防守方倒地判定之后。防守方已倒下时不会调用。 */
+  afterAttack?: (context: EnemyAfterAttackContext) => void;
 }

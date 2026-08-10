@@ -2,9 +2,9 @@ import type { MapRegionId } from "../../types";
 import { pickByRarity } from "../rarity";
 import { pickWeighted } from "../weighted";
 import { ELITE_AFFIXES, type EliteAffixKind } from "./affixes";
-import { APEX_ENEMIES } from "./apex";
 import { BOSS_ENEMIES } from "./boss";
 import type { EnemyDefinition, EnemyTier } from "./definition";
+import { ELITE_ENEMIES } from "./elite";
 import { ROAMING_ENEMIES } from "./roaming";
 
 export { ENEMY_TIER_NAMES, defineEnemies } from "./definition";
@@ -19,7 +19,7 @@ export type { EliteAffixDefinition, EliteAffixKind } from "./affixes";
 /** 档位表原样保留一份，便于按档位遍历（调试面板、投放分析都用得上）。 */
 export const ENEMIES_BY_TIER = {
   roaming: ROAMING_ENEMIES,
-  apex: APEX_ENEMIES,
+  elite: ELITE_ENEMIES,
   boss: BOSS_ENEMIES,
 } as const satisfies Record<EnemyTier, Record<string, EnemyDefinition>>;
 
@@ -31,7 +31,7 @@ export const ENEMIES_BY_TIER = {
  */
 export const ENEMIES = {
   ...ROAMING_ENEMIES,
-  ...APEX_ENEMIES,
+  ...ELITE_ENEMIES,
   ...BOSS_ENEMIES,
 };
 
@@ -66,14 +66,14 @@ function pickFromRegion(
   return pickWeighted(pool, random);
 }
 
-/** 战斗格与精英格用的漫游怪。 */
+/** 普通战斗格用的漫游怪。 */
 export function pickRoamingEnemy(region: MapRegionId, random: () => number) {
   return pickFromRegion("roaming", region, random);
 }
 
-/** 强敌格用的强敌。不进随机池，所以和漫游怪分开抽。 */
-export function pickApexEnemy(region: MapRegionId, random: () => number) {
-  return pickFromRegion("apex", region, random);
+/** 精英格用的独立精英怪池。 */
+export function pickEliteEnemy(region: MapRegionId, random: () => number) {
+  return pickFromRegion("elite", region, random);
 }
 
 /** 该区域能不能放对应档位的怪，供地图生成与结构测试判断。 */

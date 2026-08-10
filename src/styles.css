@@ -420,6 +420,10 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .elite-affix.rarity-r > span, .elite-affix.rarity-r > b { color: #83b9d8; }
 .elite-affix.rarity-sr { border-color: #775993; background: #1d1525; }
 .elite-affix.rarity-sr > span, .elite-affix.rarity-sr > b { color: #c39be7; }
+.enemy-attack-counter { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; padding: 7px 9px; border: 1px solid #79534e; background: #251614; color: #d8aaa1; font-size: 10px; }
+.enemy-attack-counter b { color: #f0c0b5; font: 700 11px "Noto Serif SC", serif; }
+.battle-status-effect { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; padding: 7px 9px; border: 1px solid #47758b; background: #11242e; color: #91c7da; font-size: 10px; }
+.battle-status-effect b { color: #bde9f6; font: 700 11px "Noto Serif SC", serif; }
 .clash-mark { position: relative; display: grid; place-items: center; color: #b76b4f; font-size: 20px; }
 .clash-mark::before, .clash-mark::after { content: ""; position: absolute; left: 50%; width: 1px; height: 42px; background: linear-gradient(transparent, #584839); }
 .clash-mark::before { top: 0; }.clash-mark::after { bottom: 0; transform: rotate(180deg); }
@@ -601,6 +605,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .pve-reward-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 9px; margin: 22px 0; }
 .pve-reward-item { min-height: 105px; padding: 14px 10px; display: grid; align-content: center; gap: 7px; border: 1px solid #715b38; background: #17130e; }
 .pve-reward-item.source-elite { border-color: #c3913e; background: linear-gradient(150deg, #3b2912, #18130d); box-shadow: inset 0 1px #f5cf7a24; }
+.pve-reward-item.source-affix { border-color: #7f5ba7; background: linear-gradient(150deg, #291b38, #17111f); box-shadow: inset 0 1px #d9b5ff24; }
 .pve-reward-item.source-blessing { border-color: #76558e; background: linear-gradient(150deg, #2a1d33, #151016); }
 .pve-reward-item span { color: #b08f5b; font-size: 10px; letter-spacing: .1em; }
 .pve-reward-item.source-blessing span { color: #b18ac8; }

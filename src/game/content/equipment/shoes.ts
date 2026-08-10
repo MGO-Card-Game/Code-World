@@ -1,4 +1,5 @@
 import { defineEquipment } from "./definition";
+import { targetsEliteOrBoss } from "../../enemyClassification";
 
 /** 鞋具：让玩家更容易走到关键节点，但不直接取消路线选择。 */
 export const SHOES = defineEquipment("shoes", {
@@ -60,8 +61,7 @@ export const SHOES = defineEquipment("shoes", {
       */
       beforeRoll({ dieKind, battle, modifiers, addBattleLog }) {
         if (dieKind !== "defense") return;
-        const facesEliteOrBoss = battle.kind === "boss" || battle.enemyAffix !== undefined;
-        if (!facesEliteOrBoss) return;
+        if (!targetsEliteOrBoss(battle)) return;
         modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + 1;
         addBattleLog("你绑紧了护卫靴，本次防御骰上限 +1。");
       },

@@ -27,7 +27,7 @@ export interface EliteAffixDefinition {
  * 调平衡时这个数字是第一个该动的地方。
  */
 export const ELITE_BASE_MODIFIERS: readonly StatModifier[] = [
-  { type: "maxHp", value: 8 },
+  { type: "maxHp", value: 6 },
 ];
 
 export const ELITE_AFFIXES = {
@@ -39,14 +39,14 @@ export const ELITE_AFFIXES = {
     name: "狂暴的",
     description: "攻击 +2",
     rarity: "R",
-    modifiers: [{ type: "statBonus", stat: "attack", value: 1 }],
+    modifiers: [{ type: "statBonus", stat: "attack", value: 2 }],
   },
 
   ironclad: {
     name: "坚甲的",
     description: "防御 +2",
     rarity: "R",
-    modifiers: [{ type: "statBonus", stat: "defense", value: 1 }],
+    modifiers: [{ type: "statBonus", stat: "defense", value: 2 }],
   },
 
   /*

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NORMAL_ENEMY_EQUIPMENT_RARITY_WEIGHTS } from "../battle";
+import { REWARD_RARITY_TIERS } from "../content/rarity";
 import { createInitialGame, gameReducer } from "../engine";
 import {
   advanceAutomatically,
@@ -73,9 +73,9 @@ describe("game engine", () => {
     }
   });
 
-  it("普通怪基础装备按 70/20/10/0 抽取，不会掉落 PR", () => {
-    expect(NORMAL_ENEMY_EQUIPMENT_RARITY_WEIGHTS)
-      .toEqual({ N: 70, R: 20, SR: 10, PR: 0 });
+  it("普通怪基础装备走 basic 档 80/15/5/0，不会掉落 PR", () => {
+    expect(REWARD_RARITY_TIERS.basic)
+      .toEqual({ N: 80, R: 15, SR: 5, PR: 0 });
     const observed = new Set<string>();
 
     for (let seed = 1; seed <= 400; seed += 1) {
@@ -104,8 +104,7 @@ describe("game engine", () => {
       battle: makeBattle({
         kind: "pve",
         aPlayerId: player.id,
-        enemyId: "wolf",
-        enemyAffix: "frenzied",
+        enemyId: "razorbackAlpha",
         hpB: 1,
       }),
     };
@@ -145,8 +144,7 @@ describe("game engine", () => {
         battle: makeBattle({
           kind: "pve",
           aPlayerId: player.id,
-          enemyId: "slime",
-          enemyAffix: "ironclad",
+          enemyId: "razorbackAlpha",
           hpB: 1,
         }),
       };
@@ -163,6 +161,32 @@ describe("game engine", () => {
     expect(resolved.phase.kind).toBe("pveReward");
     if (resolved.phase.kind !== "pveReward") throw new Error("应在装备选择后显示奖励");
     expect(resolved.phase.notice.rewards).toHaveLength(4);
+  });
+
+  it("词条漫游怪获得小额词条奖励，但不冒充独立精英怪", () => {
+    let state = createInitialGame(20260807);
+    const player = state.players.player1;
+    player.baseAttack = 99;
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({
+        kind: "pve",
+        aPlayerId: player.id,
+        enemyId: "slime",
+        enemyAffix: "honed",
+        hpB: 1,
+      }),
+    };
+
+    state = resolveRound(state);
+
+    expect(state.phase.kind).toBe("pveReward");
+    if (state.phase.kind !== "pveReward") throw new Error("应显示战斗奖励");
+    expect(state.phase.notice.elite).toBe(false);
+    expect(state.phase.notice.rewards.map((reward) => reward.source))
+      .toEqual(["battle", "battle", "affix"]);
+    expect(state.phase.notice.rewards.find((reward) => reward.source === "affix"))
+      .toMatchObject({ resourceType: "gold", name: "10 金币" });
   });
 
   it("keeps core state inside valid bounds during a full automated game", () => {

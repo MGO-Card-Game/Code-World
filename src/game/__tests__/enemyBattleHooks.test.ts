@@ -75,6 +75,94 @@ describe("怪物战斗钩子", () => {
     expect(only(state.lastEvents, "attackRolled").sides).toBe(7);
   });
 
+  it("独立精英怪的本体能力生效，不依赖词条", () => {
+    const fullHp = resolveRound(
+      pveBattle(20260805, "razorbackAlpha", undefined, { attacker: "b", hpB: 18 }),
+    );
+    const wounded = resolveRound(
+      pveBattle(20260805, "razorbackAlpha", undefined, { attacker: "b", hpB: 17 }),
+    );
+    expect(attackBonusOf(fullHp)).toBe(2);
+    expect(attackBonusOf(wounded)).toBe(0);
+
+    const halfHp = resolveRound(
+      pveBattle(20260805, "frostWraith", undefined, { attacker: "a", hpB: 12 }),
+    );
+    const belowHalf = resolveRound(
+      pveBattle(20260805, "frostWraith", undefined, { attacker: "a", hpB: 11 }),
+    );
+    expect(only(halfHp.lastEvents, "defenseRolled").flatBonus).toBe(0);
+    expect(only(belowHalf.lastEvents, "defenseRolled").flatBonus).toBe(2);
+  });
+
+  it("黑曜镇守者把任意来源的单次伤害封顶为 5", () => {
+    const state = pveBattle(20260805, "obsidianSentinel", undefined, { attacker: "a" });
+    state.players.player1.baseAttack = 99;
+
+    const resolved = resolveRound(state);
+
+    expect(only(resolved.lastEvents, "battleDamage").amount).toBe(5);
+    expect(resolved.phase.kind === "battle" ? resolved.phase.battle.log : [])
+      .toContain("黑曜躯壳化解冲击，本次伤害被压到 5 点。");
+  });
+
+  it("看守者飞龙低于半血时攻击 +2，正好半血不触发", () => {
+    const halfHp = resolveRound(
+      pveBattle(20260805, "watcherWyvern", undefined, { attacker: "b", hpB: 15 }),
+    );
+    const belowHalf = resolveRound(
+      pveBattle(20260805, "watcherWyvern", undefined, { attacker: "b", hpB: 14 }),
+    );
+
+    expect(attackBonusOf(halfHp)).toBe(0);
+    expect(attackBonusOf(belowHalf)).toBe(2);
+  });
+
+  it("诡异肉块完成第三次攻击后自毁，词条加血不会让它残留", () => {
+    const maxHp = enemyStats("uncannyFlesh", "honed").maxHp;
+    let state = pveBattle(20260805, "uncannyFlesh", "honed", {
+      attacker: "b",
+      hpB: maxHp,
+    });
+    state.players.player1.baseDefense = 99;
+
+    for (let expected = 1; expected <= 2; expected += 1) {
+      state = resolveRound(state);
+      expect(state.phase.kind).toBe("battle");
+      if (state.phase.kind !== "battle") throw new Error("前两次攻击后战斗应继续");
+      expect(state.phase.battle.enemyAttacksPerformed).toBe(expected);
+      expect(state.phase.battle.hpB).toBe(maxHp);
+      state.phase.battle.attacker = "b";
+    }
+
+    state = resolveRound(state);
+
+    expect(state.phase.kind).toBe("pveReward");
+    expect(state.lastEvents).toContainEqual(expect.objectContaining({
+      type: "battleDamage",
+      targetSide: "b",
+      amount: maxHp,
+      hpAfter: 0,
+    }));
+  });
+
+  it("诡异肉块第三击先击倒玩家时，玩家战败且不会改判为自毁胜利", () => {
+    let state = pveBattle(20260805, "uncannyFlesh", undefined, {
+      attacker: "b",
+      hpA: 1,
+      hpB: 100,
+      enemyAttacksPerformed: 2,
+    });
+    state.players.player1.baseDefense = -99;
+
+    state = resolveRound(state);
+
+    expect(state.phase.kind).not.toBe("pveReward");
+    expect(state.lastEvents.filter(
+      (event) => event.type === "battleDamage" && event.targetSide === "b",
+    )).toHaveLength(0);
+  });
+
   /*
     骰数这一路目前没有正式内容在用——diceCount +1 是多掷一整颗 d6，
     期望值 +3.5，实测对一条词缀来说太重（精英山狼掉到 11% 胜率）。
@@ -126,10 +214,10 @@ describe("怪物战斗钩子", () => {
   });
 
   it("濒死反扑：低于一半才触发，正好一半不算", () => {
-    // 史莱姆当前 8 + 精英基础 8 = 16，半血正好是 8
-    expect(enemyStats("slime", "cornered").maxHp).toBe(16);
+    const halfHp = enemyStats("slime", "cornered").maxHp / 2;
+    expect(Number.isInteger(halfHp)).toBe(true);
 
-    for (const [hpB, expected] of [[8, 0], [7, 3]] as const) {
+    for (const [hpB, expected] of [[halfHp, 0], [halfHp - 1, 3]] as const) {
       const state = resolveRound(
         pveBattle(20260805, "slime", "cornered", { attacker: "b", hpB }),
       );
@@ -137,8 +225,7 @@ describe("怪物战斗钩子", () => {
     }
   });
 
-  it("霜息：霜牙巨兽高于一半血时攻击 +2，与濒死反扑正好相反", () => {
-    // 霜牙巨兽 40 血，半血是 20；「高于一半」不含正好一半
+  it("霜锋之牙：霜牙巨兽高于 20 点生命时攻击 +2", () => {
     for (const [hpB, expected] of [[20, 0], [21, 2]] as const) {
       const state = resolveRound(
         pveBattle(20260805, "frostFang", undefined, { attacker: "b", hpB }),
@@ -147,16 +234,66 @@ describe("怪物战斗钩子", () => {
     }
   });
 
-  it("龙鳞：峰顶巨龙的防御骰由 D6 提升为 D8", () => {
-    const state = resolveRound(
-      pveBattle(20260805, "dragon", undefined, { kind: "boss", attacker: "a" }),
-    );
-    expect(only(state.lastEvents, "defenseRolled").sides).toBe(8);
+  it("霜冻之铠：造成伤害后让玩家下一次攻击 -2，零伤害不触发", () => {
+    let damaged = pveBattle(20260805, "frostFang", undefined, {
+      kind: "boss",
+      attacker: "b",
+      hpA: 100,
+      hpB: 40,
+    });
+    damaged.players.player1.hp = 100;
+    damaged.players.player1.maxHp = 100;
+    damaged = resolveRound(damaged);
+    expect(damaged.phase.kind).toBe("battle");
+    if (damaged.phase.kind !== "battle") throw new Error("玩家应在霜牙攻击后存活");
+    expect(damaged.phase.battle.nextPlayerAttackPenalty).toBe(2);
+
+    damaged = resolveRound(damaged);
+    expect(only(damaged.lastEvents, "attackRolled").flatBonus).toBe(-2);
+    expect(damaged.phase.kind === "battle" ? damaged.phase.battle.nextPlayerAttackPenalty : 0)
+      .toBe(0);
+
+    let blocked = pveBattle(20260805, "frostFang", undefined, {
+      kind: "boss",
+      attacker: "b",
+      hpB: 40,
+    });
+    blocked.players.player1.baseDefense = 99;
+    blocked = resolveRound(blocked);
+    expect(blocked.phase.kind === "battle" ? blocked.phase.battle.nextPlayerAttackPenalty : 0)
+      .toBe(0);
   });
 
-  it("暴怒：峰顶巨龙低于一半血时攻击 +2，正好一半不触发", () => {
-    const halfHp = enemyStats("dragon").maxHp / 2;
-    for (const [hpB, expected] of [[halfHp, 0], [halfHp - 1, 2]] as const) {
+  it("龙鳞与暴怒：70 血前为 D8 防御，低于 70 后攻强守弱", () => {
+    const healthy = resolveRound(
+      pveBattle(20260805, "dragon", undefined, {
+        kind: "boss",
+        attacker: "a",
+        hpB: 100,
+      }),
+    );
+    expect(only(healthy.lastEvents, "defenseRolled")).toMatchObject({
+      sides: 8,
+      flatBonus: 0,
+    });
+
+    const enragedDefense = resolveRound(
+      pveBattle(20260805, "dragon", undefined, {
+        kind: "boss",
+        attacker: "a",
+        hpB: 69,
+      }),
+    );
+    expect(only(enragedDefense.lastEvents, "defenseRolled")).toMatchObject({
+      sides: 6,
+      flatBonus: -2,
+    });
+
+    for (const [hpB, expectedBonus, expectedSides] of [
+      [70, 0, 6],
+      [69, 2, 8],
+      [40, 2, 8],
+    ] as const) {
       const state = resolveRound(
         pveBattle(20260805, "dragon", undefined, {
           kind: "boss",
@@ -164,8 +301,58 @@ describe("怪物战斗钩子", () => {
           hpB,
         }),
       );
-      expect(attackBonusOf(state)).toBe(expected);
+      expect(only(state.lastEvents, "attackRolled")).toMatchObject({
+        flatBonus: expectedBonus,
+        sides: expectedSides,
+      });
     }
+  });
+
+  it("真·巨龙打击：低于 40 血时攻击再 +2，掷骰前造成可被防御减免的 10 点伤害", () => {
+    let state = pveBattle(20260805, "dragon", undefined, {
+      kind: "boss",
+      attacker: "b",
+      hpA: 100,
+      hpB: 39,
+    });
+    state.players.player1.hp = 100;
+    state.players.player1.maxHp = 100;
+    state.players.player1.baseDefense = 2;
+
+    state = resolveRound(state);
+
+    expect(only(state.lastEvents, "attackRolled")).toMatchObject({
+      flatBonus: 4,
+      sides: 8,
+    });
+    const damageEvents = state.lastEvents.filter(
+      (event) => event.type === "battleDamage" && event.targetSide === "a",
+    );
+    expect(damageEvents[0]).toMatchObject({ amount: 8, hpBefore: 100, hpAfter: 92 });
+    expect(state.lastEvents.findIndex((event) => event.type === "battleDamage"))
+      .toBeLessThan(state.lastEvents.findIndex((event) => event.type === "attackRolled"));
+  });
+
+  it("真·巨龙打击在掷骰前击倒玩家时，立即结束战斗且不再投骰", () => {
+    let state = pveBattle(20260805, "dragon", undefined, {
+      kind: "boss",
+      attacker: "b",
+      hpA: 8,
+      hpB: 39,
+    });
+    state.players.player1.hp = 8;
+    state.players.player1.baseDefense = 2;
+
+    state = resolveRound(state);
+
+    expect(state.phase.kind).toBe("turnComplete");
+    expect(state.lastEvents.some((event) => event.type === "attackRolled")).toBe(false);
+    expect(state.lastEvents).toContainEqual(expect.objectContaining({
+      type: "battleDamage",
+      targetSide: "a",
+      amount: 8,
+      hpAfter: 0,
+    }));
   });
 
   /*
@@ -301,18 +488,21 @@ describe("精英怪属性折算", () => {
       defense: 1,
     });
     /*
-      精英基础只加血，攻防全交给词缀；狂暴 +1 攻。
+      词条基础只加血，攻防全交给具体词缀。
       血量取自 ELITE_BASE_MODIFIERS 而不是写死数字——这一条守的是「加成叠在
       本体之上」这个结构，不是某一次平衡里的具体数值，调平衡不该让它变红。
     */
     const eliteHpBonus = ELITE_BASE_MODIFIERS
       .filter((modifier) => modifier.type === "maxHp")
       .reduce((sum, modifier) => sum + modifier.value, 0);
+    const frenziedAttackBonus = ELITE_AFFIXES.frenzied.modifiers
+      .filter((modifier) => modifier.type === "statBonus" && modifier.stat === "attack")
+      .reduce((sum, modifier) => sum + modifier.value, 0);
     expect(eliteHpBonus).toBeGreaterThan(0);
     expect(enemyStats("wolf", "frenzied")).toMatchObject({
       name: "狂暴的山狼",
       maxHp: wolf.maxHp + eliteHpBonus,
-      attack: 3,
+      attack: wolf.attack + frenziedAttackBonus,
       defense: 1,
     });
   });

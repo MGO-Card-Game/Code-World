@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CARD_RARITY_ORDER,
   CARD_RARITY_WEIGHTS,
+  REWARD_RARITY_TIERS,
   pickByRarity,
   pickByRarityWithWeights,
   type CardRarity,
@@ -28,6 +29,18 @@ describe("稀有度", () => {
       0,
     );
     expect(total).toBe(100);
+  });
+
+  it("奖励品质分为 basic / standard / premium 三档，可供不同来源复用", () => {
+    expect(REWARD_RARITY_TIERS).toEqual({
+      basic: { N: 80, R: 15, SR: 5, PR: 0 },
+      standard: { N: 50, R: 30, SR: 15, PR: 5 },
+      premium: { N: 40, R: 30, SR: 20, PR: 10 },
+    });
+    for (const weights of Object.values(REWARD_RARITY_TIERS)) {
+      expect(Object.values(weights).reduce<number>((sum, weight) => sum + weight, 0)).toBe(100);
+    }
+    expect(CARD_RARITY_WEIGHTS).toBe(REWARD_RARITY_TIERS.standard);
   });
 
   it("每档都有卡时，票位边界正好落在声明的百分比上", () => {

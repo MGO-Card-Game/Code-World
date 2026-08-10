@@ -31,6 +31,8 @@ export const ECONOMY = {
   // 战斗胜利金币砍半：普通/精英战本就高频，原数值让战斗收益盖过宝箱与事件。
   pveGold: 2.5 * GOLD_SCALE,
   eliteBonusGold: 2.5 * GOLD_SCALE,
+  /** 词条漫游怪只给小额金币补偿；完整额外卷轴仍属于独立精英怪。 */
+  affixBonusGold: 1 * GOLD_SCALE,
   /** 阶段首领一局只打得到两次，给到够在新阶段做一次像样补给的量。 */
   bossGold: 7.5 * GOLD_SCALE,
   treasureGold: 5 * GOLD_SCALE,

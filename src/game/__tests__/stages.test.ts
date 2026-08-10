@@ -128,6 +128,7 @@ describe("循环阶段地图", () => {
     if (state.phase.kind !== "battle") throw new Error("应进入首领战");
     expect(state.phase.battle.kind).toBe("boss");
     expect(state.phase.battle.enemyId).toBe("banditChief");
+    expect(state.phase.battle.enemyAffix).toBeUndefined();
     expect(state.phase.battle.stageId).toBe("foothill");
   });
 

@@ -243,7 +243,7 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
       battle: makeBattle({
         kind: "pve",
         aPlayerId: "player1",
-        enemyId: "dragon",
+        enemyId: "golem",
         hpB: 24,
       }),
     };

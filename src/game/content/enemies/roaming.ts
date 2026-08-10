@@ -1,7 +1,7 @@
 import { defineEnemies } from "./definition";
 
 /**
- * 漫游怪：战斗格与精英格的随机池。
+ * 漫游怪：普通战斗格的随机池，其中一部分会在地图生成时获得词条。
  *
  * 三段路线各自形成一条梯度：山脚认识不同攻防轮廓，山腰加入爆发和特殊伤害，
  * 山顶在保留过渡怪的同时提高生命与攻击压力。权重写在怪身上，由 index 组装区域池。
@@ -95,16 +95,31 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     initiative: { type: "fixed", value: 2 },
   },
 
+  uncannyFlesh: {
+    name: "诡异肉块",
+    maxHp: 100,
+    attack: 3,
+    defense: 4,
+    regions: { summit: 1 },
+    abilities: [{
+      name: "崩解",
+      description: "完成第 3 次攻击后，生命降为 0。",
+    }],
+    effects: {
+      afterAttack({ attacksPerformed, ownHp, loseHp }) {
+        if (attacksPerformed !== 3) return;
+        loseHp(ownHp, "诡异肉块在第三次攻击后彻底崩解，生命归零。");
+      },
+    },
+    initiative: { type: "fixed", value: 1 },
+  },
+
   bioSlug: {
     name: "生化蛞蝓",
     maxHp: 12,
     attack: 3,
     defense: 1,
-    /*
-      「山脚只作为精英出现」表达不了：精英不是档位而是贴在漫游怪身上的词缀，
-      makeRandomTile 对战斗格和精英格调的是同一个 pickRoamingEnemy。
-      写了 foothill 权重它就会在山脚的普通战斗格里出现，权重压到最低聊作补偿。
-    */
+    // 三个区域都保留低权重，让这类机制怪能贯穿路线出现。
     regions: { foothill: 1, mountainside: 1, summit: 1 },
     abilities: [{
       name: "凝胶质",

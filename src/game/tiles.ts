@@ -52,7 +52,7 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
   switch (tile.type) {
     case "battle":
     case "elite":
-      // 精英格和普通战斗格走同一条 PvE 结算，差别只在那只怪身上贴了词缀
+      // 两类格子共用 PvE 结算；enemyId 决定本体档位，词条只可能来自普通战斗格
       startBattle(
         state,
         "pve",

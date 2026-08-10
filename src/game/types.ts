@@ -130,7 +130,7 @@ export interface MapTile {
   label: string;
   enemyId?: EnemyKind;
   /**
-   * 精英格上贴的词缀。地图生成时就定死并随 GameState 广播——
+   * 普通战斗格的漫游怪可能携带的词缀。地图生成时就定死并随 GameState 广播——
    * 交给战斗开始时再抽的话，同种子重放和联机双端就对不上了。
    */
   eliteAffix?: EliteAffixKind;
@@ -200,6 +200,10 @@ export interface BattleState {
    */
   scrollsUsedA: number;
   scrollsUsedB: number;
+  /** 本场敌人已经完整结算的攻击次数；用于攻击次数型怪物能力。 */
+  enemyAttacksPerformed: number;
+  /** Boss 能力施加的下一次玩家攻击减值；玩家完成一次攻击后清零。 */
+  nextPlayerAttackPenalty: number;
   /** 本回合双方的卷轴选择，两侧都非 pending 时才结算 */
   choiceA: ScrollChoice;
   choiceB: ScrollChoice;
@@ -301,7 +305,7 @@ export interface TileBlessingChoiceState {
 
 export type BlessingChoiceState = PvpBlessingChoiceState | TileBlessingChoiceState;
 
-export type PveRewardSource = "battle" | "elite" | "boss" | "blessing";
+export type PveRewardSource = "battle" | "affix" | "elite" | "boss" | "blessing";
 
 /** PvE 胜利弹层中的一项奖励；卷轴同时保存私密名称和旁观者可见名称。 */
 export interface PveRewardItem {

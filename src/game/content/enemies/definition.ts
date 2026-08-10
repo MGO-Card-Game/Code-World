@@ -2,17 +2,17 @@ import type { EnemyEffects, StatModifier } from "../../effects/battleHooks";
 import type { MapRegionId } from "../../types";
 
 /**
- * 怪物本体的档位。精英是贴在漫游怪身上的正交标志，不在这里，见 ./affixes。
+ * 怪物本体的档位。词条是贴在漫游怪身上的正交标志，不在这里，见 ./affixes。
  *
  * roaming：进战斗格随机池，按区域权重抽取。
- * apex：不进随机池，只在强敌格出现。
- * boss：只在 Boss 格出现，击败即胜利，因此不发奖励。
+ * elite：进精英格随机池，不携带词条。
+ * boss：只在阶段首领战出现，不携带词条。
  */
-export type EnemyTier = "roaming" | "apex" | "boss";
+export type EnemyTier = "roaming" | "elite" | "boss";
 
 export const ENEMY_TIER_NAMES: Record<EnemyTier, string> = {
   roaming: "漫游",
-  apex: "强敌",
+  elite: "精英",
   boss: "首领",
 };
 

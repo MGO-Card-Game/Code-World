@@ -229,6 +229,7 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
   const enemyAffix = battle.enemyAffix
     ? eliteAffixDefinition(battle.enemyAffix)
     : undefined;
+  const showsFleshCountdown = battle.enemyId === "uncannyFlesh";
   const attackerSide = battle.attacker;
 
   /*
@@ -327,6 +328,12 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
               <strong>{hpA}<small> / {a.maxHp}</small></strong>
             </div>
             <HealthBar value={hpA} max={a.maxHp} />
+            {battle.nextPlayerAttackPenalty > 0 && (
+              <div className="battle-status-effect" aria-label="玩家下一次攻击降低">
+                <span>霜冻侵蚀</span>
+                <b>下一次攻击 −{battle.nextPlayerAttackPenalty}</b>
+              </div>
+            )}
             <AnimatePresence>
               {damage?.targetSide === "a" && damage.amount > 0 && (
                 <motion.span
@@ -367,9 +374,15 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
               <strong>{hpB}<small> / {hpMaxB}</small></strong>
             </div>
             <HealthBar value={hpB} max={hpMaxB} />
+            {showsFleshCountdown && (
+              <div className="enemy-attack-counter" aria-label="诡异肉块崩解倒计时">
+                <span>崩解倒计时</span>
+                <b>{Math.min(3, battle.enemyAttacksPerformed)} / 3 次攻击</b>
+              </div>
+            )}
             {enemyAffix && (
               <div className={`elite-affix rarity-${enemyAffix.rarity.toLowerCase()}`}>
-                <span>{enemyAffix.rarity} · 精英词条</span>
+                <span>{enemyAffix.rarity} · 怪物词条</span>
                 <b>{enemyAffix.name}</b>
                 <small>{enemyAffix.description}</small>
               </div>

@@ -8,12 +8,20 @@ export type RarityWeights = Readonly<Record<CardRarity, number>>;
  * 权重和为 100，但只有每一档都至少有一张卡时，这四个数字才等于实际概率——
  * 空档不参加抽取，它的权重会被剩下的档位按比例分掉（见 pickByRarity）。
  */
-export const CARD_RARITY_WEIGHTS: RarityWeights = {
-  N: 50,
-  R: 30,
-  SR: 15,
-  PR: 5,
-};
+/**
+ * 可复用的奖励品质分级。战斗、宝箱和事件只选择档位，不再各自复制四组数字。
+ * basic 不产 PR；standard 是通用卡池；premium 提高 SR / PR 的出现率。
+ */
+export const REWARD_RARITY_TIERS = {
+  basic: { N: 80, R: 15, SR: 5, PR: 0 },
+  standard: { N: 50, R: 30, SR: 15, PR: 5 },
+  premium: { N: 40, R: 30, SR: 20, PR: 10 },
+} as const satisfies Record<string, RarityWeights>;
+
+export type RewardRarityTier = keyof typeof REWARD_RARITY_TIERS;
+
+/** 卷轴及未指定档位的装备继续使用通用档。 */
+export const CARD_RARITY_WEIGHTS: RarityWeights = REWARD_RARITY_TIERS.standard;
 
 /** 由低到高的档位顺序，用于展示排序与「不低于某档」这类判断。 */
 export const CARD_RARITY_ORDER = Object.keys(CARD_RARITY_WEIGHTS) as CardRarity[];

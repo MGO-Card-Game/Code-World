@@ -12,6 +12,7 @@ import {
   enemyDefinition,
   enemyTier,
   hasRegionPool,
+  pickEliteEnemy,
   pickRoamingEnemy,
   type EliteAffixKind,
   type EnemyKind,
@@ -66,7 +67,7 @@ describe("怪物档位表", () => {
   });
 
   it("会随机投放的档位都声明了区域权重，boss 档不声明", () => {
-    for (const tier of ["roaming", "apex"] as const) {
+    for (const tier of ["roaming", "elite"] as const) {
       for (const kind of kindsOf(tier)) {
         const weights = Object.values(enemyDefinition(kind).regions ?? {});
         expect(weights.length, `${kind} 没有声明区域`).toBeGreaterThan(0);
@@ -80,7 +81,7 @@ describe("怪物档位表", () => {
   });
 
   it("怪物不配置奖励种类——非 Boss 战统一随机，Boss 击败即胜利", () => {
-    for (const tier of ["roaming", "apex", "boss"] as const) {
+    for (const tier of ["roaming", "elite", "boss"] as const) {
       for (const kind of kindsOf(tier)) {
         expect("reward" in enemyDefinition(kind)).toBe(false);
       }
@@ -106,6 +107,12 @@ describe("怪物档位表", () => {
     }
   });
 
+  it("每个区域都有独立精英怪可投放", () => {
+    for (const region of REGIONS) {
+      expect(hasRegionPool("elite", region as MapRegionId)).toBe(true);
+    }
+  });
+
   it("三段路线按声明权重抽取不同的漫游怪组合", () => {
     const pickAt = (region: MapRegionId, ticket: number) =>
       pickRoamingEnemy(region, () => ticket);
@@ -118,12 +125,24 @@ describe("怪物档位表", () => {
         "wolf", "golem", "thornbackBoar", "mistSpider", "thunderEagle",
         "bioSlug", "ragingBear",
       ]);
-    expect([0.08, 0.25, 0.45, 0.55, 0.7, 0.8, 0.95]
+    expect([0.05, 0.2, 0.38, 0.5, 0.6, 0.72, 0.82, 0.95]
       .map((ticket) => pickAt("summit", ticket)))
       .toEqual([
         "wolf", "golem", "mistSpider", "thunderEagle", "iceShellLizard",
-        "bioSlug", "ragingBear",
+        "uncannyFlesh", "bioSlug", "ragingBear",
       ]);
+  });
+
+  it("三段路线从独立精英池抽取，不会退回漫游怪", () => {
+    const pickAt = (region: MapRegionId, ticket: number) =>
+      pickEliteEnemy(region, () => ticket);
+
+    expect([0.1, 0.8].map((ticket) => pickAt("foothill", ticket)))
+      .toEqual(["razorbackAlpha", "mireHexer"]);
+    expect([0.1, 0.4, 0.9].map((ticket) => pickAt("mountainside", ticket)))
+      .toEqual(["mireHexer", "cliffOgre", "frostWraith"]);
+    expect([0.1, 0.3, 0.65, 0.95].map((ticket) => pickAt("summit", ticket)))
+      .toEqual(["frostWraith", "watcherWyvern", "thunderRoc", "obsidianSentinel"]);
   });
 
   it("精英词缀都有名字、描述、合法稀有度和 modifiers 数组", () => {

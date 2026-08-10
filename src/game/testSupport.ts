@@ -38,6 +38,8 @@ export function makeBattle(
     log: [],
     scrollsUsedA: 0,
     scrollsUsedB: 0,
+    enemyAttacksPerformed: 0,
+    nextPlayerAttackPenalty: 0,
     choiceA: { status: "pending" },
     choiceB: bPlayerId ? { status: "pending" } : { status: "declined" },
     ...overrides,

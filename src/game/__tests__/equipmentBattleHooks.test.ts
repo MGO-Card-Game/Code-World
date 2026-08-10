@@ -210,9 +210,10 @@ describe("装备战斗钩子", () => {
 
   it("寒铁长枪只对精英和首领追加伤害", () => {
     const cases = [
-      { kind: "pve" as const, enemyAffix: undefined, bonus: 0 },
-      { kind: "pve" as const, enemyAffix: "frenzied" as const, bonus: 3 },
-      { kind: "boss" as const, enemyAffix: undefined, bonus: 3 },
+      { kind: "pve" as const, enemyId: "slime" as const, enemyAffix: undefined, bonus: 0 },
+      { kind: "pve" as const, enemyId: "slime" as const, enemyAffix: "frenzied" as const, bonus: 3 },
+      { kind: "pve" as const, enemyId: "razorbackAlpha" as const, enemyAffix: undefined, bonus: 3 },
+      { kind: "boss" as const, enemyId: "dragon" as const, enemyAffix: undefined, bonus: 3 },
     ];
 
     for (const scenario of cases) {
@@ -225,7 +226,7 @@ describe("装备战斗钩子", () => {
         battle: makeBattle({
           kind: scenario.kind,
           aPlayerId: "player1",
-          enemyId: scenario.kind === "boss" ? "dragon" : "slime",
+          enemyId: scenario.enemyId,
           enemyAffix: scenario.enemyAffix,
         }),
       };

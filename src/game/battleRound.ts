@@ -3,6 +3,7 @@ import {
   applyBattleHealing,
   applyBattleHpLoss,
   applyDirectScrollDamage,
+  applyEnemyAbilityDamage,
   battlePlayerForSide,
   choiceFor,
   chosenInstanceIds,
@@ -30,6 +31,7 @@ import {
 } from "./selectors";
 import { emit, rollDie } from "./state";
 import type {
+  BattleEffectContext,
   BattleHookContext,
   RollModifiers,
   RollResult,
@@ -263,22 +265,18 @@ export function rollForSide(
   };
 }
 
-/** 装备与怪物共用的那半份上下文。 */
-export function battleHookContext(
+/** 不依赖某一次投骰的战斗效果上下文。 */
+export function battleEffectContext(
   state: GameState,
   battle: BattleState,
   side: CombatSide,
   opponentSide: CombatSide,
-  dieKind: "attack" | "defense",
-  modifiers: RollModifiers,
-): BattleHookContext {
+): BattleEffectContext {
   return {
     state,
     battle,
     side,
     opponentSide,
-    dieKind,
-    modifiers,
     ownHp: sideHp(battle, side),
     ownMaxHp: sideMaxHp(state, battle, side),
     opponentHp: sideHp(battle, opponentSide),
@@ -289,6 +287,22 @@ export function battleHookContext(
       battle.log.unshift(text);
       battle.log = battle.log.slice(0, 8);
     },
+  };
+}
+
+/** 装备与怪物共用的投骰上下文。 */
+export function battleHookContext(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  opponentSide: CombatSide,
+  dieKind: "attack" | "defense",
+  modifiers: RollModifiers,
+): BattleHookContext {
+  return {
+    ...battleEffectContext(state, battle, side, opponentSide),
+    dieKind,
+    modifiers,
   };
 }
 
@@ -386,11 +400,27 @@ export function applyEnemyBeforeRoll(
   dieKind: "attack" | "defense",
   modifiers: RollModifiers,
 ) {
+  let opponentDefeated = false;
   forEachEnemyEffects(battle, side, (effects) => {
+    if (opponentDefeated) return;
     effects.beforeRoll?.(
-      battleHookContext(state, battle, side, opponentSide, dieKind, modifiers),
+      {
+        ...battleHookContext(state, battle, side, opponentSide, dieKind, modifiers),
+        dealDamage(rawDamage, abilityName) {
+          opponentDefeated = applyEnemyAbilityDamage(
+            state,
+            battle,
+            side,
+            opponentSide,
+            rawDamage,
+            abilityName,
+          );
+          return opponentDefeated;
+        },
+      },
     );
   });
+  return opponentDefeated;
 }
 
 /** 掷骰后的怪物钩子，能读到骰面结果。 */
@@ -409,6 +439,42 @@ export function applyEnemyAfterRoll(
       roll,
     });
   });
+}
+
+/**
+ * 一次怪物攻击完整结算后的钩子。防守方已被该次攻击击倒时，调用点会先结束战斗，
+ * 因而不会走到这里——这让“第三击后自毁”不会把玩家已经输掉的战斗改判成胜利。
+ */
+export function applyEnemyAfterAttack(
+  state: GameState,
+  battle: BattleState,
+  side: CombatSide,
+  opponentSide: CombatSide,
+  damageDealt: number,
+) {
+  if (battlePlayerForSide(battle, side)) return false;
+  battle.enemyAttacksPerformed += 1;
+  let defeated = false;
+  forEachEnemyEffects(battle, side, (effects) => {
+    effects.afterAttack?.({
+      ...battleEffectContext(state, battle, side, opponentSide),
+      attacksPerformed: battle.enemyAttacksPerformed,
+      damageDealt,
+      loseHp(amount, logLine) {
+        const result = applyBattleHpLoss(state, battle, side, amount, logLine);
+        if (result) defeated = true;
+        return result;
+      },
+      penalizeNextPlayerAttack(by, logLine) {
+        const penalty = Math.max(0, by);
+        if (penalty <= 0) return;
+        battle.nextPlayerAttackPenalty = Math.max(battle.nextPlayerAttackPenalty, penalty);
+        battle.log.unshift(logLine);
+        battle.log = battle.log.slice(0, 8);
+      },
+    });
+  });
+  return defeated;
 }
 
 export function resolveBattleRound(state: GameState) {
@@ -483,14 +549,27 @@ export function resolveBattleRound(state: GameState) {
   applyEquipmentBeforeRoll(
     state, battle, defenderSide, attackerSide, "defense", defenseModifiers,
   );
-  applyEnemyBeforeRoll(
+  if (applyEnemyBeforeRoll(
     state, battle, attackerSide, defenderSide, "attack", attackModifiers,
-  );
-  applyEnemyBeforeRoll(
+  )) {
+    finishBattle(state, battle, attackerSide);
+    return;
+  }
+  if (applyEnemyBeforeRoll(
     state, battle, defenderSide, attackerSide, "defense", defenseModifiers,
-  );
+  )) {
+    finishBattle(state, battle, defenderSide);
+    return;
+  }
   if (attackerId) applyBlessingCombatRoll(state.players[attackerId], attackModifiers);
   if (defenderId) applyBlessingCombatRoll(state.players[defenderId], defenseModifiers);
+  if (attackerId && battle.nextPlayerAttackPenalty > 0) {
+    const penalty = battle.nextPlayerAttackPenalty;
+    battle.nextPlayerAttackPenalty = 0;
+    attackModifiers.flatBonus -= penalty;
+    battle.log.unshift(`霜冻侵蚀武器，本次攻击 -${penalty}。`);
+    battle.log = battle.log.slice(0, 8);
+  }
 
   const attackRoll = rollForSide(
     state,
@@ -561,6 +640,7 @@ export function resolveBattleRound(state: GameState) {
 
   const attackerName = combatantName(state, battle, attackerSide);
   const defenderName = combatantName(state, battle, defenderSide);
+  const defenderHpBefore = sideHp(battle, defenderSide);
   const defenderDefeated = dealBattleDamage(
     state,
     battle,
@@ -572,6 +652,11 @@ export function resolveBattleRound(state: GameState) {
   );
   if (defenderDefeated) {
     finishBattle(state, battle, attackerSide);
+    return;
+  }
+  const damageDealt = Math.max(0, defenderHpBefore - sideHp(battle, defenderSide));
+  if (applyEnemyAfterAttack(state, battle, attackerSide, defenderSide, damageDealt)) {
+    finishBattle(state, battle, defenderSide);
     return;
   }
 

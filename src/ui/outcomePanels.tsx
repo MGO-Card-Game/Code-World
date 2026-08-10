@@ -131,6 +131,7 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat, onMinimize
   const canAcknowledge = viewerSeat === notice.playerId;
   const sourceNames = {
     battle: "战斗奖励",
+    affix: "词条额外奖励",
     elite: "精英额外奖励",
     boss: "首领战利品",
     blessing: "战争财阀",

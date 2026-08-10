@@ -1,4 +1,5 @@
 import { defineEquipment } from "./definition";
+import { targetsEliteOrBoss } from "../../enemyClassification";
 
 /** 武器：主要抬高攻击骰上限，或者改变高点数出现时的结果。 */
 export const WEAPONS = defineEquipment("weapon", {
@@ -187,8 +188,7 @@ export const WEAPONS = defineEquipment("weapon", {
     effects: {
       afterRoll({ battle, dieKind, modifiers, addBattleLog }) {
         if (dieKind !== "attack") return;
-        const targetsEliteOrBoss = battle.kind === "boss" || battle.enemyAffix !== undefined;
-        if (!targetsEliteOrBoss) return;
+        if (!targetsEliteOrBoss(battle)) return;
         modifiers.bonusDamage += 3;
         addBattleLog("寒铁长枪贯穿强敌，额外造成 3 点伤害。");
       },

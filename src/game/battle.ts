@@ -1,6 +1,6 @@
 import { enemyDefinition } from "./content/enemies";
-import { equipmentDefinition } from "./content/equipment";
-import type { RarityWeights } from "./content/rarity";
+import { equipmentDefinition, pickEquipmentKind } from "./content/equipment";
+import { REWARD_RARITY_TIERS } from "./content/rarity";
 import {
   applyPvpPenaltyReplacement,
   bonusPveVictoryScrolls,
@@ -17,6 +17,7 @@ import {
 import { enemyEffects, enemyStats, getAttack, getDefense, pvpHpTransferAmount } from "./selectors";
 import { addHistory, emit, makeInstanceId, nextRandom, rollDie } from "./state";
 import { ECONOMY, grantGold, pvpGoldTransferAmount } from "./economy";
+import { battleHasEliteEnemy } from "./enemyClassification";
 import { nextStage, recordEliteVictory, restAtStageCamp, stageBossUnlocked } from "./stages";
 import type {
   EnemyDamageContext,
@@ -49,14 +50,6 @@ import type {
  * 一次或几次（开战、某一方倒下、临时牌与暗格回收），一轮之内的投骰与效果结算在那边。
  * 依赖只朝一个方向走：battleRound 用得到这里的函数，反过来没有。
  */
-
-/** 普通怪的基础装备池不掉落 PR；精英、宝箱、事件和商店仍走各自原有权重。 */
-export const NORMAL_ENEMY_EQUIPMENT_RARITY_WEIGHTS = {
-  N: 70,
-  R: 20,
-  SR: 10,
-  PR: 0,
-} as const satisfies RarityWeights;
 
 /** 折算过词缀的敌方属性。b 侧是玩家时不该调用。 */
 export function battleEnemyStats(battle: BattleState) {
@@ -130,6 +123,8 @@ export function startBattle(
     log: [],
     scrollsUsedA: 0,
     scrollsUsedB: 0,
+    enemyAttacksPerformed: 0,
+    nextPlayerAttackPenalty: 0,
     choiceA: { status: "pending" },
     // 敌人不使用卷轴（GameRule 8.6），直接视为已提交
     choiceB: bPlayerId ? { status: "pending" } : { status: "declined" },
@@ -294,6 +289,7 @@ const REWARD_CONNECTORS: Record<PveRewardItem["source"], string> = {
   battle: "并获得",
   boss: "并获得",
   elite: "并因击败精英额外获得",
+  affix: "并因击败词条敌人额外获得",
   blessing: "并因战争财阀额外获得",
 };
 
@@ -380,7 +376,14 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         const bossGold = grantGold(state, player, ECONOMY.bossGold, "pveReward");
         const scrollReward = grantScroll(state, player);
         // 装备放在最后发：槽位满时它会把阶段切成 equipmentChoice，后面的授奖就没地方落了
-        const equipmentReward = grantEquipment(state, player);
+        const equipmentReward = grantEquipment(
+          state,
+          player,
+          pickEquipmentKind(
+            () => nextRandom(state),
+            { rarityWeights: REWARD_RARITY_TIERS.premium },
+          ),
+        );
         const rewards: PveRewardItem[] = [
           {
             source: "boss",
@@ -425,7 +428,9 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         addHistory(state, `${player.name}击败峰顶巨龙，夺得登峰之冠！`);
       }
     } else {
-      if (battle.enemyAffix && battle.stageId) {
+      const eliteEnemy = battleHasEliteEnemy(battle);
+      const affixedEnemy = battle.enemyAffix !== undefined;
+      if (eliteEnemy && battle.stageId) {
         const region = state.map.regions.find((candidate) => candidate.id === battle.stageId)!;
         const wasUnlocked = stageBossUnlocked(player, region);
         recordEliteVictory(player, battle.stageId);
@@ -437,14 +442,21 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         state,
         player,
         undefined,
-        battle.enemyAffix
-          ? undefined
-          : { rarityWeights: NORMAL_ENEMY_EQUIPMENT_RARITY_WEIGHTS },
+        {
+          rarityWeights: eliteEnemy
+            ? REWARD_RARITY_TIERS.premium
+            : affixedEnemy
+              ? REWARD_RARITY_TIERS.standard
+              : REWARD_RARITY_TIERS.basic,
+        },
       );
-      const eliteReward = battle.enemyAffix ? grantScroll(state, player) : undefined;
+      const eliteReward = eliteEnemy ? grantScroll(state, player) : undefined;
       const battleGold = grantGold(state, player, ECONOMY.pveGold, "pveReward");
-      const eliteGold = battle.enemyAffix
+      const eliteGold = eliteEnemy
         ? grantGold(state, player, ECONOMY.eliteBonusGold, "pveReward")
+        : 0;
+      const affixGold = affixedEnemy
+        ? grantGold(state, player, ECONOMY.affixBonusGold, "pveReward")
         : 0;
       const blessingRewards = Array.from(
         { length: bonusPveVictoryScrolls(player) },
@@ -475,6 +487,12 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
           name: `${eliteGold} 金币`,
           publicName: `${eliteGold} 金币`,
         }] : []),
+        ...(affixGold > 0 ? [{
+          source: "affix" as const,
+          resourceType: "gold" as const,
+          name: `${affixGold} 金币`,
+          publicName: `${affixGold} 金币`,
+        }] : []),
         ...blessingRewards.map((item) => ({
           source: "blessing" as const,
           resourceType: item.resourceType,
@@ -487,7 +505,7 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         {
           playerId: player.id,
           enemyName,
-          elite: battle.enemyAffix !== undefined,
+          elite: eliteEnemy,
           rewards,
         },
         reward.pendingEquipmentChoice,
@@ -703,6 +721,27 @@ export function applyDirectScrollDamage(
     damage,
     (dealt) =>
       `${combatantName(state, battle, sourceSide)}使用${effectName}，${combatantName(state, battle, targetSide)}受到 ${dealt} 点伤害。`,
+  );
+}
+
+/** 怪物能力的防御值减免直伤；仍经过装备与怪物的受击钩子。 */
+export function applyEnemyAbilityDamage(
+  state: GameState,
+  battle: BattleState,
+  sourceSide: CombatSide,
+  targetSide: CombatSide,
+  rawDamage: number,
+  abilityName: string,
+) {
+  const damage = Math.max(0, rawDamage - sideStats(state, battle, targetSide).defense);
+  return dealBattleDamage(
+    state,
+    battle,
+    sourceSide,
+    targetSide,
+    damage,
+    (dealt) =>
+      `${combatantName(state, battle, sourceSide)}发动${abilityName}，${combatantName(state, battle, targetSide)}受到 ${dealt} 点伤害。`,
   );
 }
 

@@ -165,6 +165,26 @@ describe("循环阶段地图", () => {
     expect(state.players[player.id].gold).toBe(0);
   });
 
+  it("第三阶段无需完成阶段任务，只需 300 金币购买钥匙", () => {
+    let state = createInitialGame(111);
+    const player = state.players[state.activePlayerId];
+    const summit = state.map.regions[2];
+    player.position = summit.endIndex;
+    player.gold = 300;
+
+    state = gameReducer(state, { type: "rollMovement" });
+
+    expect(summit.requirements).toEqual([]);
+    expect(state.players[player.id].stageProgress.summit.eliteVictories).toBe(0);
+    expect(state.phase.kind).toBe("bossGateChoice");
+    expect(state.players[player.id].position).toBe(summit.gateIndex);
+
+    state = gameReducer(state, { type: "buyBossKey" });
+
+    expect(state.players[player.id].gold).toBe(0);
+    expect(state.players[player.id].stageProgress.summit.bossKeyPurchased).toBe(true);
+  });
+
   it("击败前两阶段首领进入下一环，击败巨龙结束游戏", () => {
     const state = createInitialGame(104);
     const player = state.players.player1;

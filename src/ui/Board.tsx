@@ -360,6 +360,9 @@ export function Board({ state, playback, onInspectBoss, focused, onToggleFocus }
                 {selectedRegion.requirements.map((requirement) => (
                   <small className="boss-requirement-label" key={`${requirement.type}-${requirement.target}`}>挑战条件 · {requirement.label}</small>
                 ))}
+                {selectedRegion.requirements.length === 0 && (
+                  <small className="boss-requirement-label">挑战条件 · 购买首领钥匙</small>
+                )}
                 <div className="boss-player-progress">
                   {selectedPlayers.length === 0 && <small>暂无玩家进入本阶段</small>}
                   {selectedPlayers.map((player) => {

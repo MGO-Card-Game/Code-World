@@ -29,7 +29,7 @@ export const HAZARD_EVENTS = defineMapEvents("hazard", {
 
   impulseBuy: {
     name: "冲动消费",
-    description: "失去 30% 金币，基础攻击 +1、基础防御 -1。",
+    description: "花费 30% 金币买下一件危险但趁手的武器：基础攻击 +1，试用时损失 3 点生命。",
     // 净亏事件，权重同基础档的山路落石
     regions: { foothill: 1, mountainside: 1, summit: 1 },
     effects: [
@@ -37,7 +37,7 @@ export const HAZARD_EVENTS = defineMapEvents("hazard", {
         type: "loseGold",
         percent: 30,
         narration: ({ playerName, amount }) =>
-          `${playerName}在货摊前没忍住，花掉了 ${amount} 金币。`,
+          `${playerName}被摊主说动，花掉 ${amount} 金币买下一件锋利却危险的武器。`,
       },
       {
         type: "adjustBaseStat",
@@ -47,14 +47,13 @@ export const HAZARD_EVENTS = defineMapEvents("hazard", {
           `买回来的家伙事儿称手，${playerName}基础攻击永久增加 ${amount} 点。`,
       },
       {
-        type: "adjustBaseStat",
-        stat: "defense",
-        amount: -1,
-        // amount 是负数，写文案时取反；基础防御已经是 0 时它会是 0
+        type: "damage",
+        amount: 3,
+        minimumHp: 1,
         narration: ({ playerName, amount }) =>
           amount === 0
-            ? `${playerName}想把护具也当了，却发现早就没什么可当的了。`
-            : `护具当掉换了钱，${playerName}基础防御永久降低 ${-amount} 点。`,
+            ? `${playerName}试用新武器时险些伤到自己，好在及时收手。`
+            : `${playerName}试用新武器时一个不慎被利刃划伤，损失 ${amount} 点生命。`,
       },
     ],
   },

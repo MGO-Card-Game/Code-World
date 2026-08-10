@@ -55,8 +55,8 @@ export const MAP_REGIONS: MapRegion[] = [
   {
     id: "summit", name: "雷鸣峰顶", startIndex: 64, endIndex: 95,
     gateIndex: 64, entryIndex: 65, bossEnemyId: "dragon",
-    // 龙巢正式条件尚未确定，暂用两次山顶精英胜利作为可完整通关的占位规则。
-    requirements: [{ type: "eliteVictories", target: 2, label: "累计击败 2 次山顶精英" }],
+    // 山顶没有额外阶段任务；抵达守关门后只需购买钥匙即可挑战巨龙。
+    requirements: [],
   },
 ];
 

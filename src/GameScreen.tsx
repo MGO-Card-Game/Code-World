@@ -49,13 +49,15 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
     const tile = state.map.tiles[player.position];
     const region = state.map.regions.find((candidate) => candidate.id === tile.region)!;
     const progress = player.stageProgress[region.id];
-    const requirement = region.requirements[0];
     const unlocked = stageBossUnlocked(player, region);
+    const requirementProgress = region.requirements.map((requirement) => (
+      `${requirementValueForRegion(player, region.id, requirement)}/${requirement.target}`
+    )).join(" · ");
     const status = progress.bossDefeated
       ? "已击败"
       : unlocked
         ? progress.bossKeyPurchased ? "可挑战" : "待购钥匙"
-        : `${requirementValueForRegion(player, region.id, requirement)}/${requirement.target}`;
+        : requirementProgress;
     return { stageName: region.name, stageStatus: status };
   };
   const selectedStage = stagePresentation(selectedPlayer);

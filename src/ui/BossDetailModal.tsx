@@ -65,6 +65,9 @@ export function BossDetailModal({ region, onClose }: {
               {requirement.label}
             </p>
           ))}
+          {region.requirements.length === 0 && (
+            <p className="boss-requirement-line">无需阶段任务，购买首领钥匙即可挑战</p>
+          )}
         </section>
 
         <p className="boss-detail-rule">

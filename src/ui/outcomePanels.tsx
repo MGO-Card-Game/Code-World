@@ -60,6 +60,7 @@ export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
   const canChoose = viewerSeat === choice.playerId;
   const keyPurchased = player.stageProgress[region.id].bossKeyPurchased;
   const keyPrice = bossKeyPrice(state.map, region.id);
+  const hasStageRequirements = region.requirements.length > 0;
   return (
     <ModalBackdrop className="boss-gate-backdrop">
       <motion.section
@@ -75,19 +76,23 @@ export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
         <p>
           {keyPurchased
             ? `${player.name}已经持有本阶段钥匙，可以挑战首领，也可以继续绕行整备。`
-            : `${player.name}已经完成本阶段目标，还需购买首领钥匙才能进入。`}
+            : hasStageRequirements
+              ? `${player.name}已经完成本阶段目标，还需购买首领钥匙才能进入。`
+              : `${player.name}无需完成阶段任务，购买首领钥匙后即可进入。`}
         </p>
-        <div className="boss-requirements">
-          {region.requirements.map((requirement) => {
-            const value = requirementValueForRegion(player, region.id, requirement);
-            return (
-              <div key={`${requirement.type}-${requirement.target}`}>
-                <span>{requirement.label}</span>
-                <strong>{Math.min(value, requirement.target)}/{requirement.target}</strong>
-              </div>
-            );
-          })}
-        </div>
+        {hasStageRequirements && (
+          <div className="boss-requirements">
+            {region.requirements.map((requirement) => {
+              const value = requirementValueForRegion(player, region.id, requirement);
+              return (
+                <div key={`${requirement.type}-${requirement.target}`}>
+                  <span>{requirement.label}</span>
+                  <strong>{Math.min(value, requirement.target)}/{requirement.target}</strong>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {canChoose ? (
           <div className="boss-gate-actions">
             {keyPurchased ? (

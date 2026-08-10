@@ -26,7 +26,7 @@ const EVENT_NARRATIONS = {
   weaponInStone: "嵌在石头中的武器",
   coinRain: "天降金钱雨",
   campfire: "旅人的篝火旁",
-  impulseBuy: "在货摊前没忍住",
+  impulseBuy: "被摊主说动",
   // 收到牌和无人可收两条旁白共用这一段，两种情况都认得出来
   requisition: "交出一张卷轴",
   veteranGuidance: "得到武者指点",
@@ -41,7 +41,7 @@ type NarratedEventKind = keyof typeof EVENT_NARRATIONS;
  *
  * 两点讲究：
  * 一是扫整段 history 而不是只看 message——message 只有最后一条旁白，而多效果
- * 事件的识别句未必在最后（冲动消费的最后一句是防御下降）。
+ * 事件的识别句未必在最后（冲动消费的最后一句是损失生命）。
  * 二是按旁白**出现的先后**取，不是按表里的键序——翻跟头会接着结算落点，落点又
  * 可能是另一个事件格，那时 history 里会有两条识别句，取表序会认成后触发的那个。
  * 注意 history 是新的在前（见 addHistory），所以要反过来遍历才是时间顺序。
@@ -151,11 +151,14 @@ describe("地图事件结算", () => {
           expect(player.hp).toBe(10);
           break;
         case "impulseBuy": {
-          // landOnEvent 把金币清成 0，所以这里只核对攻防；扣钱另有专门用例
+          // landOnEvent 把金币清成 0，所以这里只核对攻击与扣血；扣钱另有专门用例
           expect(player.baseAttack).toBe(6);
-          expect(player.baseDefense).toBe(1);
+          expect(player.baseDefense).toBe(2);
+          expect(player.hp).toBe(7);
           expect(eventsOf(state, "baseStatChanged").map((event) => event.stat))
-            .toEqual(["attack", "defense"]);
+            .toEqual(["attack"]);
+          expect(eventsOf(state, "playerHpChanged")[0])
+            .toMatchObject({ from: 10, to: 7, reason: "event" });
           expect(eventsOf(state, "goldChanged")).toHaveLength(0);
           break;
         }
@@ -267,28 +270,30 @@ describe("地图事件结算", () => {
       expect(eventsOf(resolved, "goldChanged")[0])
         .toMatchObject({ from: 250, to: 175, reason: "event" });
       expect(resolved.history.map((entry) => entry.text))
-        .toContainEqual(expect.stringContaining("花掉了 75 金币"));
+        .toContainEqual(expect.stringContaining("花掉 75 金币"));
       checked = true;
     }
     expect(checked).toBe(true);
   });
 
-  it("冲动消费不会把基础防御压到 0 以下", () => {
+  it("冲动消费不会把生命扣到 1 以下，也不会降低基础防御", () => {
     let checked = false;
     for (let seed = 1; seed <= 2000 && !checked; seed += 1) {
       if (identify(landOnEvent(seed)) !== "impulseBuy") continue;
 
       const state = createInitialGame(seed);
-      state.players[state.activePlayerId].baseDefense = 0;
+      state.players[state.activePlayerId].hp = 1;
+      const defenseBefore = state.players[state.activePlayerId].baseDefense;
       const resolved = landOnEventFrom(state);
       const settled = resolved.players[resolved.activePlayerId];
 
-      expect(settled.baseDefense).toBe(0);
-      // 数值没动就不该发结构化事件，攻击那一条仍在
+      expect(settled.hp).toBe(1);
+      expect(settled.baseDefense).toBe(defenseBefore);
+      expect(eventsOf(resolved, "playerHpChanged")).toHaveLength(0);
       expect(eventsOf(resolved, "baseStatChanged").map((event) => event.stat))
         .toEqual(["attack"]);
       expect(resolved.history.map((entry) => entry.text))
-        .toContainEqual(expect.stringContaining("早就没什么可当的了"));
+        .toContainEqual(expect.stringContaining("好在及时收手"));
       checked = true;
     }
     expect(checked).toBe(true);

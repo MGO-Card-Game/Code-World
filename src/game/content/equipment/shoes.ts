@@ -4,7 +4,7 @@ import { defineEquipment } from "./definition";
 export const SHOES = defineEquipment("shoes", {
   travelerBoots: {
     name: "旅行者短靴",
-    description: "地图移动骰上限 +1（D6 → D7）",
+    description: "地图移动骰上限 +1",
     rarity: "N",
     modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
   },
@@ -93,7 +93,7 @@ export const SHOES = defineEquipment("shoes", {
   houndstepBoots: {
     name: "猎踪靴",
     description: "移动骰上限 +2，但防御骰上限 -1",
-    rarity: "R",
+    rarity: "N",
     modifiers: [
       { type: "dieSides", die: "movement", value: 2 },
       { type: "dieSides", die: "defense", value: -1 },

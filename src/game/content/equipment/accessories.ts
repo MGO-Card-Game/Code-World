@@ -103,9 +103,12 @@ export const ACCESSORIES = defineEquipment("accessory", {
 
   huntersPointer: {
     name: "猎人的指针",
-    description: "地图移动骰上限 +1",
+    description: "地图移动骰和攻击骰上限 +1",
     rarity: "N",
-    modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
+    modifiers: [
+      { type: "dieSides", die: "movement", value: 1 },
+      { type: "dieSides", die: "attack", value: 1 }
+    ],
   },
 
   bloodOathRing: {

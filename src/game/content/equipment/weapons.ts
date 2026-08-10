@@ -181,7 +181,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
   coldIronSpear: {
     name: "寒铁长枪",
-    description: "攻击骰上限 +1；对精英敌人和首领额外造成 1 点伤害",
+    description: "攻击骰上限 +1；对精英敌人和首领额外造成 3 点伤害",
     rarity: "R",
     modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
     effects: {
@@ -189,8 +189,8 @@ export const WEAPONS = defineEquipment("weapon", {
         if (dieKind !== "attack") return;
         const targetsEliteOrBoss = battle.kind === "boss" || battle.enemyAffix !== undefined;
         if (!targetsEliteOrBoss) return;
-        modifiers.bonusDamage += 1;
-        addBattleLog("寒铁长枪贯穿强敌，额外造成 1 点伤害。");
+        modifiers.bonusDamage += 3;
+        addBattleLog("寒铁长枪贯穿强敌，额外造成 3 点伤害。");
       },
     },
   },

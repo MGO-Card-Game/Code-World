@@ -211,8 +211,8 @@ describe("装备战斗钩子", () => {
   it("寒铁长枪只对精英和首领追加伤害", () => {
     const cases = [
       { kind: "pve" as const, enemyAffix: undefined, bonus: 0 },
-      { kind: "pve" as const, enemyAffix: "frenzied" as const, bonus: 1 },
-      { kind: "boss" as const, enemyAffix: undefined, bonus: 1 },
+      { kind: "pve" as const, enemyAffix: "frenzied" as const, bonus: 3 },
+      { kind: "boss" as const, enemyAffix: undefined, bonus: 3 },
     ];
 
     for (const scenario of cases) {
@@ -546,5 +546,6 @@ describe("已接入的武器", () => {
 
     player.equipment = [{ instanceId: "pointer-1", kind: "huntersPointer" }];
     expect(getDieSidesBonus(player, "movement")).toBe(1);
+    expect(getDieSidesBonus(player, "attack")).toBe(1);
   });
 });

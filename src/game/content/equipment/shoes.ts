@@ -20,7 +20,7 @@ export const SHOES = defineEquipment("shoes", {
   },
 
   veteransMarchBoots: {
-    name: "老兵行军靴",
+    name: "士兵行军靴",
     description: "移动骰上限 +1；本场战斗从第 3 回合起，攻击与防御各 +1",
     rarity: "N",
     modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
@@ -38,14 +38,14 @@ export const SHOES = defineEquipment("shoes", {
         if (battle.round < 3) return;
         modifiers.flatBonus += 1;
         addBattleLog(
-          `老兵行军靴踩稳了阵脚，本次${dieKind === "attack" ? "攻击" : "防御"} +1。`,
+          `士兵行军靴踩稳了阵脚，本次${dieKind === "attack" ? "攻击" : "防御"} +1。`,
         );
       },
     },
   },
 
   gamekeepersBoots: {
-    name: "猎场看守靴",
+    name: "护卫靴",
     description: "移动骰上限 +1；对手是精英或首领时，防御骰上限 +1",
     rarity: "N",
     modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
@@ -63,7 +63,7 @@ export const SHOES = defineEquipment("shoes", {
         const facesEliteOrBoss = battle.kind === "boss" || battle.enemyAffix !== undefined;
         if (!facesEliteOrBoss) return;
         modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + 1;
-        addBattleLog("猎场看守靴认得这类猎物，本次防御骰上限 +1。");
+        addBattleLog("你绑紧了护卫靴，本次防御骰上限 +1。");
       },
     },
   },

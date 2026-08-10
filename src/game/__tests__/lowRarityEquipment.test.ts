@@ -332,7 +332,7 @@ describe("铁匠围裙", () => {
   });
 });
 
-describe("老兵行军靴", () => {
+describe("士兵行军靴", () => {
   const marchBattle = (seed: number) => {
     const state = stalemate(seed);
     state.players.player1.equipment = [
@@ -383,7 +383,7 @@ describe("老兵行军靴", () => {
   });
 });
 
-describe("猎场看守靴", () => {
+describe("护卫靴", () => {
   /** 一场怪物先攻的 PvE，player1 只防不攻 */
   const guardedBattle = (
     seed: number,

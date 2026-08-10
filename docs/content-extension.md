@@ -6,15 +6,20 @@
 
 ```
 src/game/
-  state.ts        随机数、事件流、旁白、实例 ID、建局
-  resources.ts    卷轴与装备的增、减、槽位（含 rewardSecret 与生命上限联动）
-  mapEvents.ts    事件格效果的结算
-  battle.ts       战斗生命周期与血量：开战、结束、伤害、治疗、双方查询
-  battleRound.ts  一个攻击回合：卷轴效果、投骰、装备与怪物钩子的分发
-  engine.ts       回合与格子流程、动作分发，以及对外门面
+  state.ts            随机数、事件流、旁白、实例 ID、建局
+  resources.ts        卷轴与装备的增、减、槽位（含 rewardSecret 与生命上限联动）
+  mapEvents.ts        事件格效果的结算
+  battle.ts           战斗生命周期与血量：开战、结束、伤害、治疗、双方查询
+  battleRound.ts      一个攻击回合：卷轴效果、投骰、装备与怪物钩子的分发
+  mapActions.ts       地图阶段动作：移动、地图卷轴、守关门与首领选择
+  actionResult.ts     把规则模块交回的 ActionResult 折算成 reducer 返回值
+  disconnectPolicy.ts 掉线时替谁兜底、怎么兜
+  engine.ts           动作分发，以及对外门面
 ```
 
-依赖只朝一个方向走：`state` ← `resources` ← {`mapEvents`, `battle`} ← `battleRound` ← `engine`。**新增效果词汇和钩子时机基本都落在 `battleRound.ts`**；跨回合的东西（开战发牌、战斗结束回收）在 `battle.ts`。
+依赖只朝一个方向走：`state` ← `resources` ← {`mapEvents`, `battle`} ← `battleRound` ← {`mapActions`, `disconnectPolicy`} ← `engine`。**新增效果词汇和钩子时机基本都落在 `battleRound.ts`**；跨回合的东西（开战发牌、战斗结束回收）在 `battle.ts`；只影响地图位置和落点结算的新动作放 `mapActions.ts`。
+
+`engine.ts` 只回答「一个 action 该派给谁」，不再自己实现规则——往它里面加规则实现之前，先看看该去哪个旁边的模块。
 
 界面、联机服务器和测试一律从 `engine.ts` import，内部怎么拆都不影响它们。
 

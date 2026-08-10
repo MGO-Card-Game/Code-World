@@ -5,59 +5,15 @@ import type { EquipmentKind } from "./game/content/equipment";
 import type { GameStateView, MapRegionId, PlayerId } from "./game/types";
 import { requirementValueForRegion, stageBossUnlocked } from "./game/stages";
 import { ActionDock } from "./ui/ActionDock";
-import { BattlePanel, useLingeringBattle } from "./ui/BattlePanel";
+import { useLingeringBattle } from "./ui/BattlePanel";
 import { Board } from "./ui/Board";
 import { BossDetailModal } from "./ui/BossDetailModal";
-import { CasinoTileModal } from "./ui/CasinoTileModal";
 import { EquipmentDetailModal } from "./ui/EquipmentDetailModal";
-import {
-  BlessingChoicePanel,
-  BossGatePanel,
-  EncounterChoicePanel,
-  ScrollTargetChoicePanel,
-  EquipmentChoicePanel,
-  GameOverPanel,
-  PenaltyPanel,
-  PveRewardPanel,
-  StatGrowthPanel,
-} from "./ui/outcomePanels";
+import { pendingDecision, PhaseOverlayRouter } from "./ui/PhaseOverlayRouter";
 import { PlayerPanel, PlayerSummary } from "./ui/PlayerPanel";
 import { ResourceModal } from "./ui/ResourceModal";
 import { ShopModal } from "./ui/ShopModal";
-import { ShopTileModal } from "./ui/ShopTileModal";
-import {
-  EncounterDecisionPanel,
-  TradeConfirmationPanel,
-  TradeOfferPanel,
-} from "./ui/TradePanels";
 import type { Dispatch } from "./ui/shared";
-
-function pendingDecision(state: GameStateView) {
-  switch (state.phase.kind) {
-    case "equipmentChoice":
-      return {
-        key: `equipment-${state.phase.choice.offered.instanceId}`,
-        label: "继续装备取舍",
-      };
-    case "blessingChoice":
-      return {
-        key: `blessing-${state.phase.choice.offered.instanceId}`,
-        label: "继续赐福抉择",
-      };
-    case "pveReward":
-      return {
-        key: `reward-${state.turn}-${state.phase.notice.playerId}-${state.phase.notice.enemyName}`,
-        label: "查看战斗奖励",
-      };
-    case "statGrowthChoice":
-      return {
-        key: `growth-${state.phase.choice.playerId}-${state.phase.choice.stageId}`,
-        label: "继续永久成长",
-      };
-    default:
-      return null;
-  }
-}
 
 /**
  * 对局界面。本地热座与联机共用同一套——两者的差别只在于：
@@ -271,152 +227,16 @@ export function GameScreen({ state, viewerSeat, dispatch, toolbar, canRestart = 
         )}
       </AnimatePresence>
 
-      {/*
-        所有规则阶段弹层放在同一个 AnimatePresence 下，阶段切换时才有进退场衔接。
-        战后的弹层都要等 lingeringBattle 让位——否则决出胜负的那一瞬间，
-        战斗演出还没播，代价/装备弹层就先盖上来了。
-      */}
-      <AnimatePresence mode="wait">
-        {lingeringBattle && (
-          <BattlePanel
-            key="battle"
-            state={state}
-            battle={lingeringBattle}
-            live={state.phase.kind === "battle"}
-            dispatch={dispatch}
-            playback={playback}
-            viewerSeat={viewerSeat}
-          />
-        )}
-        {!lingeringBattle && state.phase.kind === "pvpPenalty" && (
-          <PenaltyPanel key="penalty" state={state} penalty={state.phase.penalty} dispatch={dispatch} playing={playback.playing} viewerSeat={viewerSeat} />
-        )}
-        {!lingeringBattle && !decisionHidden && state.phase.kind === "blessingChoice" && (
-          <BlessingChoicePanel
-            key="blessing-choice"
-            state={state}
-            choice={state.phase.choice}
-            dispatch={dispatch}
-            playing={playback.playing}
-            viewerSeat={viewerSeat}
-            onMinimize={() => setHiddenDecisionKey(decision?.key ?? null)}
-          />
-        )}
-        {!lingeringBattle && !playback.playing && state.phase.kind === "scrollTargetChoice" && (
-          <ScrollTargetChoicePanel
-            key="event-target-choice"
-            state={state}
-            choice={state.phase.choice}
-            dispatch={dispatch}
-            playing={playback.playing}
-            viewerSeat={viewerSeat}
-          />
-        )}
-        {!lingeringBattle && !playback.playing && state.phase.kind === "encounterChoice" && (
-          <EncounterChoicePanel
-            key="encounter-choice"
-            state={state}
-            choice={state.phase.choice}
-            dispatch={dispatch}
-            playing={playback.playing}
-            viewerSeat={viewerSeat}
-          />
-        )}
-        {!lingeringBattle && !playback.playing && state.phase.kind === "encounterDecision" && (
-          <EncounterDecisionPanel
-            key={`encounter-decision-${viewerSeat}`}
-            state={state}
-            encounter={state.phase.encounter}
-            dispatch={dispatch}
-            viewerSeat={viewerSeat}
-          />
-        )}
-        {!lingeringBattle && !playback.playing && state.phase.kind === "tradeOffer" && (
-          <TradeOfferPanel
-            key={`trade-offer-${viewerSeat}`}
-            state={state}
-            trade={state.phase.trade}
-            dispatch={dispatch}
-            viewerSeat={viewerSeat}
-          />
-        )}
-        {!lingeringBattle && !playback.playing && state.phase.kind === "tradeConfirmation" && (
-          <TradeConfirmationPanel
-            key={`trade-confirmation-${viewerSeat}`}
-            state={state}
-            trade={state.phase.trade}
-            dispatch={dispatch}
-            viewerSeat={viewerSeat}
-          />
-        )}
-        {!lingeringBattle && !playback.playing && state.phase.kind === "bossGateChoice" && (
-          <BossGatePanel
-            key="boss-gate"
-            state={state}
-            choice={state.phase.choice}
-            dispatch={dispatch}
-            viewerSeat={viewerSeat}
-          />
-        )}
-        {!lingeringBattle && !playback.playing && state.phase.kind === "shop" && (
-          <ShopTileModal
-            key={`shop-tile-${state.phase.shop.playerId}`}
-            state={state}
-            shop={state.phase.shop}
-            viewerSeat={viewerSeat}
-            dispatch={dispatch}
-          />
-        )}
-        {!lingeringBattle && !playback.playing && state.phase.kind === "casino" && (
-          <CasinoTileModal
-            key={`casino-tile-${state.phase.casino.playerId}`}
-            state={state}
-            casino={state.phase.casino}
-            viewerSeat={viewerSeat}
-            dispatch={dispatch}
-          />
-        )}
-        {!lingeringBattle && !decisionHidden && state.phase.kind === "equipmentChoice" && (
-          <EquipmentChoicePanel
-            key="equipment-choice"
-            state={state}
-            choice={state.phase.choice}
-            dispatch={dispatch}
-            playing={playback.playing}
-            viewerSeat={viewerSeat}
-            onMinimize={() => setHiddenDecisionKey(decision?.key ?? null)}
-          />
-        )}
-        {!lingeringBattle && !decisionHidden && !playback.playing && state.phase.kind === "pveReward" && (
-          <PveRewardPanel
-            key="pve-reward"
-            state={state}
-            notice={state.phase.notice}
-            dispatch={dispatch}
-            viewerSeat={viewerSeat}
-            onMinimize={() => setHiddenDecisionKey(decision?.key ?? null)}
-          />
-        )}
-        {!lingeringBattle && !decisionHidden && state.phase.kind === "statGrowthChoice" && (
-          <StatGrowthPanel
-            key="stat-growth"
-            state={state}
-            choice={state.phase.choice}
-            dispatch={dispatch}
-            playing={playback.playing}
-            viewerSeat={viewerSeat}
-            onMinimize={() => setHiddenDecisionKey(decision?.key ?? null)}
-          />
-        )}
-        {!lingeringBattle && state.phase.kind === "gameOver" && (
-          <GameOverPanel
-            key="over"
-            winner={state.players[state.phase.winnerId]}
-            dispatch={dispatch}
-            canRestart={canRestart}
-          />
-        )}
-      </AnimatePresence>
+      <PhaseOverlayRouter
+        state={state}
+        viewerSeat={viewerSeat}
+        dispatch={dispatch}
+        playback={playback}
+        lingeringBattle={lingeringBattle}
+        decisionHidden={decisionHidden}
+        onMinimizeDecision={() => setHiddenDecisionKey(decision?.key ?? null)}
+        canRestart={canRestart}
+      />
 
       {/* 资源弹窗与阶段弹层互不相干，单独一个 AnimatePresence */}
       <AnimatePresence>

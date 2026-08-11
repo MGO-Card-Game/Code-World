@@ -10,7 +10,7 @@ import { advanceAlongLoop, landDirectlyAt } from "./movement";
 import { consumeScroll } from "./resources";
 import { getDieSidesBonus } from "./selectors";
 import { addHistory, emit, rollDie } from "./state";
-import { restAtStageCamp, stageBossUnlocked } from "./stages";
+import { canOpenBossGate, restAtStageCamp, stageBossUnlocked } from "./stages";
 import { resolveTile } from "./tiles";
 import type {
   GameState,
@@ -67,14 +67,35 @@ export function rollMovement(state: GameState) {
   return true;
 }
 
+/** 站在守关门上的玩家在掷骰前主动打开首领入口。 */
+export function openBossGate(state: GameState) {
+  const player = state.players[state.activePlayerId];
+  if (!player || !canOpenBossGate(state, player)) return false;
+  const region = regionForPosition(state.map, player.position);
+  state.phase = {
+    kind: "bossGateChoice",
+    choice: {
+      playerId: player.id,
+      stageId: region.id,
+      gateTileIndex: region.gateIndex,
+      bossEnemyId: region.bossEnemyId,
+      source: "standing",
+    },
+  };
+  addHistory(state, `${player.name}在「${region.name}」守关门前查看首领入口。`);
+  return true;
+}
+
 export function chooseBossChallenge(state: GameState, challenge: boolean) {
   if (state.phase.kind !== "bossGateChoice") return false;
-  const { playerId, stageId, gateTileIndex, bossEnemyId } = state.phase.choice;
+  const { playerId, stageId, gateTileIndex, bossEnemyId, source } = state.phase.choice;
   const player = state.players[playerId];
   const region = state.map.regions.find((candidate) => candidate.id === stageId);
   if (!player || !region || player.position !== gateTileIndex) return false;
   if (!challenge) {
-    state.phase = { kind: "turnComplete" };
+    state.phase = source === "standing"
+      ? { kind: "awaitingRoll" }
+      : { kind: "turnComplete" };
     addHistory(state, `${player.name}暂不挑战${region.name}首领，继续整备。`);
     return true;
   }
@@ -124,6 +145,7 @@ function settleMovementDestination(
         stageId: region.id,
         gateTileIndex: region.gateIndex,
         bossEnemyId: region.bossEnemyId,
+        source: "arrival",
       },
     };
   } else {

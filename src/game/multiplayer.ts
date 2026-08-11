@@ -38,6 +38,7 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
       return true;
 
     case "rollMovement":
+    case "openBossGate":
       return state.phase.kind === "awaitingRoll" && state.activePlayerId === actor;
 
     case "useMapScroll":

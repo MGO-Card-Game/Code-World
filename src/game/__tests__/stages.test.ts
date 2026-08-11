@@ -149,6 +149,56 @@ describe("循环阶段地图", () => {
     expect(state.phase.kind).toBe("bossGateChoice");
   });
 
+  it("站在守关门上可以在掷骰前主动打开首领入口，放弃后仍能移动", () => {
+    const state = createInitialGame(113);
+    const player = state.players[state.activePlayerId];
+    const region = state.map.regions[0];
+    player.position = region.gateIndex;
+    player.stageProgress.foothill.laps = 2;
+
+    const other = state.turnOrder.find((id) => id !== player.id)!;
+    expect(canAct(state, { type: "openBossGate" }, player.id)).toBe(true);
+    expect(canAct(state, { type: "openBossGate" }, other)).toBe(false);
+
+    const opened = gameReducer(state, { type: "openBossGate" });
+    if (opened.phase.kind !== "bossGateChoice") throw new Error("应打开首领入口");
+    expect(opened.phase.choice.source).toBe("standing");
+
+    // 主动开的窗，放弃后退回掷骰阶段，不白扔一个回合
+    const declined = gameReducer(opened, { type: "chooseBossChallenge", challenge: false });
+    expect(declined.phase.kind).toBe("awaitingRoll");
+    expect(declined.players[player.id].position).toBe(region.gateIndex);
+  });
+
+  it("被移动拦停打开的入口，放弃后回合到此为止", () => {
+    let state = createInitialGame(101);
+    const player = state.players[state.activePlayerId];
+    const region = state.map.regions[0];
+    player.position = region.endIndex;
+    player.stageProgress.foothill.laps = 1;
+
+    state = gameReducer(state, { type: "rollMovement" });
+    if (state.phase.kind !== "bossGateChoice") throw new Error("应被守关门截停");
+    expect(state.phase.choice.source).toBe("arrival");
+
+    state = gameReducer(state, { type: "chooseBossChallenge", challenge: false });
+    expect(state.phase.kind).toBe("turnComplete");
+  });
+
+  it("条件未满足或人不在守关门上时打不开首领入口", () => {
+    const state = createInitialGame(114);
+    const player = state.players[state.activePlayerId];
+    const region = state.map.regions[0];
+
+    player.position = region.gateIndex;
+    player.stageProgress.foothill.laps = 1;
+    expect(gameReducer(state, { type: "openBossGate" })).toBe(state);
+
+    player.stageProgress.foothill.laps = 2;
+    player.position = region.gateIndex + 3;
+    expect(gameReducer(state, { type: "openBossGate" })).toBe(state);
+  });
+
   it("阶段钥匙按阶段定价，购买后可以暂不进入且钥匙不会丢失", () => {
     let state = createInitialGame(106);
     const player = state.players[state.activePlayerId];
@@ -169,6 +219,7 @@ describe("循环阶段地图", () => {
         stageId: foothill.id,
         gateTileIndex: foothill.gateIndex,
         bossEnemyId: foothill.bossEnemyId,
+        source: "arrival",
       },
     };
 

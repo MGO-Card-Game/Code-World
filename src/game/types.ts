@@ -275,6 +275,13 @@ export interface BossGateChoiceState {
   stageId: MapRegionId;
   gateTileIndex: number;
   bossEnemyId: EnemyKind;
+  /**
+   * 入口是被移动拦停打开的，还是玩家站在门上主动打开的。
+   *
+   * 决定放弃挑战后回到哪里：拦停发生在移动之后，回合到此为止；主动打开发生在掷骰前，
+   * 放弃就该退回掷骰阶段，否则点开看一眼就白扔一个回合。
+   */
+  source: "arrival" | "standing";
 }
 
 /** PvP 赢家赐福槽位已满时，决定是否接纳败方失去的赐福。 */
@@ -673,6 +680,7 @@ export type GameAction =
   | { type: "cancelTrade"; side: CombatSide }
   | { type: "confirmTrade"; side: CombatSide; accept: boolean }
   | { type: "buyBossKey" }
+  | { type: "openBossGate" }
   | { type: "chooseBossChallenge"; challenge: boolean }
   | { type: "chooseBlessing"; replace: boolean; replaceInstanceId?: string }
   | { type: "acknowledgePveReward" }

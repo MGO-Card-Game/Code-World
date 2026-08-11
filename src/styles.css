@@ -309,7 +309,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .action-dock-title { color: #f0ddba; font: 800 18px "Noto Serif SC", serif; }
 .action-dock-phase { color: #c5a76f; font-size: 12px; }
 .action-dock p { margin: 4px 0 0; color: #8f8372; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.turn-complete-actions { display: flex; align-items: center; gap: 8px; }
+.turn-complete-actions, .awaiting-roll-actions { display: flex; align-items: center; gap: 8px; }
 .shop-button { color: #e0bd70; border-color: #806538; }
 .turn-waiting { color: #8f8372; font-size: 11px; white-space: nowrap; }
 /* 同上：等高数字才能在骰面上真正居中。旋转由 Framer 内联设置，这里不再重复挂 transform */
@@ -757,7 +757,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   .game-layout.board-focused .inspector-rail { display: none; }
   .action-dock { grid-template-columns: 1fr auto; padding: 16px; }.action-dock .primary-button { grid-column: 1 / -1; }
   .action-primary-button { width: 100%; min-width: 0; }
-  .turn-complete-actions { grid-column: 1 / -1; width: 100%; }.turn-complete-actions > button { flex: 1; }
+  .turn-complete-actions, .awaiting-roll-actions { grid-column: 1 / -1; width: 100%; }.turn-complete-actions > button { flex: 1; }
   .shop-options { grid-template-columns: 1fr; }
   .shop-inventory-heading { align-items: flex-start; flex-direction: column; }
   .shop-inventory-heading dl { justify-content: flex-start; }

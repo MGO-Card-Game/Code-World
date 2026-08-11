@@ -20,6 +20,7 @@ import {
   buyBossKey,
   chooseBossChallenge,
   chooseScrollTarget,
+  openBossGate,
   rollMovement,
   useMapScroll,
 } from "./mapActions";
@@ -86,6 +87,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return settleActionResult(next, state, confirmTrade(next, action));
     case "buyBossKey":
       return buyBossKey(next) ? next : state;
+    case "openBossGate":
+      return openBossGate(next) ? next : state;
     case "chooseBossChallenge":
       return chooseBossChallenge(next, action.challenge) ? next : state;
     case "chooseBlessing":

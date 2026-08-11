@@ -1,3 +1,4 @@
+import { regionForPosition } from "./map";
 import { addHistory, emit } from "./state";
 import type {
   GameMap,
@@ -31,6 +32,22 @@ export function stageBossUnlocked(player: PlayerStats, region: MapRegion) {
 
 export function recordEliteVictory(player: Player, regionId: MapRegionId) {
   player.stageProgress[regionId].eliteVictories += 1;
+}
+
+/**
+ * 站在守关门上时能否主动打开首领入口。
+ *
+ * 不这样开一道口子的话，条件已满足却停在门上的玩家（拒绝过一次挑战、或者靠不屈意志
+ * 原地复活）必须再绕满一圈才能重新跨过守关门，等于白等一整轮。
+ */
+export function canOpenBossGate(
+  state: Pick<GameState, "phase" | "activePlayerId" | "map">,
+  player: PlayerStats,
+) {
+  if (state.phase.kind !== "awaitingRoll") return false;
+  if (state.activePlayerId !== player.id) return false;
+  const region = regionForPosition(state.map, player.position);
+  return player.position === region.gateIndex && stageBossUnlocked(player, region);
 }
 
 /**

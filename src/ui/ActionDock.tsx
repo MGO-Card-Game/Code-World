@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { getDieSidesBonus } from "../game/selectors";
 import { canUseShop } from "../game/economy";
+import { canOpenBossGate } from "../game/stages";
 import type { GameStateView, PlayerId } from "../game/types";
 import type { Dispatch, Playback } from "./shared";
 
@@ -233,13 +234,20 @@ export function ActionDock({ state, dispatch, message, playback, viewerSeat, onO
       ) : (
         <>
           {state.phase.kind === "awaitingRoll" && canControlTurn && (
-            <button className="primary-button action-primary-button" onClick={() => dispatch({ type: "rollMovement" })}>
-              <span className="action-button-icon" aria-hidden="true">骰</span>
-              <span>
-                <strong>投掷 D{movementSides}</strong>
-                <small>为{active.name}</small>
-              </span>
-            </button>
+            <div className="awaiting-roll-actions">
+              {canOpenBossGate(state, active) && (
+                <button className="ghost-button" onClick={() => dispatch({ type: "openBossGate" })}>
+                  首领入口
+                </button>
+              )}
+              <button className="primary-button action-primary-button" onClick={() => dispatch({ type: "rollMovement" })}>
+                <span className="action-button-icon" aria-hidden="true">骰</span>
+                <span>
+                  <strong>投掷 D{movementSides}</strong>
+                  <small>为{active.name}</small>
+                </span>
+              </button>
+            </div>
           )}
           {state.phase.kind === "turnComplete" && canControlTurn && (
             <div className="turn-complete-actions">

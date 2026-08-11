@@ -1,6 +1,8 @@
 import {
   CARD_RARITY_WEIGHTS,
   pickByRarityWithWeights,
+  withRarityFloor,
+  type CardRarity,
   type RarityWeights,
 } from "../rarity";
 import { ACCESSORIES } from "./accessories";
@@ -63,6 +65,8 @@ export const HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS: RarityWeights = {
 export interface EquipmentPickOptions {
   category?: EquipmentCategory;
   rarityWeights?: RarityWeights;
+  /** 保底下限：低于这一档的装备不参加本次抽取，用于阶段首领的必出档位。 */
+  minRarity?: CardRarity;
 }
 
 export function pickEquipmentKind(
@@ -72,10 +76,11 @@ export function pickEquipmentKind(
   const kinds = options.category
     ? Object.keys(EQUIPMENT_BY_CATEGORY[options.category]) as EquipmentKind[]
     : Object.keys(EQUIPMENT) as EquipmentKind[];
+  const weights = options.rarityWeights ?? CARD_RARITY_WEIGHTS;
   return pickByRarityWithWeights(
     kinds,
     (kind) => EQUIPMENT[kind].rarity,
-    options.rarityWeights ?? CARD_RARITY_WEIGHTS,
+    options.minRarity ? withRarityFloor(weights, options.minRarity) : weights,
     random,
   );
 }

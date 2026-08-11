@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { finishBattle } from "../battle";
+import { EQUIPMENT } from "../content/equipment";
+import { CARD_RARITY_ORDER } from "../content/rarity";
 import { ECONOMY } from "../economy";
 import { createInitialGame, gameReducer } from "../engine";
 import { STAT_GROWTH } from "../growth";
@@ -8,12 +10,15 @@ import { getAttack, getDefense } from "../selectors";
 import { makeBattle } from "../testSupport";
 import type { GameState, MapRegion } from "../types";
 
-/** 打赢山脚首领，停在奖励弹层上。 */
-function afterStageBossVictory(seed = 20260810): { state: GameState; region: MapRegion } {
+/** 打赢某一阶段的首领，停在奖励弹层上。默认是山脚。 */
+function afterStageBossVictory(
+  seed = 20260810,
+  regionIndex = 0,
+): { state: GameState; region: MapRegion } {
   const state = createInitialGame(seed);
   // 断言的是首领这一档单独发了多少金币；玩家开局自带的金币会把它糊掉，先清零。
   state.players.player1.gold = 0;
-  const region = state.map.regions[0];
+  const region = state.map.regions[regionIndex];
   finishBattle(
     state,
     makeBattle({
@@ -101,6 +106,37 @@ describe("阶段首领奖励", () => {
 
     const acknowledged = gameReducer(discarded, { type: "acknowledgePveReward" });
     expect(acknowledged.phase.kind).toBe("statGrowthChoice");
+  });
+
+  it("装备保底：山脚首领必出 R 及以上，山腰首领必出 SR 及以上", () => {
+    const atLeast = (rarity: string, floor: string) =>
+      CARD_RARITY_ORDER.indexOf(rarity as never) >= CARD_RARITY_ORDER.indexOf(floor as never);
+
+    // 保底是权重清零，不是抽完再兜底，所以要用足够多的种子把票位扫开
+    for (let seed = 20260800; seed < 20260880; seed += 1) {
+      for (const [regionIndex, floor] of [[0, "R"], [1, "SR"]] as const) {
+        const { state } = afterStageBossVictory(seed, regionIndex);
+        const [granted] = state.players.player1.equipment;
+        const rarity = EQUIPMENT[granted.kind].rarity;
+        expect(
+          atLeast(rarity, floor),
+          `seed ${seed} 阶段 ${regionIndex} 掉出了 ${rarity}（${EQUIPMENT[granted.kind].name}）`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("每个阶段的保底档位在装备池里都有卡，保底不会把卡池抽空", () => {
+    const rarities = new Set(Object.values(EQUIPMENT).map((item) => item.rarity));
+    for (const region of createInitialGame(20260810).map.regions) {
+      if (!region.bossEquipmentFloor) continue;
+      const floorIndex = CARD_RARITY_ORDER.indexOf(region.bossEquipmentFloor);
+      const available = CARD_RARITY_ORDER
+        .slice(floorIndex)
+        .filter((rarity) => rarities.has(rarity));
+      expect(available.length, `${region.name}的保底档位之上没有任何装备`)
+        .toBeGreaterThan(0);
+    }
   });
 
   it("普通战斗的奖励不会跟出加点", () => {

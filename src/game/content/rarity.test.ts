@@ -5,6 +5,7 @@ import {
   REWARD_RARITY_TIERS,
   pickByRarity,
   pickByRarityWithWeights,
+  withRarityFloor,
   type CardRarity,
 } from "./rarity";
 
@@ -90,5 +91,54 @@ describe("稀有度", () => {
     expect(at(0.2)).toBe("R");
     expect(at(0.7)).toBe("SR");
     expect(at(0.95)).toBe("PR");
+  });
+});
+
+describe("保底档位", () => {
+  it("低于地板的档位权重清零，地板本身与更高档保持原值", () => {
+    expect(withRarityFloor(REWARD_RARITY_TIERS.premium, "R"))
+      .toEqual({ N: 0, R: 30, SR: 20, PR: 10 });
+    expect(withRarityFloor(REWARD_RARITY_TIERS.premium, "SR"))
+      .toEqual({ N: 0, R: 0, SR: 20, PR: 10 });
+    // 地板落在最低档等于没有保底
+    expect(withRarityFloor(REWARD_RARITY_TIERS.premium, "N"))
+      .toEqual(REWARD_RARITY_TIERS.premium);
+  });
+
+  it("保底之后无论摇出什么随机数，都抽不到低于地板的卡", () => {
+    const floored = withRarityFloor(REWARD_RARITY_TIERS.premium, "SR");
+    for (const fraction of [0, 0.01, 0.33, 0.5, 0.66, 0.99]) {
+      const rarity = pickByRarityWithWeights(
+        FULL_POOL,
+        rarityOf,
+        floored,
+        sequence(fraction, 0),
+      ).rarity;
+      expect(["SR", "PR"]).toContain(rarity);
+    }
+  });
+
+  it("剩余档位按原比例归一化，保底不重新配平相对关系", () => {
+    // premium 的 SR:PR = 20:10，清零后仍是 2:1，票位边界落在 2/3
+    const floored = withRarityFloor(REWARD_RARITY_TIERS.premium, "SR");
+    const at = (fraction: number) =>
+      pickByRarityWithWeights(FULL_POOL, rarityOf, floored, sequence(fraction, 0)).rarity;
+
+    expect(at(0.66)).toBe("SR");
+    expect(at(0.67)).toBe("PR");
+  });
+
+  it("不改变随机数消耗量，同一颗种子的牌序不会因为保底而错位", () => {
+    const counted = (weights: Parameters<typeof pickByRarityWithWeights>[2]) => {
+      let calls = 0;
+      pickByRarityWithWeights(FULL_POOL, rarityOf, weights, () => {
+        calls += 1;
+        return 0.5;
+      });
+      return calls;
+    };
+
+    expect(counted(withRarityFloor(REWARD_RARITY_TIERS.premium, "SR")))
+      .toBe(counted(REWARD_RARITY_TIERS.premium));
   });
 });

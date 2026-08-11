@@ -26,6 +26,26 @@ export const CARD_RARITY_WEIGHTS: RarityWeights = REWARD_RARITY_TIERS.standard;
 /** 由低到高的档位顺序，用于展示排序与「不低于某档」这类判断。 */
 export const CARD_RARITY_ORDER = Object.keys(CARD_RARITY_WEIGHTS) as CardRarity[];
 
+/**
+ * 把低于地板档的权重清零，用来表达「必出 R 及以上」这类保底。
+ *
+ * 做成权重变换而不是抽完再重抽，是因为重抽会多消耗随机数，按种子重放时
+ * 同一局会走出不同的牌序。清零之后剩余档位由 pickByRarityWithWeights 按
+ * 原有比例归一化，档位之间的相对关系不变——保底只是砍掉下限，不重新配平。
+ */
+export function withRarityFloor(
+  weights: RarityWeights,
+  floor: CardRarity,
+): RarityWeights {
+  const floorIndex = CARD_RARITY_ORDER.indexOf(floor);
+  return Object.fromEntries(
+    CARD_RARITY_ORDER.map((rarity, index) => [
+      rarity,
+      index < floorIndex ? 0 : weights[rarity],
+    ]),
+  ) as RarityWeights;
+}
+
 /** 先按稀有度抽取，再在该稀有度的内容中等概率抽取。 */
 export function pickByRarity<T>(
   items: readonly T[],

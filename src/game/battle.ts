@@ -362,7 +362,10 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
           player,
           pickEquipmentKind(
             () => nextRandom(state),
-            { rarityWeights: REWARD_RARITY_TIERS.premium },
+            {
+              rarityWeights: REWARD_RARITY_TIERS.premium,
+              minRarity: region.bossEquipmentFloor,
+            },
           ),
         );
         const rewards: PveRewardItem[] = [

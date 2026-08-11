@@ -44,17 +44,20 @@ export const MAP_REGIONS: MapRegion[] = [
   {
     id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 31,
     gateIndex: 0, entryIndex: 1, bossEnemyId: "banditChief",
+    bossEquipmentFloor: "R",
     requirements: [{ type: "laps", target: 2, label: "绕场 2 圈" }],
   },
   {
     id: "mountainside", name: "云雾山腰", startIndex: 32, endIndex: 63,
     gateIndex: 32, entryIndex: 33, bossEnemyId: "frostFang",
+    bossEquipmentFloor: "SR",
     requirements: [{ type: "laps", target: 3, label: "绕场 3 圈" }],
   },
   {
     id: "summit", name: "雷鸣峰顶", startIndex: 64, endIndex: 95,
     gateIndex: 64, entryIndex: 65, bossEnemyId: "dragon",
     // 山顶没有额外阶段任务；抵达守关门后只需购买钥匙即可挑战巨龙。
+    // 也不设装备保底：击败巨龙直接结束对局，那一战不发战利品。
     requirements: [],
   },
 ];

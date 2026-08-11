@@ -1,5 +1,6 @@
 import type { EliteAffixKind, EnemyKind } from "./content/enemies";
 import type { EquipmentKind } from "./content/equipment";
+import type { CardRarity } from "./content/rarity";
 import type { MapEventKind } from "./content/events";
 
 import type { ScrollKind } from "./content/scrolls";
@@ -142,6 +143,13 @@ export interface MapRegion {
   gateIndex: number;
   entryIndex: number;
   bossEnemyId: EnemyKind;
+  /**
+   * 该阶段首领掉落装备的保底档位；不写表示不设下限。
+   *
+   * 放在区域配置里而不是战斗里按阶段序号推，是因为「这一阶段的首领长什么样」
+   * 已经由 bossEnemyId 和 requirements 描述在这里了，保底属于同一件事。
+   */
+  bossEquipmentFloor?: CardRarity;
   requirements: StageRequirement[];
 }
 

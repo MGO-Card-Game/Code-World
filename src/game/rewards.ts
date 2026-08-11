@@ -1,4 +1,5 @@
-import { EQUIPMENT, equipmentCategory } from "./content/equipment";
+import { EQUIPMENT, equipmentCategory, pickEquipmentKind } from "./content/equipment";
+import { REWARD_RARITY_TIERS, type RewardRarityTier } from "./content/rarity";
 import { salvageEquipment } from "./economy";
 import { applyStatGrowth, STAT_GROWTH } from "./growth";
 import { regionForPosition } from "./map";
@@ -7,7 +8,7 @@ import {
   grantEquipment,
   removeEquipmentStats,
 } from "./resources";
-import { addHistory, emit } from "./state";
+import { addHistory, emit, nextRandom } from "./state";
 import type {
   ActionResult,
   EquipmentChoiceState,
@@ -27,10 +28,19 @@ import type {
  * 唯一交不回来的一步是「回到那一格继续结算」，它作为 ActionResult 交给 engine。
  */
 
+/**
+ * 宝物猎人的额外装备。
+ *
+ * tier 必须由开箱那一侧传进来：额外装备和主奖励是同一次开箱的产出，档位要一致。
+ * 让它落回默认档的话，重开宝箱的主奖励走 meager（拿不到 PR）而这一件走 standard
+ * （PR 5%），持有宝物猎人的玩家就能靠反复刷同一个箱子拿到 PR——meager 那一档的
+ * 全部意义就没了。
+ */
 export function grantTreasureEquipmentReward(
   state: GameState,
   player: Player,
   remaining: number,
+  tier: RewardRarityTier,
 ) {
   if (remaining <= 0) {
     state.phase = { kind: "turnComplete" };
@@ -39,13 +49,16 @@ export function grantTreasureEquipmentReward(
   const reward = grantEquipment(
     state,
     player,
-    undefined,
+    pickEquipmentKind(
+      () => nextRandom(state),
+      { rarityWeights: REWARD_RARITY_TIERS[tier] },
+    ),
     remaining > 1
-      ? { kind: "grantTreasureEquipment", remaining: remaining - 1 }
+      ? { kind: "grantTreasureEquipment", remaining: remaining - 1, tier }
       : { kind: "turnComplete" },
   );
   if (!reward.pendingEquipmentChoice) {
-    if (remaining > 1) grantTreasureEquipmentReward(state, player, remaining - 1);
+    if (remaining > 1) grantTreasureEquipmentReward(state, player, remaining - 1, tier);
     else state.phase = { kind: "turnComplete" };
   }
   addHistory(state, `${player.name}因宝物猎人额外获得${reward.name}。`);
@@ -63,7 +76,12 @@ function resumeAfterEquipmentChoice(
     case "resolveTile":
       return { resolveTile: resume.tileIndex };
     case "grantTreasureEquipment":
-      grantTreasureEquipmentReward(state, state.players[playerId], resume.remaining);
+      grantTreasureEquipmentReward(
+        state,
+        state.players[playerId],
+        resume.remaining,
+        resume.tier,
+      );
       return true;
     case "showPveReward":
       state.phase = { kind: "pveReward", notice: resume.notice };

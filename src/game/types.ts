@@ -1,6 +1,6 @@
 import type { EliteAffixKind, EnemyKind } from "./content/enemies";
 import type { EquipmentKind } from "./content/equipment";
-import type { CardRarity } from "./content/rarity";
+import type { CardRarity, RewardRarityTier } from "./content/rarity";
 import type { MapEventKind } from "./content/events";
 
 import type { ScrollKind } from "./content/scrolls";
@@ -442,7 +442,8 @@ export interface EquipmentChoiceState {
   resume:
     | { kind: "turnComplete" }
     | { kind: "resolveTile"; tileIndex: number }
-    | { kind: "grantTreasureEquipment"; remaining: number }
+    // 档位随 remaining 一起过河：装备槽满会把发奖打断一轮，回来时不能落回默认档
+    | { kind: "grantTreasureEquipment"; remaining: number; tier: RewardRarityTier }
     | { kind: "showPveReward"; notice: PveRewardNoticeState }
     | { kind: "shop"; shop: ShopState }
     | { kind: "casino"; casino: CasinoState };

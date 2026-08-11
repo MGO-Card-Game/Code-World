@@ -1,6 +1,6 @@
 import { bonusTreasureEquipment } from "./blessings";
 import { pickEquipmentKind } from "./content/equipment";
-import { REWARD_RARITY_TIERS } from "./content/rarity";
+import { REWARD_RARITY_TIERS, type RewardRarityTier } from "./content/rarity";
 import { pickWeighted } from "./content/weighted";
 import { ECONOMY, grantGold } from "./economy";
 import { grantEquipment, grantScroll, rewardSecret, type Reward } from "./resources";
@@ -51,9 +51,9 @@ export function openTreasure(state: GameState, player: Player, tile: MapTile) {
   }
 
   if (firstHaul) progress.openedTreasureTileIds.push(tile.id);
-  const rarityWeights = firstHaul
-    ? REWARD_RARITY_TIERS.standard
-    : REWARD_RARITY_TIERS.meager;
+  // 记档位名而不是权重对象：它要跟着 resume 存进 GameState 并广播给各端
+  const tier: RewardRarityTier = firstHaul ? "standard" : "meager";
+  const rarityWeights = REWARD_RARITY_TIERS[tier];
 
   const gold = outcome === "gold" || outcome === "combo"
     ? grantGold(state, player, ECONOMY.treasureGold, "treasure")
@@ -65,7 +65,7 @@ export function openTreasure(state: GameState, player: Player, tile: MapTile) {
 
   const bonusEquipment = bonusTreasureEquipment(player);
   const resume: EquipmentChoiceState["resume"] = bonusEquipment > 0
-    ? { kind: "grantTreasureEquipment", remaining: bonusEquipment }
+    ? { kind: "grantTreasureEquipment", remaining: bonusEquipment, tier }
     : { kind: "turnComplete" };
 
   let reward: Reward | undefined;
@@ -84,7 +84,7 @@ export function openTreasure(state: GameState, player: Player, tile: MapTile) {
 
   // 装备槽满时 grantEquipment 已经把阶段切成 equipmentChoice，后续由 resume 接手
   if (!reward?.pendingEquipmentChoice) {
-    if (bonusEquipment > 0) grantTreasureEquipmentReward(state, player, bonusEquipment);
+    if (bonusEquipment > 0) grantTreasureEquipmentReward(state, player, bonusEquipment, tier);
     else state.phase = { kind: "turnComplete" };
   }
 }

@@ -114,6 +114,37 @@ describe("宝箱", () => {
     expect(firstHaul).toContain("PR");
   });
 
+  it("宝物猎人的额外装备跟着开箱档位走，不会绕开重开降档", () => {
+    const reopen: string[] = [];
+
+    for (let seed = 1; seed <= 300; seed += 1) {
+      const state = createInitialGame(seed);
+      const player = state.players.player1;
+      player.blessings = [{ instanceId: `hunter-${seed}`, kind: "treasureHunter" }];
+      const tile = foothillTreasure(state);
+      const opened = () => player.stageProgress.foothill.openedTreasureTileIds.includes(tile.id);
+
+      // 先把「首次」用掉，之后每一次都该是 meager
+      for (let attempt = 0; attempt < 30 && !opened(); attempt += 1) {
+        openOnce(state, player, tile);
+      }
+      for (let round = 0; round < 10; round += 1) {
+        const haul = openOnce(state, player, tile);
+        reopen.push(...haul.equipmentRarities);
+      }
+    }
+
+    /*
+      持有宝物猎人时每次非空开箱至少产出一件装备，样本量远超没有赐福的情况。
+      额外那件曾经写死走默认档 standard，于是「重开拿不到 PR」对这批玩家不成立；
+      档位透传之后，这里必须和主奖励一样干净。
+    */
+    expect(reopen.length).toBeGreaterThan(1000);
+    expect(reopen).not.toContain("PR");
+    const nShare = reopen.filter((rarity) => rarity === "N").length / reopen.length;
+    expect(nShare).toBeGreaterThan(0.75);
+  });
+
   it("开出金币时给的是 treasureGold 那一档", () => {
     const state = createInitialGame(20260811);
     const player = state.players.player1;

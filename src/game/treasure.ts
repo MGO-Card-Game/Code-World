@@ -15,9 +15,10 @@ import type { EquipmentChoiceState, GameState, MapTile, Player } from "./types";
  * 而不是开过一次就永久锁死。和赌场同一个形状——一张结果权重表，空箱就是
  * 表里的一档，所以不需要在发奖之前另跑一条概率判定。
  *
- * 品质则绑在「是不是第一次从这个箱子里拿到东西」上：首次走 standard，
- * 之后走 basic。可重复获取的来源不该是高稀有度装备的稳定路径，而首次
- * 踩到宝箱的手感要和以前一样。
+ * 品质则绑在「是不是第一次从这个箱子里拿到东西」上：首次走 standard，之后走
+ * meager。首次踩到宝箱的手感和以前一样，而绕圈反复刷同一个箱子拿不到 PR——
+ * meager 的 PR 权重是 0，这不是概率低，是结构上够不着。普通怪走的 basic 仍
+ * 留着 1% 爆冷，所以「打赢一场」和「空手刷一个箱子」不是同一件事。
  */
 
 type TreasureOutcome = "empty" | "gold" | "scroll" | "equipment" | "combo";
@@ -52,7 +53,7 @@ export function openTreasure(state: GameState, player: Player, tile: MapTile) {
   if (firstHaul) progress.openedTreasureTileIds.push(tile.id);
   const rarityWeights = firstHaul
     ? REWARD_RARITY_TIERS.standard
-    : REWARD_RARITY_TIERS.basic;
+    : REWARD_RARITY_TIERS.meager;
 
   const gold = outcome === "gold" || outcome === "combo"
     ? grantGold(state, player, ECONOMY.treasureGold, "treasure")

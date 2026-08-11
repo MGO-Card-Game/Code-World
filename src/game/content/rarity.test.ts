@@ -32,8 +32,9 @@ describe("稀有度", () => {
     expect(total).toBe(100);
   });
 
-  it("奖励品质分为 basic / standard / premium 三档，可供不同来源复用", () => {
+  it("奖励品质分为 meager / basic / standard / premium 四档，可供不同来源复用", () => {
     expect(REWARD_RARITY_TIERS).toEqual({
+      meager: { N: 85, R: 10, SR: 5, PR: 0 },
       basic: { N: 80, R: 15, SR: 4, PR: 1 },
       standard: { N: 50, R: 30, SR: 15, PR: 5 },
       premium: { N: 40, R: 30, SR: 20, PR: 10 },
@@ -42,6 +43,13 @@ describe("稀有度", () => {
       expect(Object.values(weights).reduce<number>((sum, weight) => sum + weight, 0)).toBe(100);
     }
     expect(CARD_RARITY_WEIGHTS).toBe(REWARD_RARITY_TIERS.standard);
+  });
+
+  it("只有 meager 一档拿不到 PR，其余各档都留了爆冷的口子", () => {
+    const withoutPr = Object.entries(REWARD_RARITY_TIERS)
+      .filter(([, weights]) => weights.PR === 0)
+      .map(([tier]) => tier);
+    expect(withoutPr).toEqual(["meager"]);
   });
 
   it("每档都有卡时，票位边界正好落在声明的百分比上", () => {

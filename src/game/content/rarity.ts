@@ -10,9 +10,13 @@ export type RarityWeights = Readonly<Record<CardRarity, number>>;
  */
 /**
  * 可复用的奖励品质分级。战斗、宝箱和事件只选择档位，不再各自复制四组数字。
- * basic 保留 1% 的 PR 作为爆冷；standard 是通用卡池；premium 提高 SR / PR 的出现率。
+ *
+ * meager 是唯一 PR 权重为 0 的一档，留给可以反复刷的来源——那里出顶级装备
+ * 不该是概率低，而该是结构上拿不到。basic 起保留 1% 的 PR 作为爆冷；
+ * standard 是通用卡池；premium 提高 SR / PR 的出现率。
  */
 export const REWARD_RARITY_TIERS = {
+  meager: { N: 85, R: 10, SR: 5, PR: 0 },
   basic: { N: 80, R: 15, SR: 4, PR: 1 },
   standard: { N: 50, R: 30, SR: 15, PR: 5 },
   premium: { N: 40, R: 30, SR: 20, PR: 10 },

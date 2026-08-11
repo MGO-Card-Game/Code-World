@@ -6,6 +6,7 @@ import {
 } from "../game/content/equipment";
 import { SCROLLS } from "../game/content/scrolls";
 import { blessingDefinition } from "../game/content/blessings";
+import { mapEventDefinition, type MapEventCategory } from "../game/content/events";
 import { blessingCapacity } from "../game/blessings";
 import { enemyDefinition } from "../game/content/enemies";
 import { scrollDefinition } from "../game/content/scrolls";
@@ -20,6 +21,7 @@ import type {
   EncounterChoiceState,
   ScrollTargetChoiceState,
   GameStateView,
+  MapEventNoticeState,
   PlayerId,
   PlayerView,
   PveRewardItem,
@@ -193,6 +195,84 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat, onMinimize
           </button>
         ) : (
           <p className="waiting-notice">等待{player.name}确认奖励……</p>
+        )}
+      </motion.section>
+    </ModalBackdrop>
+  );
+}
+
+/**
+ * 事件格结算通知。
+ *
+ * 事件的名称与描述来自内容表，逐条旁白来自本次结算——两者都摆出来，玩家才知道
+ * 「踩到了什么」和「发生了什么」。改这里之前先看 MapEventNoticeState 的注释。
+ */
+export function MapEventPanel({ state, notice, dispatch, viewerSeat, onMinimize }: {
+  state: GameStateView;
+  notice: MapEventNoticeState;
+  dispatch: Dispatch;
+  viewerSeat: PlayerId;
+  onMinimize: () => void;
+}) {
+  const player = state.players[notice.playerId];
+  const definition = mapEventDefinition(notice.kind);
+  const canAcknowledge = viewerSeat === notice.playerId;
+  const categoryNames = {
+    recovery: "休整",
+    hazard: "险情",
+    reward: "机遇",
+    boon: "际遇",
+    casino: "赌局",
+  } as const satisfies Record<MapEventCategory, string>;
+  const emblems = {
+    recovery: "✚",
+    hazard: "⚠",
+    reward: "◈",
+    boon: "✧",
+    casino: "◉",
+  } as const satisfies Record<MapEventCategory, string>;
+
+  return (
+    <ModalBackdrop className="reward-backdrop">
+      <motion.section
+        className={`map-event-modal decision-modal event-${definition.category}`}
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 10 }}
+        transition={SPRING}
+      >
+        <DecisionMinimizeButton onMinimize={onMinimize} />
+        <motion.div
+          className="reward-emblem"
+          initial={{ scale: 0.5, rotate: -18 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 0.12, type: "spring", stiffness: 280, damping: 16 }}
+        >{emblems[definition.category]}</motion.div>
+        <div className="modal-kicker">{categoryNames[definition.category]}</div>
+        <h2>{definition.name}</h2>
+        <p>{definition.description}</p>
+        <div className="map-event-lines">
+          {notice.lines.map((line, index) => (
+            <motion.p
+              key={`${index}-${line.text}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.16 + index * 0.08 }}
+            >
+              {line.text}
+            </motion.p>
+          ))}
+        </div>
+        {canAcknowledge ? (
+          <button className="primary-button" onClick={() => dispatch({ type: "acknowledgeMapEvent" })}>
+            {notice.resume?.kind === "casino"
+              ? "走进赌场"
+              : notice.resume?.kind === "equipmentChoice"
+                ? "处理装备"
+                : "继续前行"}
+          </button>
+        ) : (
+          <p className="waiting-notice">等待{player.name}确认……</p>
         )}
       </motion.section>
     </ModalBackdrop>

@@ -180,6 +180,8 @@ export function advanceAutomatically(state: GameState): GameState {
       return gameReducer(state, { type: "chooseEquipment" });
     case "pveReward":
       return gameReducer(state, { type: "acknowledgePveReward" });
+    case "mapEventNotice":
+      return gameReducer(state, { type: "acknowledgeMapEvent" });
     // 一律点攻击，好让整局的生命上限不变量只跟护符有关
     case "statGrowthChoice":
       return gameReducer(state, { type: "chooseStatGrowth", option: "attack" });

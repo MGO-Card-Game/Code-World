@@ -144,6 +144,9 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
     case "chooseEquipment":
       return state.phase.kind === "equipmentChoice" && state.phase.choice.playerId === actor;
 
+    case "acknowledgeMapEvent":
+      return state.phase.kind === "mapEventNotice" && state.phase.notice.playerId === actor;
+
     case "chooseStatGrowth":
       return state.phase.kind === "statGrowthChoice" && state.phase.choice.playerId === actor;
 
@@ -284,6 +287,15 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
     }
     case "pveReward":
       return { kind: "pveReward", notice: redactRewardNotice(phase.notice) };
+    // 事件旁白里可能点名了刚抽到的牌，和 history 走同一套裁剪
+    case "mapEventNotice":
+      return {
+        kind: "mapEventNotice",
+        notice: {
+          ...phase.notice,
+          lines: phase.notice.lines.map((line) => redactLogEntry(line, viewer)),
+        },
+      };
     case "equipmentChoice":
       return phase.choice.resume.kind === "showPveReward"
         ? {
@@ -392,6 +404,7 @@ export function currentActor(state: GameState): PlayerId {
     case "equipmentChoice":
       return state.phase.choice.playerId;
     case "pveReward":
+    case "mapEventNotice":
       return state.phase.notice.playerId;
     case "statGrowthChoice":
       return state.phase.choice.playerId;

@@ -13,6 +13,7 @@ import { resolveTile } from "./tiles";
 import { advanceCompletedTurn } from "./turns";
 import { settleActionResult } from "./actionResult";
 import { chooseBossChallenge } from "./mapActions";
+import { acknowledgeMapEvent } from "./mapEvents";
 import type { GameState, Player } from "./types";
 
 /**
@@ -189,6 +190,19 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       }
       if (next.activePlayerId === playerId) advanceCompletedTurn(next);
       return next;
+    /*
+      事件通知只是"把话讲完"，掉线的人没什么可决定的，直接替他关掉。关掉后可能落进
+      赌场或装备取舍，那两处各自的兜底不在这条分支里——递归回本函数交给它们处理，
+      免得把同样的收尾逻辑再抄一遍。
+    */
+    case "mapEventNotice":
+      if (next.phase.notice.playerId !== playerId) return state;
+      acknowledgeMapEvent(next);
+      if ((next.phase as GameState["phase"]).kind === "turnComplete") {
+        if (next.activePlayerId === playerId) advanceCompletedTurn(next);
+        return next;
+      }
+      return handleDisconnectTimeout(next, playerId);
     case "statGrowthChoice":
       if (next.phase.choice.playerId !== playerId) return state;
       // 掉线的人替他点生命上限：三档里只有它不改变这名玩家的战斗风格

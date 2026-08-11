@@ -1,10 +1,11 @@
 import type { EliteAffixKind, EnemyKind } from "./content/enemies";
 import type { EquipmentKind } from "./content/equipment";
+import type { MapEventKind } from "./content/events";
 
 import type { ScrollKind } from "./content/scrolls";
 import type { BlessingKind } from "./content/blessings";
 
-export type { BlessingKind, EliteAffixKind, EnemyKind, EquipmentKind, ScrollKind };
+export type { BlessingKind, EliteAffixKind, EnemyKind, EquipmentKind, MapEventKind, ScrollKind };
 
 export type PlayerId = "player1" | "player2" | "player3" | "player4";
 
@@ -331,6 +332,29 @@ export interface PveRewardNoticeState {
   statGrowth?: true;
 }
 
+/**
+ * 事件格结算必须由当事人确认。
+ *
+ * 事件的结果只写进历史日志的话，玩家几乎无从感知：金币和卷轴静默进包，日志又只留
+ * 最近 12 条。这里把事件名、描述和本次结算逐条产生的旁白一起停在屏幕上，
+ * 和 PvE 胜利的战利品弹层是同一个理由。
+ */
+export interface MapEventNoticeState {
+  playerId: PlayerId;
+  kind: MapEventKind;
+  /** 逐条旁白，顺序即发生顺序；带 secret 的按观看者裁剪，规则同 history。 */
+  lines: LogEntry[];
+  /**
+   * 确认后要交棒的阶段。
+   *
+   * 赌场和装备取舍本来就会自己接管阶段，事件通知插在它们前面：先把「发生了什么」
+   * 讲完，再让玩家去做后续选择。
+   */
+  resume?:
+    | { kind: "casino"; casino: CasinoState }
+    | { kind: "equipmentChoice"; choice: EquipmentChoiceState };
+}
+
 /** 三选一的永久成长；数值和文案在 growth.ts 的 STAT_GROWTH。 */
 export type StatGrowthOption = "attack" | "defense" | "maxHp";
 
@@ -425,6 +449,7 @@ export type GamePhase =
   | { kind: "pvpPenalty"; penalty: PvpPenaltyState }
   | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
   | { kind: "pveReward"; notice: PveRewardNoticeState }
+  | { kind: "mapEventNotice"; notice: MapEventNoticeState }
   | { kind: "statGrowthChoice"; choice: StatGrowthChoiceState }
   | { kind: "shop"; shop: ShopState }
   | { kind: "casino"; casino: CasinoState }
@@ -684,6 +709,7 @@ export type GameAction =
   | { type: "chooseBossChallenge"; challenge: boolean }
   | { type: "chooseBlessing"; replace: boolean; replaceInstanceId?: string }
   | { type: "acknowledgePveReward" }
+  | { type: "acknowledgeMapEvent" }
   | { type: "buyShopItem"; item: "scroll" | "healing" }
   | { type: "buyShopOffer"; offerId: number }
   | { type: "leaveShop" }

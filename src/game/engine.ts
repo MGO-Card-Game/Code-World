@@ -8,6 +8,7 @@ import { acknowledgeCasinoResult, leaveCasino, spinCasino } from "./casino";
 import { buyShopOffer, leaveShop } from "./shop";
 import { cancelTrade, confirmTrade, submitTradeOffer } from "./trading";
 import { acknowledgePveReward, chooseEquipment, chooseStatGrowth } from "./rewards";
+import { acknowledgeMapEvent } from "./mapEvents";
 import { chooseEncounterIntent, chooseEncounterOpponent } from "./encounters";
 import {
   chooseBlessing,
@@ -95,6 +96,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return chooseBlessing(next, action.replace, action.replaceInstanceId) ? next : state;
     case "acknowledgePveReward":
       return acknowledgePveReward(next) ? next : state;
+    case "acknowledgeMapEvent":
+      return acknowledgeMapEvent(next) ? next : state;
     case "buyShopItem":
       return buyShopItem(next, action.item) ? next : state;
     case "buyShopOffer":

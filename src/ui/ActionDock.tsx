@@ -127,6 +127,12 @@ export function actionGuidance(state: GameStateView, movementSides: number): Act
         action: "确认本次战斗奖励",
         actorIds: [phase.notice.playerId],
       };
+    case "mapEventNotice":
+      return {
+        label: "旅途见闻",
+        action: "确认本次事件结果",
+        actorIds: [phase.notice.playerId],
+      };
     case "statGrowthChoice":
       return {
         label: "永久成长",

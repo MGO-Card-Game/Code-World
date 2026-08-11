@@ -71,6 +71,18 @@ function landOnEvent(seed: number) {
   return landOnEventFrom(state);
 }
 
+/**
+ * 事件结算现在停在通知弹层上，取出它背后真正的结果阶段。
+ *
+ * 不把确认动作并进 landOnEvent：gameReducer 每次都会清空 lastEvents，
+ * 提前确认会把各用例要断言的结构化事件一起冲掉。
+ */
+function phaseAfterNotice(state: GameState) {
+  return state.phase.kind === "mapEventNotice"
+    ? gameReducer(state, { type: "acknowledgeMapEvent" }).phase
+    : state.phase;
+}
+
 /** 取 lastEvents 而不是取 GameState，这样裁剪后的视图也能直接传进来。 */
 function eventsOf<T extends GameEvent["type"]>(
   source: { lastEvents: readonly GameEvent[] },
@@ -95,7 +107,7 @@ describe("地图事件结算", () => {
 
       switch (kind) {
         case "casinoRoulette":
-          expect(state.phase).toEqual({
+          expect(phaseAfterNotice(state)).toEqual({
             kind: "casino",
             casino: { playerId: player.id, tileIndex: player.position, spins: 0 },
           });
@@ -183,7 +195,9 @@ describe("地图事件结算", () => {
             .toMatchObject({ stat: "defense", to: player.baseDefense });
           break;
       }
-      expect(state.phase.kind).toBe("turnComplete");
+      // 事件一律先停在通知上，确认后才回到回合收尾
+      expect(state.phase.kind).toBe("mapEventNotice");
+      expect(phaseAfterNotice(state).kind).toBe("turnComplete");
     }
 
     expect(seen).toEqual(expected);
@@ -357,6 +371,70 @@ describe("地图事件结算", () => {
       .not.toContain(SCROLLS.might.name);
   });
 
+  it("事件结算停在通知上，事件身份和逐条旁白都带进弹层", () => {
+    const state = landOnEvent(1);
+    const kind = identify(state);
+
+    if (state.phase.kind !== "mapEventNotice") throw new Error("事件应停在通知上");
+    const notice = state.phase.notice;
+    expect(notice.playerId).toBe(state.activePlayerId);
+    expect(notice.kind).toBe(kind);
+    // 弹层里的每一句都真的在这次结算里发生过，顺序也和发生顺序一致
+    expect(notice.lines.length).toBeGreaterThan(0);
+    const narrated = eventsOf(state, "narration").map((event) => event.text);
+    const texts = notice.lines.map((line) => line.text);
+    expect(texts).toEqual(narrated.slice(-texts.length));
+    // 只收事件自己产生的旁白，走到这一格的那句移动不算
+    expect(texts).not.toContain(narrated[0]);
+  });
+
+  it("确认之前不会轮到下一个人", () => {
+    const state = landOnEvent(1);
+    const actor = state.activePlayerId;
+
+    // 通知没关掉时，结束回合这类动作都不该被放行
+    expect(canAct(state, { type: "endTurn" }, actor)).toBe(false);
+    expect(canAct(state, { type: "acknowledgeMapEvent" }, actor)).toBe(true);
+    const other = state.turnOrder.find((id) => id !== actor)!;
+    expect(canAct(state, { type: "acknowledgeMapEvent" }, other)).toBe(false);
+
+    const acknowledged = gameReducer(state, { type: "acknowledgeMapEvent" });
+    expect(acknowledged.phase.kind).toBe("turnComplete");
+    expect(acknowledged.activePlayerId).toBe(actor);
+  });
+
+  it("弹层里点名牌名的旁白，对旁观者按暗牌裁剪", () => {
+    let checked = false;
+    for (let seed = 1; seed <= 2000 && !checked; seed += 1) {
+      const state = landOnEvent(seed);
+      if (state.phase.kind !== "mapEventNotice") continue;
+      const owner = state.phase.notice.playerId;
+      const secretLine = state.phase.notice.lines.find((line) => line.secret);
+      if (!secretLine) continue;
+
+      const other = state.turnOrder.find((id) => id !== owner)!;
+      const outsider = viewFor(state, other);
+      if (outsider.phase.kind !== "mapEventNotice") throw new Error("裁剪不该换掉阶段");
+      const outsiderTexts = outsider.phase.notice.lines.map((line) => line.text);
+      expect(outsiderTexts).toContain(secretLine.secret!.publicText);
+      expect(outsiderTexts).not.toContain(secretLine.text);
+      // 自己那份仍然是明文
+      const insider = viewFor(state, owner);
+      if (insider.phase.kind !== "mapEventNotice") throw new Error("裁剪不该换掉阶段");
+      expect(insider.phase.notice.lines.map((line) => line.text)).toContain(secretLine.text);
+      checked = true;
+    }
+    expect(checked).toBe(true);
+  });
+
+  it("掉线的人不停在通知上，事件直接结算到底", () => {
+    const state = createInitialGame(1);
+    state.unavailablePlayerIds = [state.activePlayerId];
+    const resolved = landOnEventFrom(state);
+
+    expect(resolved.phase.kind).not.toBe("mapEventNotice");
+  });
+
   it("野味只由篝火发放，不会混进随机卡池", () => {
     expect(drawableScrollKinds()).not.toContain("gameMeat");
   });
@@ -385,11 +463,14 @@ describe("地图事件结算", () => {
       const resolved = landOnEventFrom(state);
       if (!resolved.message.text.includes("嵌在石头中的武器")) continue;
 
-      expect(resolved.phase.kind).toBe("equipmentChoice");
-      if (resolved.phase.kind === "equipmentChoice") {
-        expect(resolved.phase.choice.playerId).toBe(player.id);
-        expect(equipmentCategory(resolved.phase.choice.offered.kind)).toBe("weapon");
-        expect(resolved.phase.choice.resume).toEqual({ kind: "turnComplete" });
+      // 通知先讲完事件，装备取舍挂在它的 resume 上，确认后才接手
+      expect(resolved.phase.kind).toBe("mapEventNotice");
+      const afterNotice = phaseAfterNotice(resolved);
+      expect(afterNotice.kind).toBe("equipmentChoice");
+      if (afterNotice.kind === "equipmentChoice") {
+        expect(afterNotice.choice.playerId).toBe(player.id);
+        expect(equipmentCategory(afterNotice.choice.offered.kind)).toBe("weapon");
+        expect(afterNotice.choice.resume).toEqual({ kind: "turnComplete" });
       }
       expect(resolved.players[player.id].equipment)
         .toEqual([{ instanceId: "existing-weapon", kind: "sword" }]);

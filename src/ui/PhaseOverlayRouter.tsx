@@ -8,6 +8,7 @@ import {
   EncounterChoicePanel,
   EquipmentChoicePanel,
   GameOverPanel,
+  MapEventPanel,
   PenaltyPanel,
   PveRewardPanel,
   ScrollTargetChoicePanel,
@@ -37,6 +38,11 @@ export function pendingDecision(state: GameStateView) {
       return {
         key: `reward-${state.turn}-${state.phase.notice.playerId}-${state.phase.notice.enemyName}`,
         label: "查看战斗奖励",
+      };
+    case "mapEventNotice":
+      return {
+        key: `event-${state.turn}-${state.phase.notice.playerId}-${state.phase.notice.kind}`,
+        label: "查看事件结果",
       };
     case "statGrowthChoice":
       return {
@@ -197,6 +203,16 @@ export function PhaseOverlayRouter({
       {!lingeringBattle && !decisionHidden && !playback.playing && state.phase.kind === "pveReward" && (
         <PveRewardPanel
           key="pve-reward"
+          state={state}
+          notice={state.phase.notice}
+          dispatch={dispatch}
+          viewerSeat={viewerSeat}
+          onMinimize={onMinimizeDecision}
+        />
+      )}
+      {!lingeringBattle && !decisionHidden && !playback.playing && state.phase.kind === "mapEventNotice" && (
+        <MapEventPanel
+          key="map-event"
           state={state}
           notice={state.phase.notice}
           dispatch={dispatch}

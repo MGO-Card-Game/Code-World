@@ -413,7 +413,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 
 /* 淡入淡出由 Framer 驱动，这里不再挂 CSS 动画，避免两套动画抢同一个 opacity */
 .modal-backdrop { position: fixed; z-index: 20; inset: 0; background: #080706d9; backdrop-filter: blur(7px); display: grid; place-items: center; padding: 18px; }
-.battle-modal, .penalty-modal, .encounter-choice-modal, .encounter-decision-modal, .trade-offer-modal, .trade-confirmation-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .stat-growth-modal, .shop-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; font-size: 12px; }
+.battle-modal, .penalty-modal, .encounter-choice-modal, .encounter-decision-modal, .trade-offer-modal, .trade-confirmation-modal, .blessing-choice-modal, .equipment-choice-modal, .equipment-detail-modal, .boss-gate-modal, .boss-detail-modal, .pve-reward-modal, .map-event-modal, .stat-growth-modal, .shop-modal, .victory-modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; font-size: 12px; }
 .decision-modal { position: relative; }
 .decision-minimize-button { position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #5b4c3a; background: #13110f; color: #a99b87; font-size: 10px; }
 .decision-minimize-button:hover { border-color: #b78c4e; color: #e0c18a; background: #211a13; }
@@ -428,7 +428,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   linear-gradient(155deg, #27211b 0, #171411 46%, #0f0e0c 100%); box-shadow: 0 34px 110px #000, 0 0 0 1px #000, inset 0 1px #ffffff12; }
 .battle-modal::before { content: ""; position: absolute; inset: 7px; border: 1px solid #d0a45a17; pointer-events: none; }
 .modal-kicker { color: #caa45f; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; }
-.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .encounter-decision-modal h2, .trade-offer-modal h2, .trade-confirmation-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .stat-growth-modal h2, .shop-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
+.battle-modal > h2, .penalty-modal h2, .encounter-choice-modal h2, .encounter-decision-modal h2, .trade-offer-modal h2, .trade-confirmation-modal h2, .blessing-choice-modal h2, .equipment-choice-modal h2, .boss-gate-modal h2, .boss-detail-modal h2, .pve-reward-modal h2, .map-event-modal h2, .stat-growth-modal h2, .shop-modal h2, .victory-modal h2 { font: 900 26px "Noto Serif SC", serif; margin: 7px 0; }
 .battle-header { position: relative; display: grid; justify-items: center; padding-bottom: 14px; }
 .battle-title-rule { width: min(410px, 70%); height: 9px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .battle-title-rule::before, .battle-title-rule::after { content: ""; height: 1px; flex: 1; background: linear-gradient(90deg, transparent, #b98948); }
@@ -657,6 +657,17 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .pve-reward-item.source-boss { border-color: #d08d4c; background: linear-gradient(150deg, #46260f, #1a120c); box-shadow: inset 0 1px #f7b96e2b; }
 .pve-reward-item.source-boss span { color: #e39a55; }
 .pve-reward-modal .primary-button { margin-top: 3px; }
+/* 事件通知：底色随事件类别走，玩家扫一眼就知道这次是好事还是麻烦 */
+.map-event-modal { width: min(520px, 100%); border-color: #8a6d45; background: radial-gradient(circle at 50% 0, #3a3020 0, #221c15 34%, #11100e 78%); }
+.map-event-modal > p { color: #ad9d85; font-size: 11px; }
+.map-event-modal.event-hazard { border-color: #a2603f; background: radial-gradient(circle at 50% 0, #43261b 0, #251811 34%, #11100e 78%); }
+.map-event-modal.event-hazard .reward-emblem { border-color: #d08b5f; color: #f0a47d; background: #341f14; box-shadow: 0 0 34px #c8703f38, inset 0 0 18px #c8703f1c; }
+.map-event-modal.event-recovery { border-color: #4b8462; background: radial-gradient(circle at 50% 0, #1e3a28 0, #152219 34%, #11100e 78%); }
+.map-event-modal.event-recovery .reward-emblem { border-color: #79c795; color: #9be0b0; background: #17301f; box-shadow: 0 0 34px #4fae7333, inset 0 0 18px #4fae731c; }
+.map-event-modal.event-boon { border-color: #6f5aa0; background: radial-gradient(circle at 50% 0, #2f2547 0, #1c1727 34%, #11100e 78%); }
+.map-event-modal.event-boon .reward-emblem { border-color: #b294e0; color: #d3afff; background: #271e3b; box-shadow: 0 0 34px #8a6bc433, inset 0 0 18px #8a6bc41c; }
+.map-event-lines { display: grid; gap: 7px; margin: 20px 0; padding: 13px 15px; border: 1px solid #443a2d; border-radius: 4px; background: #0f0e0ca8; text-align: left; }
+.map-event-lines p { margin: 0; color: #d6c7ae; font-size: 12px; line-height: 1.65; }
 .stat-growth-modal { width: min(600px, 100%); border-color: #b88b43; background: radial-gradient(circle at 50% 0, #43331d 0, #221b13 34%, #11100e 78%); }
 .stat-growth-modal > p { color: #ad9d85; font-size: 11px; }
 .stat-growth-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; margin-top: 20px; }

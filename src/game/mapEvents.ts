@@ -16,7 +16,7 @@ import {
 } from "./resources";
 import { addHistory, emit, nextRandom, rollDie } from "./state";
 import { grantGold, spendGold } from "./economy";
-import type { GameState, MapTile, Player } from "./types";
+import type { GamePhase, GameState, LogEntry, MapTile, Player } from "./types";
 
 /**
  * 事件格的结算。
@@ -214,7 +214,17 @@ export function applyMapEventEffect(
   }
 }
 
-/** 抽一个事件并结算。 */
+/**
+ * 读一次当前阶段。
+ *
+ * 单独抽成函数是为了绕开 TS 的控制流窄化：上面刚给 state.phase 赋过字面量，
+ * 分析就认定它一直是那个值，而中间的效果结算完全可能已经把阶段换掉了。
+ */
+function currentPhase(state: GameState): GamePhase {
+  return state.phase;
+}
+
+/** 抽一个事件并结算，结果停在需要当事人确认的通知弹层上。 */
 export function resolveRandomMapEvent(
   state: GameState,
   player: Player,
@@ -223,7 +233,42 @@ export function resolveRandomMapEvent(
   const kind = pickMapEvent(region, () => nextRandom(state));
   const definition = mapEventDefinition(kind);
   state.phase = { kind: "turnComplete" };
+  /*
+    旁白从事件流里回收，而不是从 state.history 里截。history 是倒序的、且只留最近
+    12 条，长事件自己就能把开头挤掉；lastEvents 在一次 action 内顺序追加，截取
+    区间才对得上"这个事件产生了哪几句"。
+  */
+  const from = state.lastEvents.length;
   for (const effect of definition.effects) {
     if (applyMapEventEffect(state, player, effect)) break;
   }
+  const lines: LogEntry[] = [];
+  for (const event of state.lastEvents.slice(from)) {
+    if (event.type !== "narration") continue;
+    lines.push(event.secret ? { text: event.text, secret: event.secret } : { text: event.text });
+  }
+  // 效果可能已经把阶段切去赌场或装备取舍，先讲完事件，确认后再把它交还回去
+  const taken = currentPhase(state);
+  const resume = taken.kind === "casino" || taken.kind === "equipmentChoice"
+    ? taken
+    : undefined;
+  /*
+    掉线的人不会有人去读这块通知，直接把阶段交给它原本要去的地方。留着的话，整局会
+    卡在一个没人关得掉的弹层上，而掉线兜底的每条分支都得多认一种阶段。
+  */
+  if (state.unavailablePlayerIds.includes(player.id)) {
+    state.phase = resume ?? { kind: "turnComplete" };
+    return;
+  }
+  state.phase = {
+    kind: "mapEventNotice",
+    notice: { playerId: player.id, kind, lines, resume },
+  };
+}
+
+/** 关掉事件通知，把阶段交还给事件效果原本要去的地方。 */
+export function acknowledgeMapEvent(state: GameState) {
+  if (state.phase.kind !== "mapEventNotice") return false;
+  state.phase = state.phase.notice.resume ?? { kind: "turnComplete" };
+  return true;
 }

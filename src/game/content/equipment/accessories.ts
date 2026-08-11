@@ -9,6 +9,14 @@ import { defineEquipment } from "./definition";
 const TALISMAN_ATTACK = 1;
 const TALISMAN_DEFENSE = 2;
 
+/** 战鼓耳坠暗格：下一次应该强化哪一种骰。 */
+const WAR_DRUM_ATTACK = 1;
+const WAR_DRUM_DEFENSE = 2;
+
+/** 逆刻沙漏用位标记本场已经强化过的两种骰。 */
+const HOURGLASS_ATTACK_SPENT = 1;
+const HOURGLASS_DEFENSE_SPENT = 2;
+
 /** 饰品：骰子控制、探索与条件效果。槽位有两个，是唯一能叠的分类。 */
 export const ACCESSORIES = defineEquipment("accessory", {
   fateCoin: {
@@ -121,6 +129,59 @@ export const ACCESSORIES = defineEquipment("accessory", {
         if (ownHp * 2 >= ownMaxHp) return;
         modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + 1;
         addBattleLog("血誓指环回应伤势，本次骰面上限 +1。");
+      },
+    },
+  },
+
+  warDrumEarring: {
+    name: "战鼓耳坠",
+    description: "攻击与防御骰上限各 +1；任一骰掷出 1 时，下一次相反类型的骰子总值 +3",
+    rarity: "SR",
+    modifiers: [
+      { type: "dieSides", die: "attack", value: 1 },
+      { type: "dieSides", die: "defense", value: 1 },
+    ],
+    effects: {
+      /*
+        攻防轮替正好形成鼓点：攻击低点给下一次防御蓄力，防御低点给下一次攻击蓄力。
+        多骰时任意一颗出现 1 都只蓄一次；beforeRoll 先消费、afterRoll 再决定是否续上。
+      */
+      beforeRoll({ dieKind, item, modifiers, addBattleLog }) {
+        const expected = dieKind === "attack" ? WAR_DRUM_ATTACK : WAR_DRUM_DEFENSE;
+        if (item.battleMemo !== expected) return;
+        delete item.battleMemo;
+        modifiers.flatBonus += 3;
+        addBattleLog(`战鼓耳坠擂响回拍，本次${dieKind === "attack" ? "攻击" : "防御"} +3。`);
+      },
+      afterRoll({ dieKind, roll, item, addBattleLog }) {
+        if (!roll.dice.includes(1)) return;
+        item.battleMemo = dieKind === "attack" ? WAR_DRUM_DEFENSE : WAR_DRUM_ATTACK;
+        addBattleLog(
+          `战鼓耳坠收下低沉鼓点，下一次${dieKind === "attack" ? "防御" : "攻击"} +3。`,
+        );
+      },
+    },
+  },
+
+  reverseHourglass: {
+    name: "逆刻沙漏",
+    description: "每场战斗第一次攻击和第一次防御各额外投 1 个骰子",
+    rarity: "PR",
+    modifiers: [],
+    effects: {
+      /*
+        一个数字按位记录攻、防是否已经触发，避免两种次数互相挤掉。额外攻击会重新
+        经过钩子，但对应位已经写入，因此同一回合也不会重复获得骰子。
+      */
+      beforeRoll({ dieKind, item, modifiers, addBattleLog }) {
+        const spentFlag = dieKind === "attack"
+          ? HOURGLASS_ATTACK_SPENT
+          : HOURGLASS_DEFENSE_SPENT;
+        const spent = item.battleMemo ?? 0;
+        if ((spent & spentFlag) !== 0) return;
+        item.battleMemo = spent | spentFlag;
+        modifiers.extraDice += 1;
+        addBattleLog(`逆刻沙漏倒转片刻，本场第一次${dieKind === "attack" ? "攻击" : "防御"}额外投 1 个骰子。`);
       },
     },
   },

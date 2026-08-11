@@ -195,6 +195,51 @@ export const WEAPONS = defineEquipment("weapon", {
     },
   },
 
+  momentumHammer: {
+    name: "蓄势战锤",
+    description: "攻击骰上限 +1；攻击骰首颗掷出 1 或 2 时，下一次攻击 +2",
+    rarity: "R",
+    modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
+    effects: {
+      /*
+        低点补偿记在暗格里，并在下一次攻击的 beforeRoll 消耗。afterRoll 随后仍可
+        再次蓄势，所以连续掷出低点时不会断档；但每次只获得固定 +2，不会累加。
+
+        判首颗而不是总和，避免额外骰子把总和天然抬高后让这张牌几乎再也触发。
+      */
+      beforeRoll({ dieKind, item, modifiers, addBattleLog }) {
+        if (dieKind !== "attack" || item.battleMemo === undefined) return;
+        delete item.battleMemo;
+        modifiers.flatBonus += 2;
+        addBattleLog("蓄势战锤释放积蓄的惯性，本次攻击 +2。");
+      },
+      afterRoll({ dieKind, roll, item, addBattleLog }) {
+        if (dieKind !== "attack" || roll.dice[0] > 2) return;
+        item.battleMemo = 1;
+        addBattleLog(`蓄势战锤借低点蓄力（${roll.dice[0]}），下一次攻击 +2。`);
+      },
+    },
+  },
+
+  dawnHalberd: {
+    name: "晨曦长戟",
+    description: "攻击骰上限 +2；本场战斗第一次攻击时，每颗攻击骰最低点数为 4",
+    rarity: "SR",
+    modifiers: [{ type: "dieSides", die: "attack", value: 2 }],
+    effects: {
+      /*
+        暗格在自己的第一次攻击才写入；若角色后手，第一轮的防御不会误消耗效果。
+        minimumRoll 会作用于本次投出的每颗骰子，和满载骰池等额外骰效果自然兼容。
+      */
+      beforeRoll({ dieKind, item, modifiers, addBattleLog }) {
+        if (dieKind !== "attack" || item.battleMemo !== undefined) return;
+        item.battleMemo = 1;
+        modifiers.minimumRoll = Math.max(modifiers.minimumRoll, 4);
+        addBattleLog("晨曦长戟迎光刺出，本场第一次攻击的骰子最低为 4。");
+      },
+    },
+  },
+
   starbreakerSword: {
     name: "断星剑",
     description: "攻击骰上限 +2；攻击骰掷出最高面时，下一次攻击额外投 1 个骰子",

@@ -217,6 +217,48 @@ export const ARMOR = defineEquipment("armor", {
     },
   },
 
+  oathkeeperCloak: {
+    name: "缄誓披风",
+    description: "防御骰上限 +1；对手的基础攻击高于你的基础防御时，本场战斗防御 +2",
+    rarity: "R",
+    modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
+    effects: {
+      /*
+        只比较角色的 baseAttack/baseDefense 或怪物定义上的原始攻防；装备、赐福、卷轴、
+        骰子以及精英词缀都不参与。基础属性在战斗中不会变化，所以逐次判断等价于整场生效。
+      */
+      beforeRoll({
+        dieKind,
+        ownBaseDefense,
+        opponentBaseAttack,
+        modifiers,
+        addBattleLog,
+      }) {
+        if (dieKind !== "defense" || opponentBaseAttack <= ownBaseDefense) return;
+        modifiers.flatBonus += 2;
+        addBattleLog("缄誓披风在强敌面前收紧，本次防御 +2。");
+      },
+    },
+  },
+
+  duskBellPlate: {
+    name: "暮钟板甲",
+    description: "防御骰上限 +1；战斗第 4 回合起，每次受到的伤害减少 2",
+    rarity: "SR",
+    modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
+    effects: {
+      /*
+        用 beforeDamage 而不是防御骰钩子，保证攻防差与卷轴直伤都走同一条减伤规则。
+        前四回合只有 +2 骰面，拖入长局后才得到稳定减伤，和残月胸甲的首击爆发分工。
+      */
+      beforeDamage({ battle, incoming, reduceDamage, addBattleLog }) {
+        if (battle.round < 4 || incoming <= 0) return;
+        reduceDamage(2);
+        addBattleLog("暮钟板甲响起沉声，伤害减少 2。");
+      },
+    },
+  },
+
   waningMoonCuirass: {
     name: "残月胸甲",
     description: "防御骰上限 +2；本场战斗第一次受到伤害时，伤害减半（向下取整）",

@@ -94,6 +94,40 @@ export const SHOES = defineEquipment("shoes", {
     },
   },
 
+  lynxBoots: {
+    name: "山猫软靴",
+    description: "地图移动骰上限 +1；本场战斗第一次攻击时，攻击骰最低点数为 2",
+    rarity: "N",
+    modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
+    effects: {
+      // N 档只削掉第一次攻击最差的那一面；后手时的防御不会提前消耗暗格。
+      beforeRoll({ dieKind, item, modifiers, addBattleLog }) {
+        if (dieKind !== "attack" || item.battleMemo !== undefined) return;
+        item.battleMemo = 1;
+        modifiers.minimumRoll = Math.max(modifiers.minimumRoll, 2);
+        addBattleLog("山猫软靴让起手步伐更稳，本场第一次攻击的骰子最低为 2。");
+      },
+    },
+  },
+
+  headwindBoots: {
+    name: "逆风长靴",
+    description: "地图移动骰上限 +2；战斗前 2 回合，攻击骰和防御骰上限 -1",
+    rarity: "R",
+    modifiers: [{ type: "dieSides", die: "movement", value: 2 }],
+    effects: {
+      /*
+        这是移动专精的取舍牌：地图上稳定多两面，代价集中在战斗开局。直接改
+        sidesOverride 能让代价同样作用于 D20 等骰面替换，不会被卷轴绕开。
+      */
+      beforeRoll({ battle, modifiers, addBattleLog }) {
+        if (battle.round > 2) return;
+        modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) - 1;
+        addBattleLog("逆风长靴尚未卸去风阻，本次骰面上限 -1。");
+      },
+    },
+  },
+
   houndstepBoots: {
     name: "猎踪靴",
     description: "移动骰上限 +2，但防御骰上限 -1",

@@ -15,6 +15,7 @@ import {
   forEachEquipmentEffects,
   resetChoices,
   setChoice,
+  sideBaseStats,
   sideHp,
   sideMaxHp,
   sideScrollsUsed,
@@ -273,11 +274,17 @@ export function battleEffectContext(
   side: CombatSide,
   opponentSide: CombatSide,
 ): BattleEffectContext {
+  const ownBase = sideBaseStats(state, battle, side);
+  const opponentBase = sideBaseStats(state, battle, opponentSide);
   return {
     state,
     battle,
     side,
     opponentSide,
+    ownBaseAttack: ownBase.attack,
+    ownBaseDefense: ownBase.defense,
+    opponentBaseAttack: opponentBase.attack,
+    opponentBaseDefense: opponentBase.defense,
     ownHp: sideHp(battle, side),
     ownMaxHp: sideMaxHp(state, battle, side),
     opponentHp: sideHp(battle, opponentSide),

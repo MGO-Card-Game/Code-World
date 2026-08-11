@@ -98,6 +98,11 @@ export interface BattleEffectContext {
   /** 效果持有者所在的一侧 */
   side: CombatSide;
   opponentSide: CombatSide;
+  /** 不计装备、赐福与精英词缀的基础攻击/防御，用于只比较面板底值的效果。 */
+  ownBaseAttack: number;
+  ownBaseDefense: number;
+  opponentBaseAttack: number;
+  opponentBaseDefense: number;
   ownHp: number;
   ownMaxHp: number;
   opponentHp: number;

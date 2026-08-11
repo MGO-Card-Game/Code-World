@@ -140,6 +140,17 @@ export function battlePlayerForSide(battle: BattleState, side: CombatSide) {
   return side === "a" ? battle.aPlayerId : battle.bPlayerId;
 }
 
+/** 不计装备、赐福与精英词缀的一侧基础攻防。 */
+export function sideBaseStats(state: GameState, battle: BattleState, side: CombatSide) {
+  const playerId = battlePlayerForSide(battle, side);
+  if (playerId) {
+    const player = state.players[playerId];
+    return { attack: player.baseAttack, defense: player.baseDefense };
+  }
+  const enemy = enemyDefinition(battle.enemyId!);
+  return { attack: enemy.attack, defense: enemy.defense };
+}
+
 export function sideStats(state: GameState, battle: BattleState, side: CombatSide) {
   const playerId = battlePlayerForSide(battle, side);
   if (playerId) {

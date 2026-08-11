@@ -5,6 +5,7 @@ import {
   applyPvpPenaltyReplacement,
   bonusPveVictoryScrolls,
   detachBlessing,
+  hasFreeBlessingSlot,
   receiveTransferredBlessing,
 } from "./blessings";
 import { findPreviousRestTile, findRestTileAtOrBefore } from "./map";
@@ -183,7 +184,8 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
   const loser = state.players[loserId];
   const winner = state.players[winnerId];
   const tileIndex = state.players[state.activePlayerId].position;
-  const unyieldingWillTriggered = applyPvpPenaltyReplacement(state, loser);
+  const penaltyReplacementBlessing = applyPvpPenaltyReplacement(state, loser);
+  const unyieldingWillTriggered = penaltyReplacementBlessing !== undefined;
   const noPayablePenalty =
     !unyieldingWillTriggered &&
     pvpGoldTransferAmount(loser) === 0 &&
@@ -196,9 +198,14 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
     : noPayablePenalty
       ? "noPayable" as const
       : undefined;
-  const offeredBlessing = detachBlessing(state, loser);
+  // 不屈意志触发时优先转移它本身，避免靠其余赐福反复代付而永久保留。
+  const offeredBlessing = detachBlessing(
+    state,
+    loser,
+    penaltyReplacementBlessing?.instanceId,
+  );
 
-  if (offeredBlessing && winner.blessings.length > 0) {
+  if (offeredBlessing && !hasFreeBlessingSlot(winner)) {
     state.phase = {
       kind: "blessingChoice",
       choice: {
@@ -213,7 +220,7 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
     };
     addHistory(
       state,
-      `${winner.name}赢得相遇战，需要决定是否用${loser.name}的赐福覆盖自己的赐福${
+      `${winner.name}赢得相遇战，但赐福槽位已满，需要决定是否用${loser.name}的赐福替换一个已有赐福${
         unyieldingWillTriggered
           ? `；${loser.name}的不屈意志同时生效，仅损失 1 点生命并免除正常代价`
           : noPayablePenalty

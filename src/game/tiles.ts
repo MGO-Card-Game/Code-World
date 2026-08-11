@@ -2,6 +2,7 @@ import { startBattle } from "./battle";
 import { pickTileEnemyEncounter } from "./content/enemies";
 import {
   blessingName,
+  hasFreeBlessingSlot,
   bonusTreasureEquipment,
   drawRandomBlessing,
   grantRandomBlessing,
@@ -118,7 +119,7 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
       return;
     }
     case "blessing": {
-      if (player.blessings.length > 0) {
+      if (!hasFreeBlessingSlot(player)) {
         const offered = drawRandomBlessing(
           state,
           player.blessings.map((blessing) => blessing.kind),
@@ -140,7 +141,7 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
         };
         addHistory(
           state,
-          `${player.name}在「${tile.label}」发现${blessingName(offered)}，需要决定是否更换当前赐福。`,
+          `${player.name}在「${tile.label}」发现${blessingName(offered)}，但赐福槽位已满，需要决定是否更换。`,
         );
         return;
       }

@@ -89,7 +89,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "chooseBossChallenge":
       return chooseBossChallenge(next, action.challenge) ? next : state;
     case "chooseBlessing":
-      return chooseBlessing(next, action.replace) ? next : state;
+      return chooseBlessing(next, action.replace, action.replaceInstanceId) ? next : state;
     case "acknowledgePveReward":
       return acknowledgePveReward(next) ? next : state;
     case "buyShopItem":

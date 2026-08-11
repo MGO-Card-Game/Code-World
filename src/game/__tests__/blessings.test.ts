@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { finishPvp } from "../battle";
 import {
   applyBlessingCombatRoll,
+  blessingCapacity,
   blessingMovementRollBonus,
   grantRandomBlessing,
 } from "../blessings";
@@ -214,6 +215,39 @@ describe("赐福持有与 PvP 覆盖", () => {
     expect(player.blessings).toEqual([first]);
   });
 
+  it("每击败一个阶段首领，赐福持有上限增加 1", () => {
+    const state = createInitialGame(44);
+    const player = state.players.player1;
+
+    expect(blessingCapacity(player)).toBe(1);
+    player.stageProgress.foothill.bossDefeated = true;
+    expect(blessingCapacity(player)).toBe(2);
+
+    const first = grantRandomBlessing(state, player);
+    const second = grantRandomBlessing(state, player);
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    expect(second!.kind).not.toBe(first!.kind);
+    expect(grantRandomBlessing(state, player)).toBeUndefined();
+
+    player.stageProgress.mountainside.bossDefeated = true;
+    expect(blessingCapacity(player)).toBe(3);
+    expect(grantRandomBlessing(state, player)).toBeDefined();
+    expect(player.blessings).toHaveLength(3);
+  });
+
+  it("同时持有的多个赐福都会生效", () => {
+    const state = createInitialGame(45);
+    const player = state.players.player1;
+    player.blessings = [
+      { instanceId: "strength", kind: "giantStrength" },
+      { instanceId: "wind", kind: "windrunner" },
+    ];
+
+    expect(getAttack(player)).toBe(7);
+    expect(blessingMovementRollBonus(player)).toBe(1);
+  });
+
   it("停在赐福格时自动抽取，不进入额外选择阶段", () => {
     const state = createInitialGame(123);
     const playerId = state.activePlayerId;
@@ -223,6 +257,48 @@ describe("赐福持有与 PvP 覆盖", () => {
     expect(resolved.phase.kind).toBe("turnComplete");
     expect(resolved.players[playerId].blessings).toHaveLength(1);
     expect(resolved.message.text).toContain("获得永久赐福");
+  });
+
+  it("击败首领解锁空槽后，再踩赐福格会直接获得第二个赐福", () => {
+    const state = createInitialGame(126);
+    const playerId = state.activePlayerId;
+    const player = state.players[playerId];
+    giveBlessing(player, "giantStrength", "first-blessing");
+    player.stageProgress.foothill.bossDefeated = true;
+
+    const resolved = forceLandingOn(state, "blessing");
+
+    expect(resolved.phase.kind).toBe("turnComplete");
+    expect(resolved.players[playerId].blessings).toHaveLength(2);
+    expect(resolved.players[playerId].blessings.map((blessing) => blessing.kind))
+      .toContain("giantStrength");
+  });
+
+  it("多个赐福满槽时可以指定要替换的赐福", () => {
+    const state = createInitialGame(127);
+    const playerId = state.activePlayerId;
+    const player = state.players[playerId];
+    player.stageProgress.foothill.bossDefeated = true;
+    player.blessings = [
+      { instanceId: "keep-strength", kind: "giantStrength" },
+      { instanceId: "replace-scale", kind: "dragonScale" },
+    ];
+    const offeredState = forceLandingOn(state, "blessing");
+    if (offeredState.phase.kind !== "blessingChoice") throw new Error("应进入赐福替换选择");
+    const offered = offeredState.phase.choice.offered;
+
+    const resolved = gameReducer(offeredState, {
+      type: "chooseBlessing",
+      replace: true,
+      replaceInstanceId: "replace-scale",
+    });
+
+    expect(resolved.players[playerId].blessings).toEqual([
+      { instanceId: "keep-strength", kind: "giantStrength" },
+      offered,
+    ]);
+    expect(getAttack(resolved.players[playerId])).toBe(7);
+    expect(getDefense(resolved.players[playerId])).toBe(2);
   });
 
   it("已有赐福时再次踩格，可以保留当前赐福", () => {
@@ -281,6 +357,29 @@ describe("赐福持有与 PvP 覆盖", () => {
     expect(getAttack(loser)).toBe(5);
     expect(getAttack(winner)).toBe(7);
     expect(state.phase.kind).toBe("pvpPenalty");
+  });
+
+  it("赢家有额外空槽时，败方赐福会自动加入而不覆盖已有赐福", () => {
+    const state = createInitialGame(76);
+    const loser = state.players.player1;
+    const winner = state.players.player2;
+    const offered = giveBlessing(loser, "giantStrength", "loser-strength");
+    giveBlessing(winner, "dragonScale", "winner-scale");
+    winner.stageProgress.foothill.bossDefeated = true;
+
+    finishPvp(state, makeBattle({
+      kind: "pvp",
+      aPlayerId: loser.id,
+      bPlayerId: winner.id,
+    }), "b");
+
+    expect(state.phase.kind).toBe("pvpPenalty");
+    expect(winner.blessings).toEqual([
+      { instanceId: "winner-scale", kind: "dragonScale" },
+      offered,
+    ]);
+    expect(getAttack(winner)).toBe(7);
+    expect(getDefense(winner)).toBe(4);
   });
 
   it("赢家已有赐福时先选择；保留后败方赐福消散", () => {

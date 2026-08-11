@@ -8,8 +8,20 @@ import type { GameState, OwnedBlessing, Player } from "./types";
 import type { RollModifiers } from "./effects/battleHooks";
 
 function effects(player: Player) {
-  const blessing = player.blessings[0];
-  return blessing ? blessingDefinition(blessing.kind).effects ?? [] : [];
+  return player.blessings.flatMap(
+    (blessing) => blessingDefinition(blessing.kind).effects ?? [],
+  );
+}
+
+/** 初始可持有 1 个赐福；每击败一个阶段首领再增加 1 个槽位。 */
+export function blessingCapacity(player: Pick<Player, "stageProgress">) {
+  return 1 + Object.values(player.stageProgress).filter(
+    (progress) => progress.bossDefeated,
+  ).length;
+}
+
+export function hasFreeBlessingSlot(player: Pick<Player, "blessings" | "stageProgress">) {
+  return player.blessings.length < blessingCapacity(player);
 }
 
 export function applyBlessingCombatRoll(player: Player, modifiers: RollModifiers) {
@@ -41,15 +53,21 @@ export function bonusTreasureEquipment(player: Player) {
   );
 }
 
-/** 返回是否以不屈意志替代了本次 PvP 惩罚，并在真实生命账本上支付代价。 */
+/** 用不屈意志替代本次 PvP 惩罚，并返回随后应优先转移的赐福实例。 */
 export function applyPvpPenaltyReplacement(state: GameState, player: Player) {
+  const replacementBlessing = player.blessings.find((blessing) =>
+    blessingDefinition(blessing.kind).effects?.some(
+      (effect) => effect.type === "replacePvpPenaltyWithHpLoss",
+    )
+  );
+  if (!replacementBlessing) return undefined;
   const amount = effects(player).reduce(
     (sum, effect) => sum + (
       effect.type === "replacePvpPenaltyWithHpLoss" ? effect.amount : 0
     ),
     0,
   );
-  if (amount <= 0) return false;
+  if (amount <= 0) return undefined;
   const hpBefore = player.hp;
   player.hp = Math.max(1, player.hp - amount);
   if (player.hp !== hpBefore) {
@@ -62,7 +80,7 @@ export function applyPvpPenaltyReplacement(state: GameState, player: Player) {
       reason: "blessing",
     });
   }
-  return true;
+  return replacementBlessing;
 }
 
 function maxHpBonus(blessing: OwnedBlessing) {
@@ -112,7 +130,7 @@ function removeBlessing(state: GameState, player: Player, blessing: OwnedBlessin
   }
 }
 
-/** 只抽取并创建赐福实例，不立即应用；用于已有赐福时先展示替换选择。 */
+/** 只抽取并创建赐福实例，不立即应用；用于授予或满槽时展示替换选择。 */
 export function drawRandomBlessing(
   state: GameState,
   excluded: readonly BlessingKind[] = [],
@@ -131,7 +149,7 @@ export function acceptDrawnBlessing(
   player: Player,
   blessing: OwnedBlessing,
 ) {
-  if (player.blessings.length > 0) return false;
+  if (!hasFreeBlessingSlot(player)) return false;
   applyBlessing(state, player, blessing);
   emit(state, {
     type: "blessingGranted",
@@ -147,31 +165,38 @@ export function grantRandomBlessing(
   state: GameState,
   player: Player,
 ): OwnedBlessing | undefined {
-  if (player.blessings.length > 0) return undefined;
-  const blessing = drawRandomBlessing(state);
+  if (!hasFreeBlessingSlot(player)) return undefined;
+  const blessing = drawRandomBlessing(
+    state,
+    player.blessings.map((owned) => owned.kind),
+  );
   if (!blessing || !acceptDrawnBlessing(state, player, blessing)) return undefined;
   return blessing;
 }
 
-/** 从玩家身上取下唯一赐福，并立即撤销其属性。 */
+/** 从玩家身上取下指定赐福；未指定时取下最早获得的一个。 */
 export function detachBlessing(
   state: GameState,
   player: Player,
+  instanceId?: string,
 ): OwnedBlessing | undefined {
-  const blessing = player.blessings.shift();
-  if (!blessing) return undefined;
+  const index = instanceId === undefined
+    ? 0
+    : player.blessings.findIndex((blessing) => blessing.instanceId === instanceId);
+  if (index < 0 || index >= player.blessings.length) return undefined;
+  const [blessing] = player.blessings.splice(index, 1);
   removeBlessing(state, player, blessing);
   return blessing;
 }
 
-/** 把已经取下的赐福交给没有赐福的赢家。 */
+/** 把已经取下的赐福交给仍有空余槽位的赢家。 */
 export function receiveTransferredBlessing(
   state: GameState,
   winner: Player,
   loserId: Player["id"],
   blessing: OwnedBlessing,
 ) {
-  if (winner.blessings.length > 0) return false;
+  if (!hasFreeBlessingSlot(winner)) return false;
   applyBlessing(state, winner, blessing);
   emit(state, {
     type: "blessingTransferred",

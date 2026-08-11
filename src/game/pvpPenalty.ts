@@ -177,17 +177,26 @@ export function settleUnavailablePvpPenalty(state: GameState) {
   return true;
 }
 
-/** 赢家在已有赐福时，选择保留原赐福或用败方赐福覆盖。 */
-export function chooseBlessing(state: GameState, replace: boolean) {
+/** 槽位已满时，选择放弃新赐福或指定一个已有赐福进行替换。 */
+export function chooseBlessing(
+  state: GameState,
+  replace: boolean,
+  replaceInstanceId?: string,
+) {
   if (state.phase.kind !== "blessingChoice") return false;
   const choice = state.phase.choice;
   const winner = state.players[choice.winnerId];
-  const existing = winner.blessings[0];
+  const existing = replace
+    ? replaceInstanceId === undefined
+      ? winner.blessings[0]
+      : winner.blessings.find((blessing) => blessing.instanceId === replaceInstanceId)
+    : undefined;
+  if (replace && !existing) return false;
 
   if (choice.source === "tile") {
     if (replace) {
       const existingName = existing ? blessingName(existing) : undefined;
-      if (existing) detachBlessing(state, winner);
+      if (existing) detachBlessing(state, winner, existing.instanceId);
       if (!acceptDrawnBlessing(state, winner, choice.offered)) return false;
       addHistory(
         state,
@@ -217,7 +226,7 @@ export function chooseBlessing(state: GameState, replace: boolean) {
 
   if (replace) {
     const existingName = existing ? blessingName(existing) : undefined;
-    if (existing) detachBlessing(state, winner);
+    if (existing) detachBlessing(state, winner, existing.instanceId);
     if (!receiveTransferredBlessing(state, winner, loserId, offered)) return false;
     addHistory(
       state,
@@ -228,7 +237,7 @@ export function chooseBlessing(state: GameState, replace: boolean) {
   } else {
     addHistory(
       state,
-      `${winner.name}保留自己的赐福，${loser.name}失去的${blessingName(offered)}随之消散。`,
+      `${winner.name}保留已有赐福，${loser.name}失去的${blessingName(offered)}随之消散。`,
     );
   }
 

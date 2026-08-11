@@ -3,6 +3,7 @@ import { useState } from "react";
 import { handCardLayout, handSpacing } from "../anim/handLayout";
 import { EQUIPMENT, type EquipmentKind } from "../game/content/equipment";
 import { blessingDefinition } from "../game/content/blessings";
+import { blessingCapacity } from "../game/blessings";
 import {
   SCROLL_CATEGORY_NAMES,
   SCROLL_CATEGORY_SIGILS,
@@ -363,7 +364,9 @@ export function ResourceModal({
           ))}
         </div>
 
-        <h3 className="resource-heading">赐福 <span>{player.blessings.length} 个</span></h3>
+        <h3 className="resource-heading">
+          赐福 <span>{player.blessings.length}/{blessingCapacity(player)} 个</span>
+        </h3>
         <div className="chips resource-chips">
           {player.blessings.length === 0 && <em>尚未获得</em>}
           {player.blessings.map((blessing) => {

@@ -80,7 +80,7 @@ export interface OwnedEquipment {
   battleMemo?: number;
 }
 
-/** 赐福在持有期间永久生效；每名玩家的数组长度由引擎限制为至多一个。 */
+/** 赐福在持有期间永久生效；持有上限为 1 + 已击败阶段首领数。 */
 export interface OwnedBlessing {
   instanceId: string;
   kind: BlessingKind;
@@ -281,7 +281,7 @@ export interface BossGateChoiceState {
   bossEnemyId: EnemyKind;
 }
 
-/** PvP 赢家已有赐福时，决定是否接纳败方失去的赐福。 */
+/** PvP 赢家赐福槽位已满时，决定是否接纳败方失去的赐福。 */
 export interface PvpBlessingChoiceState {
   source: "pvp";
   winnerId: PlayerId;
@@ -292,7 +292,7 @@ export interface PvpBlessingChoiceState {
   penaltyWaiveReason?: "unyieldingWill" | "noPayable";
 }
 
-/** 已有赐福的玩家再次踩中赐福格时，决定是否换成新抽到的赐福。 */
+/** 赐福槽位已满的玩家再次踩中赐福格时，决定是否换成新抽到的赐福。 */
 export interface TileBlessingChoiceState {
   source: "tile";
   winnerId: PlayerId;
@@ -678,7 +678,7 @@ export type GameAction =
   | { type: "confirmTrade"; side: CombatSide; accept: boolean }
   | { type: "buyBossKey" }
   | { type: "chooseBossChallenge"; challenge: boolean }
-  | { type: "chooseBlessing"; replace: boolean }
+  | { type: "chooseBlessing"; replace: boolean; replaceInstanceId?: string }
   | { type: "acknowledgePveReward" }
   | { type: "buyShopItem"; item: "scroll" | "healing" }
   | { type: "buyShopOffer"; offerId: number }

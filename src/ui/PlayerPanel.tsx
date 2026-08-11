@@ -8,6 +8,7 @@ import {
 } from "../anim/visualState";
 import { EQUIPMENT, type EquipmentKind } from "../game/content/equipment";
 import { blessingDefinition } from "../game/content/blessings";
+import { blessingCapacity } from "../game/blessings";
 import { getAttack, getDefense } from "../game/selectors";
 import type { PlayerView } from "../game/types";
 import { HealthBar, revealedScrolls, SPRING, type Playback } from "./shared";
@@ -194,7 +195,7 @@ export function PlayerPanel({
         </div>
       </div>
       <div className="inventory-block">
-        <h3>赐福 <span>{player.blessings.length}</span></h3>
+        <h3>赐福 <span>{player.blessings.length}/{blessingCapacity(player)}</span></h3>
         <div className="chips">
           {blessings.length === 0 && <em>尚未获得</em>}
           {blessings.map((blessing) => {

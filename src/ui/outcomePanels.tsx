@@ -6,6 +6,7 @@ import {
 } from "../game/content/equipment";
 import { SCROLLS } from "../game/content/scrolls";
 import { blessingDefinition } from "../game/content/blessings";
+import { blessingCapacity } from "../game/blessings";
 import { enemyDefinition } from "../game/content/enemies";
 import { scrollDefinition } from "../game/content/scrolls";
 import { requirementValueForRegion } from "../game/stages";
@@ -261,9 +262,8 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
 }) {
   const winner = state.players[choice.winnerId];
   const loser = choice.source === "pvp" ? state.players[choice.loserId] : undefined;
-  const current = winner.blessings[0];
-  const currentDefinition = current ? blessingDefinition(current.kind) : undefined;
   const offeredDefinition = blessingDefinition(choice.offered.kind);
+  const capacity = blessingCapacity(winner);
   const canChoose = viewerSeat === choice.winnerId;
 
   return (
@@ -282,13 +282,18 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
             ? `${winner.name}夺得了${loser!.name}的赐福`
             : `${winner.name}在${choice.tileLabel}发现新的赐福`}
         </h2>
-        <p>每名玩家只能持有一个赐福。选择更换后，原赐福会永久消失。</p>
+        <p>当前赐福槽位 {winner.blessings.length}/{capacity}。接纳新赐福时，被替换的赐福会永久消失。</p>
         <div className="blessing-comparison">
-          <div>
-            <span>当前赐福</span>
-            <strong>{currentDefinition?.name ?? "无"}</strong>
-            <small>{currentDefinition?.description ?? "当前没有赐福"}</small>
-          </div>
+          {winner.blessings.map((current) => {
+            const definition = blessingDefinition(current.kind);
+            return (
+              <div key={current.instanceId}>
+                <span>已有赐福</span>
+                <strong>{definition.name}</strong>
+                <small>{definition.description}</small>
+              </div>
+            );
+          })}
           <div className="offered">
             <span>{choice.source === "pvp" ? "败方赐福" : "新赐福"}</span>
             <strong>{offeredDefinition.name}</strong>
@@ -298,13 +303,27 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
         {canChoose ? (
           <div className="blessing-choice-options">
             <button disabled={playing} onClick={() => dispatch({ type: "chooseBlessing", replace: false })}>
-              <span>保留当前赐福</span>
-              <strong>{currentDefinition?.name ?? "不覆盖"}</strong>
+              <span>放弃新赐福</span>
+              <strong>保留全部已有赐福</strong>
             </button>
-            <button className="replace-blessing" disabled={playing} onClick={() => dispatch({ type: "chooseBlessing", replace: true })}>
-              <span>更换当前赐福</span>
-              <strong>接纳{offeredDefinition.name}</strong>
-            </button>
+            {winner.blessings.map((current) => {
+              const definition = blessingDefinition(current.kind);
+              return (
+                <button
+                  className="replace-blessing"
+                  disabled={playing}
+                  key={current.instanceId}
+                  onClick={() => dispatch({
+                    type: "chooseBlessing",
+                    replace: true,
+                    replaceInstanceId: current.instanceId,
+                  })}
+                >
+                  <span>替换{definition.name}</span>
+                  <strong>接纳{offeredDefinition.name}</strong>
+                </button>
+              );
+            })}
           </div>
         ) : (
           <p className="waiting-notice">等待{winner.name}选择赐福……</p>

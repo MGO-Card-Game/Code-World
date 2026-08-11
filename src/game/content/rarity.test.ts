@@ -34,7 +34,7 @@ describe("稀有度", () => {
 
   it("奖励品质分为 basic / standard / premium 三档，可供不同来源复用", () => {
     expect(REWARD_RARITY_TIERS).toEqual({
-      basic: { N: 80, R: 15, SR: 5, PR: 0 },
+      basic: { N: 80, R: 15, SR: 4, PR: 1 },
       standard: { N: 50, R: 30, SR: 15, PR: 5 },
       premium: { N: 40, R: 30, SR: 20, PR: 10 },
     });

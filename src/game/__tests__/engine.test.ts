@@ -73,10 +73,10 @@ describe("game engine", () => {
     }
   });
 
-  it("普通怪基础装备走 basic 档 80/15/5/0，不会掉落 PR", () => {
+  it("普通怪基础装备走 basic 档 80/15/4/1，以 N 为主、PR 只是爆冷", () => {
     expect(REWARD_RARITY_TIERS.basic)
-      .toEqual({ N: 80, R: 15, SR: 5, PR: 0 });
-    const observed = new Set<string>();
+      .toEqual({ N: 80, R: 15, SR: 4, PR: 1 });
+    const counts: Record<string, number> = {};
 
     for (let seed = 1; seed <= 400; seed += 1) {
       let state = createInitialGame(seed);
@@ -88,11 +88,18 @@ describe("game engine", () => {
 
       state = resolveRound(state);
       const equipment = state.players.player1.equipment[0];
-      if (equipment) observed.add(EQUIPMENT[equipment.kind].rarity);
+      if (equipment) {
+        const rarity = EQUIPMENT[equipment.kind].rarity;
+        counts[rarity] = (counts[rarity] ?? 0) + 1;
+      }
     }
 
-    expect(observed).toEqual(new Set(["N", "R", "SR"]));
-    expect(observed.has("PR")).toBe(false);
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+    expect(total).toBeGreaterThan(50);
+    // N 的权重是 80%，样本足够大时必须压倒性占多数
+    expect(counts.N / total).toBeGreaterThan(0.65);
+    // PR 权重只有 1%，可以出但不该成片出现——这是「爆冷」和「常规产出」的分界
+    expect((counts.PR ?? 0) / total).toBeLessThan(0.05);
   });
 
   it("精英胜利在基础奖励外必定追加一张卷轴，并等待玩家确认", () => {

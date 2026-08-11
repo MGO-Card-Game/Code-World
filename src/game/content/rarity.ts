@@ -10,10 +10,10 @@ export type RarityWeights = Readonly<Record<CardRarity, number>>;
  */
 /**
  * 可复用的奖励品质分级。战斗、宝箱和事件只选择档位，不再各自复制四组数字。
- * basic 不产 PR；standard 是通用卡池；premium 提高 SR / PR 的出现率。
+ * basic 保留 1% 的 PR 作为爆冷；standard 是通用卡池；premium 提高 SR / PR 的出现率。
  */
 export const REWARD_RARITY_TIERS = {
-  basic: { N: 80, R: 15, SR: 5, PR: 0 },
+  basic: { N: 80, R: 15, SR: 4, PR: 1 },
   standard: { N: 50, R: 30, SR: 15, PR: 5 },
   premium: { N: 40, R: 30, SR: 20, PR: 10 },
 } as const satisfies Record<string, RarityWeights>;

@@ -75,53 +75,63 @@ describe("宝箱", () => {
     expect(sawEmpty, "40 次里一次空箱都没有，空箱档可能没生效").toBe(true);
   });
 
-  it("重开走 basic 档，永远开不出 PR", () => {
-    const seen = new Set<string>();
+  it("首次走 standard、重开走 basic，两张权重表拉得开", () => {
+    const firstHaul: string[] = [];
+    const reopen: string[] = [];
 
-    for (let seed = 1; seed <= 40; seed += 1) {
+    for (let seed = 1; seed <= 300; seed += 1) {
       const state = createInitialGame(seed);
       const player = state.players.player1;
       const tile = foothillTreasure(state);
       const opened = () => player.stageProgress.foothill.openedTreasureTileIds.includes(tile.id);
 
-      // 先把「首次」用掉；踩空不算首次，所以要开到真的拿到东西为止
+      // 首次那一发：踩空不算首次，所以要开到真的拿到东西为止。
+      // 抽中纯金币档同样算「拿到东西」，那一次不产出稀有度样本。
       for (let attempt = 0; attempt < 30 && !opened(); attempt += 1) {
-        openOnce(state, player, tile);
+        const haul = openOnce(state, player, tile);
+        firstHaul.push(...haul.scrollRarities, ...haul.equipmentRarities);
       }
       expect(opened()).toBe(true);
 
-      for (let round = 0; round < 25; round += 1) {
+      for (let round = 0; round < 15; round += 1) {
         const haul = openOnce(state, player, tile);
-        for (const rarity of [...haul.scrollRarities, ...haul.equipmentRarities]) {
-          seen.add(rarity);
-        }
+        reopen.push(...haul.scrollRarities, ...haul.equipmentRarities);
       }
     }
 
-    // basic 是 80/15/5/0，PR 权重为 0，所以重开无论摇多少次都摸不到 PR
-    expect(seen.size, "重开一次东西都没开出来，样本无效").toBeGreaterThan(0);
-    expect([...seen]).not.toContain("PR");
+    const shareOf = (rarity: string, samples: string[]) =>
+      samples.filter((observed) => observed === rarity).length / samples.length;
+
+    expect(firstHaul.length, "首次样本太少，统计断言无意义").toBeGreaterThan(100);
+    expect(reopen.length, "重开样本太少，统计断言无意义").toBeGreaterThan(1000);
+
+    // standard 的 N 是 50%、basic 是 80%——差距只有在两张表真的分开时才拉得出来
+    expect(shareOf("N", reopen)).toBeGreaterThan(0.7);
+    expect(shareOf("N", firstHaul)).toBeLessThan(0.68);
   });
 
-  it("首次开箱仍可能开出 basic 拿不到的 PR", () => {
-    const firstHaulRarities = new Set<string>();
+  it("重开也能爆冷开出 PR，但比首次稀薄得多", () => {
+    const reopen: string[] = [];
 
-    for (let seed = 1; seed <= 400; seed += 1) {
+    for (let seed = 1; seed <= 300; seed += 1) {
       const state = createInitialGame(seed);
       const player = state.players.player1;
       const tile = foothillTreasure(state);
       const opened = () => player.stageProgress.foothill.openedTreasureTileIds.includes(tile.id);
 
       for (let attempt = 0; attempt < 30 && !opened(); attempt += 1) {
+        openOnce(state, player, tile);
+      }
+      for (let round = 0; round < 15; round += 1) {
         const haul = openOnce(state, player, tile);
-        for (const rarity of [...haul.scrollRarities, ...haul.equipmentRarities]) {
-          firstHaulRarities.add(rarity);
-        }
+        reopen.push(...haul.scrollRarities, ...haul.equipmentRarities);
       }
     }
 
-    // standard 有 5% 的 PR 权重；首次和重开走的确实是两张不同的权重表
-    expect([...firstHaulRarities]).toContain("PR");
+    const prShare = reopen.filter((rarity) => rarity === "PR").length / reopen.length;
+    // basic 的 PR 权重是 1：够得着，但远低于 standard 的 5%
+    expect(reopen).toContain("PR");
+    expect(prShare).toBeLessThan(0.03);
   });
 
   it("开出金币时给的是 treasureGold 那一档", () => {

@@ -2,6 +2,7 @@ import { AnimatePresence } from "framer-motion";
 import type { BattleState, GameStateView, PlayerId } from "../game/types";
 import { BattlePanel } from "./BattlePanel";
 import { CasinoTileModal } from "./CasinoTileModal";
+import { DecisionMinimizeProvider } from "./DecisionModal";
 import {
   BlessingChoicePanel,
   BossGatePanel,
@@ -22,6 +23,20 @@ import {
 } from "./TradePanels";
 import type { Dispatch, Playback } from "./shared";
 
+/**
+ * 哪些阶段的弹层可以「暂时隐藏」，以及恢复条上的按钮文案。
+ *
+ * 这是唯一的登记表：登记过的阶段自动长出隐藏按钮（DecisionModal 从 context 取），
+ * 隐藏后自动从路由里撤下（下面统一按 decisionHidden 把关），恢复条也自动出现。
+ * 加一个可隐藏的弹层只需要在这里加一条。
+ *
+ * key 必须能唯一标识「这一次待办」——同一阶段换了对象要算新的一次，否则玩家隐藏
+ * 过一次之后，下一个同类弹层会一出生就是隐藏的。
+ *
+ * 两处刻意不登记：
+ * - tradeOffer 的报价是组件本地状态，隐藏会连草稿一起卸掉，等于白填一遍；
+ * - battle 与 gameOver 背后没有别的信息可看，隐藏它们只会让人找不到回去的路。
+ */
 export function pendingDecision(state: GameStateView) {
   switch (state.phase.kind) {
     case "equipmentChoice":
@@ -48,6 +63,46 @@ export function pendingDecision(state: GameStateView) {
       return {
         key: `growth-${state.phase.choice.playerId}-${state.phase.choice.stageId}`,
         label: "继续永久成长",
+      };
+    case "bossGateChoice":
+      return {
+        key: `boss-gate-${state.phase.choice.playerId}-${state.phase.choice.stageId}`,
+        label: "继续首领入口",
+      };
+    case "pvpPenalty":
+      return {
+        key: `penalty-${state.turn}-${state.phase.penalty.loserId}`,
+        label: "继续交付代价",
+      };
+    case "scrollTargetChoice":
+      return {
+        key: `scroll-target-${state.turn}-${state.phase.choice.playerId}-${state.phase.choice.scrollKind}`,
+        label: "继续选择目标",
+      };
+    case "encounterChoice":
+      return {
+        key: `encounter-${state.turn}-${state.phase.choice.challengerId}`,
+        label: "继续选择对手",
+      };
+    case "encounterDecision":
+      return {
+        key: `encounter-decision-${state.turn}-${state.phase.encounter.aPlayerId}-${state.phase.encounter.bPlayerId}`,
+        label: "继续相遇抉择",
+      };
+    case "tradeConfirmation":
+      return {
+        key: `trade-confirm-${state.turn}-${state.phase.trade.aPlayerId}-${state.phase.trade.bPlayerId}`,
+        label: "继续核对交易",
+      };
+    case "shop":
+      return {
+        key: `shop-${state.turn}-${state.phase.shop.playerId}`,
+        label: "回到商栈",
+      };
+    case "casino":
+      return {
+        key: `casino-${state.turn}-${state.phase.casino.playerId}-${state.phase.casino.spins}`,
+        label: "回到赌场",
       };
     default:
       return null;
@@ -81,7 +136,13 @@ export function PhaseOverlayRouter({
   onMinimizeDecision,
   canRestart,
 }: PhaseOverlayRouterProps) {
+  /*
+    隐藏由 pendingDecision 单点决定，这里统一把关，不再逐个面板记得写 !decisionHidden。
+    没登记的阶段 decisionHidden 恒为 false，多这道判断不会误伤。
+  */
+  const visible = !lingeringBattle && !decisionHidden;
   return (
+    <DecisionMinimizeProvider value={pendingDecision(state) ? onMinimizeDecision : null}>
     <AnimatePresence mode="wait">
       {lingeringBattle && (
         <BattlePanel
@@ -94,7 +155,7 @@ export function PhaseOverlayRouter({
           viewerSeat={viewerSeat}
         />
       )}
-      {!lingeringBattle && state.phase.kind === "pvpPenalty" && (
+      {visible && state.phase.kind === "pvpPenalty" && (
         <PenaltyPanel
           key="penalty"
           state={state}
@@ -104,7 +165,7 @@ export function PhaseOverlayRouter({
           viewerSeat={viewerSeat}
         />
       )}
-      {!lingeringBattle && !decisionHidden && state.phase.kind === "blessingChoice" && (
+      {visible && state.phase.kind === "blessingChoice" && (
         <BlessingChoicePanel
           key="blessing-choice"
           state={state}
@@ -112,10 +173,9 @@ export function PhaseOverlayRouter({
           dispatch={dispatch}
           playing={playback.playing}
           viewerSeat={viewerSeat}
-          onMinimize={onMinimizeDecision}
         />
       )}
-      {!lingeringBattle && !playback.playing && state.phase.kind === "scrollTargetChoice" && (
+      {visible && !playback.playing && state.phase.kind === "scrollTargetChoice" && (
         <ScrollTargetChoicePanel
           key="event-target-choice"
           state={state}
@@ -125,7 +185,7 @@ export function PhaseOverlayRouter({
           viewerSeat={viewerSeat}
         />
       )}
-      {!lingeringBattle && !playback.playing && state.phase.kind === "encounterChoice" && (
+      {visible && !playback.playing && state.phase.kind === "encounterChoice" && (
         <EncounterChoicePanel
           key="encounter-choice"
           state={state}
@@ -135,7 +195,7 @@ export function PhaseOverlayRouter({
           viewerSeat={viewerSeat}
         />
       )}
-      {!lingeringBattle && !playback.playing && state.phase.kind === "encounterDecision" && (
+      {visible && !playback.playing && state.phase.kind === "encounterDecision" && (
         <EncounterDecisionPanel
           key={`encounter-decision-${viewerSeat}`}
           state={state}
@@ -144,7 +204,7 @@ export function PhaseOverlayRouter({
           viewerSeat={viewerSeat}
         />
       )}
-      {!lingeringBattle && !playback.playing && state.phase.kind === "tradeOffer" && (
+      {visible && !playback.playing && state.phase.kind === "tradeOffer" && (
         <TradeOfferPanel
           key={`trade-offer-${viewerSeat}`}
           state={state}
@@ -153,7 +213,7 @@ export function PhaseOverlayRouter({
           viewerSeat={viewerSeat}
         />
       )}
-      {!lingeringBattle && !playback.playing && state.phase.kind === "tradeConfirmation" && (
+      {visible && !playback.playing && state.phase.kind === "tradeConfirmation" && (
         <TradeConfirmationPanel
           key={`trade-confirmation-${viewerSeat}`}
           state={state}
@@ -162,7 +222,7 @@ export function PhaseOverlayRouter({
           viewerSeat={viewerSeat}
         />
       )}
-      {!lingeringBattle && !playback.playing && state.phase.kind === "bossGateChoice" && (
+      {visible && !playback.playing && state.phase.kind === "bossGateChoice" && (
         <BossGatePanel
           key="boss-gate"
           state={state}
@@ -171,7 +231,7 @@ export function PhaseOverlayRouter({
           viewerSeat={viewerSeat}
         />
       )}
-      {!lingeringBattle && !playback.playing && state.phase.kind === "shop" && (
+      {visible && !playback.playing && state.phase.kind === "shop" && (
         <ShopTileModal
           key={`shop-tile-${state.phase.shop.playerId}`}
           state={state}
@@ -180,7 +240,7 @@ export function PhaseOverlayRouter({
           dispatch={dispatch}
         />
       )}
-      {!lingeringBattle && !playback.playing && state.phase.kind === "casino" && (
+      {visible && !playback.playing && state.phase.kind === "casino" && (
         <CasinoTileModal
           key={`casino-tile-${state.phase.casino.playerId}`}
           state={state}
@@ -189,7 +249,7 @@ export function PhaseOverlayRouter({
           dispatch={dispatch}
         />
       )}
-      {!lingeringBattle && !decisionHidden && state.phase.kind === "equipmentChoice" && (
+      {visible && state.phase.kind === "equipmentChoice" && (
         <EquipmentChoicePanel
           key="equipment-choice"
           state={state}
@@ -197,30 +257,27 @@ export function PhaseOverlayRouter({
           dispatch={dispatch}
           playing={playback.playing}
           viewerSeat={viewerSeat}
-          onMinimize={onMinimizeDecision}
         />
       )}
-      {!lingeringBattle && !decisionHidden && !playback.playing && state.phase.kind === "pveReward" && (
+      {visible && !playback.playing && state.phase.kind === "pveReward" && (
         <PveRewardPanel
           key="pve-reward"
           state={state}
           notice={state.phase.notice}
           dispatch={dispatch}
           viewerSeat={viewerSeat}
-          onMinimize={onMinimizeDecision}
         />
       )}
-      {!lingeringBattle && !decisionHidden && !playback.playing && state.phase.kind === "mapEventNotice" && (
+      {visible && !playback.playing && state.phase.kind === "mapEventNotice" && (
         <MapEventPanel
           key="map-event"
           state={state}
           notice={state.phase.notice}
           dispatch={dispatch}
           viewerSeat={viewerSeat}
-          onMinimize={onMinimizeDecision}
         />
       )}
-      {!lingeringBattle && !decisionHidden && state.phase.kind === "statGrowthChoice" && (
+      {visible && state.phase.kind === "statGrowthChoice" && (
         <StatGrowthPanel
           key="stat-growth"
           state={state}
@@ -228,10 +285,9 @@ export function PhaseOverlayRouter({
           dispatch={dispatch}
           playing={playback.playing}
           viewerSeat={viewerSeat}
-          onMinimize={onMinimizeDecision}
         />
       )}
-      {!lingeringBattle && state.phase.kind === "gameOver" && (
+      {visible && state.phase.kind === "gameOver" && (
         <GameOverPanel
           key="over"
           winner={state.players[state.phase.winnerId]}
@@ -240,5 +296,6 @@ export function PhaseOverlayRouter({
         />
       )}
     </AnimatePresence>
+    </DecisionMinimizeProvider>
   );
 }

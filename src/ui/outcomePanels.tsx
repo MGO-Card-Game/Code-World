@@ -30,106 +30,13 @@ import type {
   StatGrowthChoiceState,
   StatGrowthOption,
 } from "../game/types";
-import type { ReactNode } from "react";
+import { DecisionModal, NoticeEmblem, staggered } from "./DecisionModal";
 import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
 
 /**
  * 战斗之后的规则弹层：赐福覆盖、相遇战代价、装备槽已满、终局。
  * 它们共享同一个 AnimatePresence，都要等战斗演出播完才登场。
  */
-
-function DecisionMinimizeButton({ onMinimize }: { onMinimize: () => void }) {
-  return (
-    <button
-      type="button"
-      className="decision-minimize-button"
-      onClick={onMinimize}
-      aria-label="暂时隐藏选择界面以查看其他信息"
-    >
-      <span aria-hidden="true">—</span>
-      暂时隐藏
-    </button>
-  );
-}
-
-/**
- * 规则弹层的外壳。
- *
- * 九个弹层的骨架是同一副：遮罩、同一套进出场动画、可选的暂时隐藏按钮与徽记、
- * 眉标题、主标题、导语，最后是「轮到自己就给操作，轮不到就说明在等谁」。各面板
- * 只留自己的正文和按钮，其余都由这里收口——此前进出场参数已经漂成三套
- * （0.9/18、0.9/20、0.94/14），差异没有任何设计意图，纯粹是复制粘贴的沉积。
- *
- * decision-modal 不用调用方自己挂：它提供的是暂时隐藏按钮所需的定位上下文，
- * 有没有那个按钮由 onMinimize 决定，两者本来就该同进同出。
- */
-function DecisionModal({
-  className,
-  backdrop,
-  emblem,
-  kicker,
-  title,
-  lead,
-  onMinimize,
-  canAct,
-  waiting,
-  actions,
-  children,
-}: {
-  className: string;
-  backdrop?: string;
-  emblem?: ReactNode;
-  kicker: ReactNode;
-  title: ReactNode;
-  lead?: ReactNode;
-  onMinimize?: () => void;
-  canAct: boolean;
-  /** 轮不到观看者操作时，「等待……」中间的那一段 */
-  waiting: ReactNode;
-  actions: ReactNode;
-  children?: ReactNode;
-}) {
-  return (
-    <ModalBackdrop className={backdrop}>
-      <motion.section
-        className={onMinimize ? `${className} decision-modal` : className}
-        initial={{ opacity: 0, scale: 0.94, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={SPRING}
-      >
-        {onMinimize && <DecisionMinimizeButton onMinimize={onMinimize} />}
-        {emblem}
-        <div className="modal-kicker">{kicker}</div>
-        <h2>{title}</h2>
-        {lead !== undefined && <p>{lead}</p>}
-        {children}
-        {canAct ? actions : <p className="waiting-notice">等待{waiting}……</p>}
-      </motion.section>
-    </ModalBackdrop>
-  );
-}
-
-/** 战利品与事件通知共用的圆形徽记。 */
-function NoticeEmblem({ children }: { children: ReactNode }) {
-  return (
-    <motion.div
-      className="reward-emblem"
-      initial={{ scale: 0.5, rotate: -18 }}
-      animate={{ scale: 1, rotate: 0 }}
-      transition={{ delay: 0.12, type: "spring", stiffness: 280, damping: 16 }}
-    >{children}</motion.div>
-  );
-}
-
-/** 逐条渐次浮现的列表项，战利品与事件旁白共用同一条节奏。 */
-function staggered(index: number) {
-  return {
-    initial: { opacity: 0, y: 10 },
-    animate: { opacity: 1, y: 0 },
-    transition: { delay: 0.16 + index * 0.08 },
-  };
-}
 
 export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
   state: GameStateView;
@@ -157,7 +64,7 @@ export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
           ? `${player.name}已经完成本阶段目标，还需购买首领钥匙才能进入。`
           : `${player.name}无需完成阶段任务，购买首领钥匙后即可进入。`}
       canAct={canChoose}
-      waiting={`${player.name}处理首领入口`}
+      waiting={<p className="waiting-notice">{`等待${player.name}处理首领入口……`}</p>}
       actions={
         <div className="boss-gate-actions">
           {keyPurchased ? (
@@ -196,12 +103,11 @@ export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
   );
 }
 
-export function PveRewardPanel({ state, notice, dispatch, viewerSeat, onMinimize }: {
+export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
   state: GameStateView;
   notice: PveRewardNoticeState;
   dispatch: Dispatch;
   viewerSeat: PlayerId;
-  onMinimize: () => void;
 }) {
   const player = state.players[notice.playerId];
   const canAcknowledge = viewerSeat === notice.playerId;
@@ -218,7 +124,6 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat, onMinimize
     <DecisionModal
       backdrop="reward-backdrop"
       className="pve-reward-modal"
-      onMinimize={onMinimize}
       emblem={<NoticeEmblem>{boss ? "♛" : notice.elite ? "✦" : "◆"}</NoticeEmblem>}
       kicker={boss ? "阶段首领已倒下" : notice.elite ? "精英讨伐成功" : "战斗胜利"}
       title={`${player.name}击败了${notice.enemyName}`}
@@ -228,7 +133,7 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat, onMinimize
           ? "强敌倒下，额外战利品已经收入行囊。"
           : "战利品已经收入行囊。"}
       canAct={canAcknowledge}
-      waiting={`${player.name}确认奖励`}
+      waiting={<p className="waiting-notice">{`等待${player.name}确认奖励……`}</p>}
       actions={
         <button className="primary-button" onClick={() => dispatch({ type: "acknowledgePveReward" })}>
           {notice.statGrowth ? "收下奖励并加点" : "收下奖励"}
@@ -264,12 +169,11 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat, onMinimize
  * 事件的名称与描述来自内容表，逐条旁白来自本次结算——两者都摆出来，玩家才知道
  * 「踩到了什么」和「发生了什么」。改这里之前先看 MapEventNoticeState 的注释。
  */
-export function MapEventPanel({ state, notice, dispatch, viewerSeat, onMinimize }: {
+export function MapEventPanel({ state, notice, dispatch, viewerSeat }: {
   state: GameStateView;
   notice: MapEventNoticeState;
   dispatch: Dispatch;
   viewerSeat: PlayerId;
-  onMinimize: () => void;
 }) {
   const player = state.players[notice.playerId];
   const definition = mapEventDefinition(notice.kind);
@@ -293,13 +197,12 @@ export function MapEventPanel({ state, notice, dispatch, viewerSeat, onMinimize 
     <DecisionModal
       backdrop="reward-backdrop"
       className={`map-event-modal event-${definition.category}`}
-      onMinimize={onMinimize}
       emblem={<NoticeEmblem>{emblems[definition.category]}</NoticeEmblem>}
       kicker={categoryNames[definition.category]}
       title={definition.name}
       lead={definition.description}
       canAct={canAcknowledge}
-      waiting={`${player.name}确认`}
+      waiting={<p className="waiting-notice">{`等待${player.name}确认……`}</p>}
       actions={
         <button className="primary-button" onClick={() => dispatch({ type: "acknowledgeMapEvent" })}>
           {notice.resume?.kind === "casino"
@@ -341,7 +244,7 @@ export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: 
       title={`${loser.name}选择交付`}
       lead={`胜者是${winner.name}。生命已经回溯，战斗中消耗的卷轴不会返还。`}
       canAct={canChoose}
-      waiting={`${loser.name}选择代价`}
+      waiting={<p className="waiting-notice">{`等待${loser.name}选择代价……`}</p>}
       actions={
         <div className="penalty-options">
           {goldAmount > 0 && (
@@ -371,13 +274,12 @@ export function PenaltyPanel({ state, penalty, dispatch, playing, viewerSeat }: 
   );
 }
 
-export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSeat, onMinimize }: {
+export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
   state: GameStateView;
   choice: BlessingChoiceState;
   dispatch: Dispatch;
   playing: boolean;
   viewerSeat: PlayerId;
-  onMinimize: () => void;
 }) {
   const winner = state.players[choice.winnerId];
   const loser = choice.source === "pvp" ? state.players[choice.loserId] : undefined;
@@ -388,14 +290,13 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
   return (
     <DecisionModal
       className="blessing-choice-modal"
-      onMinimize={onMinimize}
       kicker="赐福抉择"
       title={choice.source === "pvp"
         ? `${winner.name}夺得了${loser!.name}的赐福`
         : `${winner.name}在${choice.tileLabel}发现新的赐福`}
       lead={`当前赐福槽位 ${winner.blessings.length}/${capacity}。接纳新赐福时，被替换的赐福会永久消失。`}
       canAct={canChoose}
-      waiting={`${winner.name}选择赐福`}
+      waiting={<p className="waiting-notice">{`等待${winner.name}选择赐福……`}</p>}
       actions={
         <div className="blessing-choice-options">
           <button disabled={playing} onClick={() => dispatch({ type: "chooseBlessing", replace: false })}>
@@ -462,7 +363,7 @@ export function ScrollTargetChoicePanel({ state, choice, dispatch, playing, view
       title={`${player.name}选择目标`}
       lead={definition.description}
       canAct={canChoose}
-      waiting={`${player.name}选择目标`}
+      waiting={<p className="waiting-notice">{`等待${player.name}选择目标……`}</p>}
       actions={
         <div className="encounter-options">
           {choice.candidateIds.map((targetId) => {
@@ -509,7 +410,7 @@ export function EncounterChoicePanel({ state, choice, dispatch, playing, viewerS
       title={`${challenger.name}选择相遇对象`}
       lead="本次移动只会与一名旅者互动，结束后不会继续处理同格的其他玩家。"
       canAct={canChoose}
-      waiting={`${challenger.name}选择对手`}
+      waiting={<p className="waiting-notice">{`等待${challenger.name}选择对手……`}</p>}
       actions={
         <div className="encounter-options">
           {choice.opponentIds.map((opponentId) => {
@@ -535,13 +436,12 @@ export function EncounterChoicePanel({ state, choice, dispatch, playing, viewerS
   );
 }
 
-export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerSeat, onMinimize }: {
+export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
   state: GameStateView;
   choice: EquipmentChoiceState;
   dispatch: Dispatch;
   playing: boolean;
   viewerSeat: PlayerId;
-  onMinimize: () => void;
 }) {
   const player = state.players[choice.playerId];
   const definition = EQUIPMENT[choice.offered.kind];
@@ -554,11 +454,10 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
   return (
     <DecisionModal
       className="equipment-choice-modal"
-      onMinimize={onMinimize}
       kicker="装备槽已满"
       title={`${player.name}获得了${definition.name}`}
       canAct={canChoose}
-      waiting={`${player.name}选择装备`}
+      waiting={<p className="waiting-notice">{`等待${player.name}选择装备……`}</p>}
       actions={
         <>
           <p>选择一件同类装备替换，或放弃这件新装备。离场的那一件按品质折算成金币。</p>
@@ -604,13 +503,12 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
   );
 }
 
-export function StatGrowthPanel({ state, choice, dispatch, playing, viewerSeat, onMinimize }: {
+export function StatGrowthPanel({ state, choice, dispatch, playing, viewerSeat }: {
   state: GameStateView;
   choice: StatGrowthChoiceState;
   dispatch: Dispatch;
   playing: boolean;
   viewerSeat: PlayerId;
-  onMinimize: () => void;
 }) {
   const player = state.players[choice.playerId];
   const region = state.map.regions.find((candidate) => candidate.id === choice.stageId);
@@ -625,12 +523,11 @@ export function StatGrowthPanel({ state, choice, dispatch, playing, viewerSeat, 
     <DecisionModal
       backdrop="reward-backdrop"
       className="stat-growth-modal"
-      onMinimize={onMinimize}
       kicker={region ? `${region.name}·登顶之证` : "登顶之证"}
       title={`${player.name}的永久成长`}
       lead="击败阶段首领的奖赏，一局只有两次，选定后不可更改。"
       canAct={canChoose}
-      waiting={`${player.name}分配成长`}
+      waiting={<p className="waiting-notice">{`等待${player.name}分配成长……`}</p>}
       actions={
         <div className="stat-growth-options">
           {STAT_GROWTH_OPTIONS.map((option) => (

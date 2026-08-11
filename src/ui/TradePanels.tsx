@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { useState } from "react";
 import { EQUIPMENT } from "../game/content/equipment";
 import { SCROLLS } from "../game/content/scrolls";
@@ -11,7 +10,8 @@ import type {
   TradeOffer,
   TradeOfferState,
 } from "../game/types";
-import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
+import { DecisionModal } from "./DecisionModal";
+import { visibleScrolls, type Dispatch } from "./shared";
 
 function participantSide(
   value: Pick<EncounterDecisionState, "aPlayerId" | "bPlayerId">,
@@ -35,37 +35,33 @@ export function EncounterDecisionPanel({ state, encounter, dispatch, viewerSeat 
   const canChoose = side !== undefined && ownChoice?.status === "pending";
 
   return (
-    <ModalBackdrop className="encounter-decision-backdrop">
-      <motion.section
-        className="encounter-decision-modal"
-        initial={{ opacity: 0, scale: 0.94, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={SPRING}
-      >
-        <div className="encounter-emblem">⚔</div>
-        <div className="modal-kicker">旅者相遇 · 独立选择</div>
-        <h2>{a.name}遇见了{b.name}</h2>
-        <p>任一方选择战斗都会立即开战；只有双方都选择交易，才会进入报价。</p>
-        {canChoose && side ? (
-          <div className="encounter-intent-options">
-            <button onClick={() => dispatch({ type: "chooseEncounterIntent", side, intent: "battle" })}>
-              <span>强制优先</span><strong>发起战斗</strong><small>无需对方同意</small>
-            </button>
-            <button onClick={() => dispatch({ type: "chooseEncounterIntent", side, intent: "trade" })}>
-              <span>需要共识</span><strong>提出交易</strong><small>双方都选择才会继续</small>
-            </button>
-            <button onClick={() => dispatch({ type: "chooseEncounterIntent", side, intent: "greet" })}>
-              <span>和平意向</span><strong>友好招呼</strong><small>若无人开战则相安无事</small>
-            </button>
-          </div>
-        ) : (
-          <p className="waiting-notice">
-            {side && ownChoice?.status !== "pending" ? "选择已提交，等待对方……" : "等待相遇双方作出选择……"}
-          </p>
-        )}
-      </motion.section>
-    </ModalBackdrop>
+    <DecisionModal
+      backdrop="encounter-decision-backdrop"
+      className="encounter-decision-modal"
+      emblem={<div className="encounter-emblem">⚔</div>}
+      kicker="旅者相遇 · 独立选择"
+      title={`${a.name}遇见了${b.name}`}
+      lead="任一方选择战斗都会立即开战；只有双方都选择交易，才会进入报价。"
+      canAct={canChoose && side !== undefined}
+      waiting={
+        <p className="waiting-notice">
+          {side && ownChoice?.status !== "pending" ? "选择已提交，等待对方……" : "等待相遇双方作出选择……"}
+        </p>
+      }
+      actions={side && (
+        <div className="encounter-intent-options">
+          <button onClick={() => dispatch({ type: "chooseEncounterIntent", side, intent: "battle" })}>
+            <span>强制优先</span><strong>发起战斗</strong><small>无需对方同意</small>
+          </button>
+          <button onClick={() => dispatch({ type: "chooseEncounterIntent", side, intent: "trade" })}>
+            <span>需要共识</span><strong>提出交易</strong><small>双方都选择才会继续</small>
+          </button>
+          <button onClick={() => dispatch({ type: "chooseEncounterIntent", side, intent: "greet" })}>
+            <span>和平意向</span><strong>友好招呼</strong><small>若无人开战则相安无事</small>
+          </button>
+        </div>
+      )}
+    />
   );
 }
 
@@ -90,21 +86,28 @@ export function TradeOfferPanel({ state, trade, dispatch, viewerSeat }: {
   const hasOffer = gold > 0 || scrollIds.length > 0 || equipmentIds.length > 0;
 
   return (
-    <ModalBackdrop className="trade-backdrop">
-      <motion.section
-        className="trade-offer-modal"
-        initial={{ opacity: 0, scale: 0.94, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={SPRING}
-      >
-        <div className="trade-emblem">⇄</div>
-        <div className="modal-kicker">秘密报价</div>
-        <h2>准备你的交易报价</h2>
-        <p>双方提交前互相看不到内容；报价都提交后会公开，再进行最终确认。</p>
-        {trade.error && <p className="trade-error">{trade.error}</p>}
-        {canEdit && player && side ? (
-          <>
+    <DecisionModal
+      backdrop="trade-backdrop"
+      className="trade-offer-modal"
+      emblem={<div className="trade-emblem">⇄</div>}
+      kicker="秘密报价"
+      title="准备你的交易报价"
+      lead="双方提交前互相看不到内容；报价都提交后会公开，再进行最终确认。"
+      canAct={canEdit && player !== undefined && side !== undefined}
+      waiting={
+        <>
+          <p className="waiting-notice">
+            {side && ownChoice?.status !== "pending" ? "报价已提交，等待对方……" : "等待交易双方提交报价……"}
+          </p>
+          {side && (
+            <button className="ghost-button trade-cancel" onClick={() => dispatch({ type: "cancelTrade", side })}>
+              取消交易
+            </button>
+          )}
+        </>
+      }
+      actions={player && side && (
+        <>
             <label className="trade-gold-field">
               <span>金币（持有 {player.gold}）</span>
               <input
@@ -163,24 +166,14 @@ export function TradeOfferPanel({ state, trade, dispatch, viewerSeat }: {
             >
               提交报价
             </button>
-            <button className="ghost-button trade-cancel" onClick={() => dispatch({ type: "cancelTrade", side })}>
-              取消交易
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="waiting-notice">
-              {side && ownChoice?.status !== "pending" ? "报价已提交，等待对方……" : "等待交易双方提交报价……"}
-            </p>
-            {side && (
-              <button className="ghost-button trade-cancel" onClick={() => dispatch({ type: "cancelTrade", side })}>
-                取消交易
-              </button>
-            )}
-          </>
-        )}
-      </motion.section>
-    </ModalBackdrop>
+          <button className="ghost-button trade-cancel" onClick={() => dispatch({ type: "cancelTrade", side })}>
+            取消交易
+          </button>
+        </>
+      )}
+    >
+      {trade.error && <p className="trade-error">{trade.error}</p>}
+    </DecisionModal>
   );
 }
 
@@ -212,35 +205,30 @@ export function TradeConfirmationPanel({ state, trade, dispatch, viewerSeat }: {
   const b = state.players[trade.bPlayerId];
 
   return (
-    <ModalBackdrop className="trade-backdrop">
-      <motion.section
-        className="trade-confirmation-modal"
-        initial={{ opacity: 0, scale: 0.94, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={SPRING}
-      >
-        <div className="trade-emblem">⇄</div>
-        <div className="modal-kicker">最终确认</div>
-        <h2>核对双方报价</h2>
-        <p>两人都确认后才会原子交换；任一方取消，所有资源保持原样。</p>
-        <div className="trade-comparison">
-          <OfferSummary playerName={a.name} offer={trade.offerA} />
-          <OfferSummary playerName={b.name} offer={trade.offerB} />
+    <DecisionModal
+      backdrop="trade-backdrop"
+      className="trade-confirmation-modal"
+      emblem={<div className="trade-emblem">⇄</div>}
+      kicker="最终确认"
+      title="核对双方报价"
+      lead="两人都确认后才会原子交换；任一方取消，所有资源保持原样。"
+      canAct={canConfirm && side !== undefined}
+      waiting={<p className="waiting-notice">等待尚未确认的一方……</p>}
+      actions={side && (
+        <div className="trade-confirmation-actions">
+          <button className="primary-button" onClick={() => dispatch({ type: "confirmTrade", side, accept: true })}>确认交易</button>
+          <button className="ghost-button" onClick={() => dispatch({ type: "confirmTrade", side, accept: false })}>取消交易</button>
         </div>
-        <div className="trade-confirmation-status">
-          <span>{a.name}：{trade.confirmationA === "accepted" ? "已确认" : "待确认"}</span>
-          <span>{b.name}：{trade.confirmationB === "accepted" ? "已确认" : "待确认"}</span>
-        </div>
-        {canConfirm && side ? (
-          <div className="trade-confirmation-actions">
-            <button className="primary-button" onClick={() => dispatch({ type: "confirmTrade", side, accept: true })}>确认交易</button>
-            <button className="ghost-button" onClick={() => dispatch({ type: "confirmTrade", side, accept: false })}>取消交易</button>
-          </div>
-        ) : (
-          <p className="waiting-notice">等待尚未确认的一方……</p>
-        )}
-      </motion.section>
-    </ModalBackdrop>
+      )}
+    >
+      <div className="trade-comparison">
+        <OfferSummary playerName={a.name} offer={trade.offerA} />
+        <OfferSummary playerName={b.name} offer={trade.offerB} />
+      </div>
+      <div className="trade-confirmation-status">
+        <span>{a.name}：{trade.confirmationA === "accepted" ? "已确认" : "待确认"}</span>
+        <span>{b.name}：{trade.confirmationB === "accepted" ? "已确认" : "待确认"}</span>
+      </div>
+    </DecisionModal>
   );
 }

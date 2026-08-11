@@ -2,7 +2,8 @@ import { motion } from "framer-motion";
 import { casinoSpinPrice } from "../game/casino";
 import { STAT_GROWTH } from "../game/growth";
 import type { CasinoState, GameStateView, PlayerId } from "../game/types";
-import { ModalBackdrop, SPRING, type Dispatch } from "./shared";
+import { DecisionModal, NoticeEmblem } from "./DecisionModal";
+import { type Dispatch } from "./shared";
 
 const RESULT_PRESENTATION = {
   bust: { emblem: "◇", kicker: "轮盘落空", title: "一无所获" },
@@ -43,92 +44,72 @@ export function CasinoTileModal({ state, casino, viewerSeat, dispatch }: {
           : "奖励已经放入行囊。";
 
     return (
-      <ModalBackdrop className="reward-backdrop casino-result-backdrop">
-        <motion.section
-          className={`casino-result-modal result-${result.kind}`}
-          initial={{ opacity: 0, scale: 0.86, y: 24 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 10 }}
-          transition={SPRING}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="casino-result-title"
+      <DecisionModal
+        backdrop="reward-backdrop casino-result-backdrop"
+        className={`casino-result-modal result-${result.kind}`}
+        emblem={<NoticeEmblem className="casino-result-emblem">{presentation.emblem}</NoticeEmblem>}
+        kicker={`${presentation.kicker} · 第 ${casino.spins} 次转动`}
+        title={presentation.title}
+        canAct={canPlay}
+        waiting={<p className="waiting-notice">等待{player.name}确认转盘结果……</p>}
+        actions={
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => dispatch({ type: "acknowledgeCasinoResult" })}
+          >
+            确认结果
+          </button>
+        }
+      >
+        <motion.div
+          className="casino-result-reward"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18 }}
         >
-          <motion.div
-            className="casino-result-emblem"
-            initial={{ rotate: -35, scale: 0.45 }}
-            animate={{ rotate: 0, scale: 1 }}
-            transition={{ delay: 0.1, type: "spring", stiffness: 280, damping: 16 }}
-          >
-            {presentation.emblem}
-          </motion.div>
-          <div className="modal-kicker">{presentation.kicker} · 第 {casino.spins} 次转动</div>
-          <h2 id="casino-result-title">{presentation.title}</h2>
-          <motion.div
-            className="casino-result-reward"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18 }}
-          >
-            <span>{result.kind === "bust" ? "转盘结果" : "本次获得"}</span>
-            <strong>{rewardName}</strong>
-          </motion.div>
-          <p>{detail}</p>
-          {canPlay ? (
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => dispatch({ type: "acknowledgeCasinoResult" })}
-            >
-              确认结果
-            </button>
-          ) : (
-            <p className="waiting-notice">等待{player.name}确认转盘结果……</p>
-          )}
-        </motion.section>
-      </ModalBackdrop>
+          <span>{result.kind === "bust" ? "转盘结果" : "本次获得"}</span>
+          <strong>{rewardName}</strong>
+        </motion.div>
+        <p>{detail}</p>
+      </DecisionModal>
     );
   }
 
   return (
-    <ModalBackdrop className="shop-backdrop">
-      <motion.section
-        className="shop-modal casino-modal"
-        initial={{ opacity: 0, scale: 0.94, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={SPRING}
-      >
-        <div className="shop-emblem casino-emblem">☖</div>
-        <div className="modal-kicker">赌场转盘 · 第 {casino.spins + 1} 次转动</div>
-        <h2>{player.name}持有 {player.gold} 金币</h2>
-        <p>转动一次，可能空手而归、赢回金币、获得卷轴或装备，也可能转出永久属性头奖；每转一次，下一次的价格都会上涨。</p>
-        <div className="casino-price">
-          <span>本次价格</span>
-          <b>{price} 金币</b>
+    <DecisionModal
+      backdrop="shop-backdrop"
+      className="shop-modal casino-modal"
+      emblem={<div className="shop-emblem casino-emblem">☖</div>}
+      kicker={`赌场转盘 · 第 ${casino.spins + 1} 次转动`}
+      title={`${player.name}持有 ${player.gold} 金币`}
+      lead="转动一次，可能空手而归、赢回金币、获得卷轴或装备，也可能转出永久属性头奖；每转一次，下一次的价格都会上涨。"
+      canAct={canPlay}
+      waiting={<p className="waiting-notice">等待{player.name}决定要不要再转一次……</p>}
+      actions={
+        <div className="casino-actions">
+          <button
+            type="button"
+            className="primary-button"
+            disabled={!affordable}
+            onClick={() => dispatch({ type: "spinCasino" })}
+          >
+            {affordable ? "转动轮盘" : "金币不足"}
+          </button>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => dispatch({ type: "leaveCasino" })}
+          >
+            离开赌场
+          </button>
         </div>
-        {canPlay ? (
-          <div className="casino-actions">
-            <button
-              type="button"
-              className="primary-button"
-              disabled={!affordable}
-              onClick={() => dispatch({ type: "spinCasino" })}
-            >
-              {affordable ? "转动轮盘" : "金币不足"}
-            </button>
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={() => dispatch({ type: "leaveCasino" })}
-            >
-              离开赌场
-            </button>
-          </div>
-        ) : (
-          <p className="waiting-notice">等待{player.name}决定要不要再转一次……</p>
-        )}
-      </motion.section>
-    </ModalBackdrop>
+      }
+    >
+      <div className="casino-price">
+        <span>本次价格</span>
+        <b>{price} 金币</b>
+      </div>
+    </DecisionModal>
   );
 }

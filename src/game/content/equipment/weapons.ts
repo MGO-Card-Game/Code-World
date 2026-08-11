@@ -25,7 +25,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
   oniBlade: {
     name: "鬼切",
-    description: "累计击败 3 次精英后解锁：攻击骰上限 +2；攻击被完全抵挡时仍造成 2 点固定伤害",
+    description: "累计击败 3 次精英后解锁：攻击骰上限 +3；攻击被完全抵挡时仍造成 2 点固定伤害",
     rarity: "SR",
     modifiers: [],
     effects: {
@@ -35,7 +35,7 @@ export const WEAPONS = defineEquipment("weapon", {
           0,
         );
         return victories >= 3
-          ? [{ type: "dieSides", die: "attack", value: 2 }]
+          ? [{ type: "dieSides", die: "attack", value: 3 }]
           : [];
       },
       beforeRoll({ player, dieKind, modifiers, addBattleLog }) {

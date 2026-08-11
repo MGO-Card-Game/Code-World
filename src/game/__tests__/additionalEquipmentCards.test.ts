@@ -125,7 +125,7 @@ describe("新增鞋具", () => {
     expect(before(state, "attack").minimumRoll).toBe(1);
   });
 
-  it("逆风长靴的战斗代价在第 3 回合消失", () => {
+  it("逆风长靴前 2 回合攻防上限 -1，第 3 回合起攻防上限 +1", () => {
     const state = equippedBattle("headwindBoots");
     if (state.phase.kind !== "battle") throw new Error("测试状态应处于战斗阶段");
 
@@ -133,7 +133,8 @@ describe("新增鞋具", () => {
     expect(before(state, "attack").sidesOverride).toBe(5);
     expect(before(state, "defense").sidesOverride).toBe(5);
     state.phase.battle.round = 3;
-    expect(before(state, "attack").sidesOverride).toBeUndefined();
+    expect(before(state, "attack").sidesOverride).toBe(7);
+    expect(before(state, "defense").sidesOverride).toBe(7);
   });
 });
 

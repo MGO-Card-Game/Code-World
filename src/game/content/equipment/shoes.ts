@@ -112,7 +112,7 @@ export const SHOES = defineEquipment("shoes", {
 
   headwindBoots: {
     name: "逆风长靴",
-    description: "地图移动骰上限 +2；战斗前 2 回合，攻击骰和防御骰上限 -1",
+    description: "地图移动骰上限 +2；战斗前 2 回合，战斗骰上限 -1，之后各 +1",
     rarity: "R",
     modifiers: [{ type: "dieSides", die: "movement", value: 2 }],
     effects: {
@@ -121,9 +121,13 @@ export const SHOES = defineEquipment("shoes", {
         sidesOverride 能让代价同样作用于 D20 等骰面替换，不会被卷轴绕开。
       */
       beforeRoll({ battle, modifiers, addBattleLog }) {
-        if (battle.round > 2) return;
-        modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) - 1;
-        addBattleLog("逆风长靴尚未卸去风阻，本次骰面上限 -1。");
+        const sidesBonus = battle.round <= 2 ? -1 : 1;
+        modifiers.sidesOverride = (modifiers.sidesOverride ?? 6) + sidesBonus;
+        addBattleLog(
+          sidesBonus < 0
+            ? "逆风长靴尚未卸去风阻，本次骰面上限 -1。"
+            : "逆风长靴借逆风蓄势，本次骰面上限 +1。",
+        );
       },
     },
   },

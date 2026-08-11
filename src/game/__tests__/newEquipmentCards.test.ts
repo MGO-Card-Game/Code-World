@@ -85,7 +85,7 @@ describe("黑铁巨剑", () => {
 });
 
 describe("鬼切", () => {
-  it("累计击败 3 次精英后解锁攻击骰上限 +2", () => {
+  it("累计击败 3 次精英后解锁攻击骰上限 +3", () => {
     const state = createInitialGame(1);
     const player = state.players.player1;
     player.equipment = [{ instanceId: "oni-1", kind: "oniBlade" }];
@@ -94,7 +94,7 @@ describe("鬼切", () => {
     expect(getDieSidesBonus(player, "attack")).toBe(0);
 
     player.stageProgress.mountainside.eliteVictories = 1;
-    expect(getDieSidesBonus(player, "attack")).toBe(2);
+    expect(getDieSidesBonus(player, "attack")).toBe(3);
   });
 
   it("解锁后攻击被完全抵挡也固定造成至少 2 点伤害", () => {
@@ -105,7 +105,7 @@ describe("鬼切", () => {
 
     state = resolveRound(state);
 
-    expect(only(state.lastEvents, "attackRolled").sides).toBe(8);
+    expect(only(state.lastEvents, "attackRolled").sides).toBe(9);
     expect(only(state.lastEvents, "battleDamage").amount).toBe(2);
   });
 });

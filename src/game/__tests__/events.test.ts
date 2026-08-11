@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   pickScrollKind,
-  SCROLL_RARITY_WEIGHTS,
   SCROLLS,
   type ScrollDefinition,
 } from "../content/scrolls";
+import { REWARD_RARITY_TIERS } from "../content/rarity";
 import { EQUIPMENT } from "../content/equipment";
 import { createInitialGame, gameReducer } from "../engine";
 import { regionForPosition } from "../map";
@@ -82,7 +82,8 @@ describe("卷轴使用时机（GameRule 8.3 / 8.5 / 8.9）", () => {
   });
 
   it("按 N/R/SR/PR 权重先抽稀有度，再从同稀有度卡池抽牌", () => {
-    expect(SCROLL_RARITY_WEIGHTS).toEqual({ N: 50, R: 30, SR: 15, PR: 5 });
+    // 卷轴不指定档位，走的就是通用档
+    expect(REWARD_RARITY_TIERS.standard).toEqual({ N: 50, R: 30, SR: 15, PR: 5 });
     expect(SCROLLS.might.rarity).toBe("N");
     expect(SCROLLS.guard.rarity).toBe("N");
     expect(SCROLLS.dragonStrike.rarity).toBe("SR");

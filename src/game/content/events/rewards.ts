@@ -45,7 +45,7 @@ export const REWARD_EVENTS = defineMapEvents("reward", {
     effects: [{
       type: "grantEquipment",
       category: "weapon",
-      quality: "high",
+      quality: "highQuality",
       narration: ({ playerName, rewardName }) =>
         `${playerName}拔出嵌在石头中的武器，获得${rewardName}。`,
     }],

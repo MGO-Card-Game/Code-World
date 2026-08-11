@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   CARD_RARITY_ORDER,
-  CARD_RARITY_WEIGHTS,
+  DEFAULT_RARITY_TIER,
   REWARD_RARITY_TIERS,
   pickByRarity,
-  pickByRarityWithWeights,
   withRarityFloor,
   type CardRarity,
+  type RarityWeights,
 } from "./rarity";
 
 /** 依次返回预设值的 random，用来精确落在某个票位上 */
@@ -21,28 +21,23 @@ const rarityOf = (item: { rarity: CardRarity }) => item.rarity;
 const FULL_POOL = CARD_RARITY_ORDER.map((rarity) => ({ rarity }));
 
 describe("稀有度", () => {
-  it("四档权重合计 100，键序即由低到高", () => {
-    expect(CARD_RARITY_WEIGHTS).toEqual({ N: 50, R: 30, SR: 15, PR: 5 });
+  it("稀有度顺序由低到高，是唯一一份定义", () => {
     expect(CARD_RARITY_ORDER).toEqual(["N", "R", "SR", "PR"]);
-
-    const total = CARD_RARITY_ORDER.reduce(
-      (sum, rarity) => sum + CARD_RARITY_WEIGHTS[rarity],
-      0,
-    );
-    expect(total).toBe(100);
   });
 
-  it("奖励品质分为 meager / basic / standard / premium 四档，可供不同来源复用", () => {
+  it("每一组稀有度权重都在档位表里，且各自合计 100", () => {
     expect(REWARD_RARITY_TIERS).toEqual({
       meager: { N: 85, R: 10, SR: 5, PR: 0 },
       basic: { N: 80, R: 15, SR: 4, PR: 1 },
       standard: { N: 50, R: 30, SR: 15, PR: 5 },
       premium: { N: 40, R: 30, SR: 20, PR: 10 },
+      highQuality: { N: 20, R: 50, SR: 25, PR: 5 },
     });
-    for (const weights of Object.values(REWARD_RARITY_TIERS)) {
-      expect(Object.values(weights).reduce<number>((sum, weight) => sum + weight, 0)).toBe(100);
+    for (const [tier, weights] of Object.entries(REWARD_RARITY_TIERS)) {
+      const total = CARD_RARITY_ORDER.reduce((sum, rarity) => sum + weights[rarity], 0);
+      expect(total, `${tier} 档权重合计不是 100`).toBe(100);
     }
-    expect(CARD_RARITY_WEIGHTS).toBe(REWARD_RARITY_TIERS.standard);
+    expect(REWARD_RARITY_TIERS[DEFAULT_RARITY_TIER]).toBe(REWARD_RARITY_TIERS.standard);
   });
 
   it("只有 meager 一档拿不到 PR，其余各档都留了爆冷的口子", () => {
@@ -90,15 +85,22 @@ describe("稀有度", () => {
     expect(() => pickByRarity([], rarityOf, sequence(0))).toThrow("不能从空卡池抽取内容");
   });
 
-  it("调用方可以提供独立权重而不改全局卡池", () => {
-    const highQuality = { N: 20, R: 50, SR: 25, PR: 5 } as const;
+  it("传入档位可以偏离通用档，省略时才落回通用档", () => {
     const at = (fraction: number) =>
-      pickByRarityWithWeights(FULL_POOL, rarityOf, highQuality, sequence(fraction, 0)).rarity;
+      pickByRarity(
+        FULL_POOL,
+        rarityOf,
+        sequence(fraction, 0),
+        REWARD_RARITY_TIERS.highQuality,
+      ).rarity;
 
     expect(at(0.19)).toBe("N");
     expect(at(0.2)).toBe("R");
     expect(at(0.7)).toBe("SR");
     expect(at(0.95)).toBe("PR");
+
+    // 同一个票位，不传权重时按 standard 的边界走：0.2 还在 N 段里
+    expect(pickByRarity(FULL_POOL, rarityOf, sequence(0.2, 0)).rarity).toBe("N");
   });
 });
 
@@ -116,11 +118,11 @@ describe("保底档位", () => {
   it("保底之后无论摇出什么随机数，都抽不到低于地板的卡", () => {
     const floored = withRarityFloor(REWARD_RARITY_TIERS.premium, "SR");
     for (const fraction of [0, 0.01, 0.33, 0.5, 0.66, 0.99]) {
-      const rarity = pickByRarityWithWeights(
+      const rarity = pickByRarity(
         FULL_POOL,
         rarityOf,
-        floored,
         sequence(fraction, 0),
+        floored,
       ).rarity;
       expect(["SR", "PR"]).toContain(rarity);
     }
@@ -130,19 +132,19 @@ describe("保底档位", () => {
     // premium 的 SR:PR = 20:10，清零后仍是 2:1，票位边界落在 2/3
     const floored = withRarityFloor(REWARD_RARITY_TIERS.premium, "SR");
     const at = (fraction: number) =>
-      pickByRarityWithWeights(FULL_POOL, rarityOf, floored, sequence(fraction, 0)).rarity;
+      pickByRarity(FULL_POOL, rarityOf, sequence(fraction, 0), floored).rarity;
 
     expect(at(0.66)).toBe("SR");
     expect(at(0.67)).toBe("PR");
   });
 
   it("不改变随机数消耗量，同一颗种子的牌序不会因为保底而错位", () => {
-    const counted = (weights: Parameters<typeof pickByRarityWithWeights>[2]) => {
+    const counted = (weights: RarityWeights) => {
       let calls = 0;
-      pickByRarityWithWeights(FULL_POOL, rarityOf, weights, () => {
+      pickByRarity(FULL_POOL, rarityOf, () => {
         calls += 1;
         return 0.5;
-      });
+      }, weights);
       return calls;
     };
 

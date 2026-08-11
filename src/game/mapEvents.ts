@@ -1,7 +1,5 @@
-import {
-  HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS,
-  pickEquipmentKind,
-} from "./content/equipment";
+import { pickEquipmentKind } from "./content/equipment";
+import { DEFAULT_RARITY_TIER, REWARD_RARITY_TIERS } from "./content/rarity";
 import {
   mapEventDefinition,
   pickMapEvent,
@@ -190,9 +188,7 @@ export function applyMapEventEffect(
         () => nextRandom(state),
         {
           category: effect.category,
-          rarityWeights: effect.quality === "high"
-            ? HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS
-            : undefined,
+          rarityWeights: REWARD_RARITY_TIERS[effect.quality ?? DEFAULT_RARITY_TIER],
         },
       );
       const reward = grantEquipment(state, player, kind);

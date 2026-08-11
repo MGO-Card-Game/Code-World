@@ -1,5 +1,6 @@
 import type { MapRegionId, ScrollKind } from "../../types";
 import type { EquipmentCategory } from "../equipment/definition";
+import type { RewardRarityTier } from "../rarity";
 
 export type MapEventCategory = "recovery" | "hazard" | "reward" | "boon" | "casino";
 export type MapEventResource = "scroll" | "equipment" | "random";
@@ -155,7 +156,8 @@ export type MapEventEffectDefinition =
   | {
       type: "grantEquipment";
       category?: EquipmentCategory;
-      quality?: "standard" | "high";
+      /** 直接引用统一的品质档位；省略时用通用档。 */
+      quality?: RewardRarityTier;
       narration: (context: RewardNarrationContext) => string;
     }
   | {

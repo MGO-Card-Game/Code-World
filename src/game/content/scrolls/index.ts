@@ -1,8 +1,4 @@
-import {
-  CARD_RARITY_WEIGHTS,
-  pickByRarityWithWeights,
-  type RarityWeights,
-} from "../rarity";
+import { pickByRarity, type RarityWeights } from "../rarity";
 import { COMBAT_SWING_SCROLLS } from "./combatSwing";
 import type { ScrollDefinition } from "./definition";
 import { DICE_BOOST_SCROLLS } from "./diceBoost";
@@ -16,9 +12,6 @@ export {
   scrollCategory,
 } from "./definition";
 export type { ScrollCategory, ScrollDefinition, ScrollRarity } from "./definition";
-
-/** 先按稀有度抽取，再在同稀有度的所有卷轴中等概率抽取。 */
-export const SCROLL_RARITY_WEIGHTS = CARD_RARITY_WEIGHTS;
 
 /** 按效果主题分组保留一份，便于按组遍历。 */
 export const SCROLLS_BY_GROUP = {
@@ -60,12 +53,12 @@ export function drawableScrollKinds(): ScrollKind[] {
 /** 不传权重就是通用档；调用方可以按奖励来源给出更好或更差的品质。 */
 export function pickScrollKind(
   random: () => number,
-  rarityWeights: RarityWeights = CARD_RARITY_WEIGHTS,
+  rarityWeights?: RarityWeights,
 ): ScrollKind {
-  return pickByRarityWithWeights(
+  return pickByRarity(
     drawableScrollKinds(),
     (kind) => SCROLLS[kind].rarity,
-    rarityWeights,
     random,
+    rarityWeights,
   );
 }

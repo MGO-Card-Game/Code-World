@@ -7,13 +7,12 @@ import {
   getDieSidesBonus,
   getMaxHpBonus,
 } from "../../selectors";
-import { CARD_RARITY_ORDER } from "../rarity";
+import { CARD_RARITY_ORDER, REWARD_RARITY_TIERS } from "../rarity";
 import {
   EQUIPMENT,
   EQUIPMENT_BY_CATEGORY,
   EQUIPMENT_CATEGORY_NAMES,
   EQUIPMENT_SLOT_LIMITS,
-  HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS,
   equipmentCategory,
   pickEquipmentKind,
   type EquipmentCategory,
@@ -101,16 +100,16 @@ describe("装备分类表", () => {
     }
   });
 
-  it("高品质武器池提高稀有档权重，并且只会抽到武器", () => {
-    expect(HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS)
+  it("highQuality 档提高稀有档权重，并且只会抽到武器", () => {
+    expect(REWARD_RARITY_TIERS.highQuality)
       .toEqual({ N: 20, R: 50, SR: 25, PR: 5 });
 
+    // 票位 0.29 落在 [0.20, 0.70) 的 R 段——武器池四档齐全，权重即实际概率
     const rolls = [0.29, 0];
     const kind = pickEquipmentKind(
       () => rolls.shift() ?? 0,
-      { category: "weapon", rarityWeights: HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS },
+      { category: "weapon", rarityWeights: REWARD_RARITY_TIERS.highQuality },
     );
-    // 当前武器只有 N/R 两档，空档不参与后，R 的实际概率为 50/(20+50)。
     expect(EQUIPMENT[kind].rarity).toBe("R");
     expect(equipmentCategory(kind)).toBe("weapon");
   });

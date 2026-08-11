@@ -286,9 +286,21 @@ beforeRoll({ dieKind, item, modifiers }) {
 
 ## 稀有度与抽取
 
-卷轴和装备共用 `src/game/content/rarity.ts` 的四档权重：**N 50 / R 30 / SR 15 / PR 5**。先抽稀有度，再在该稀有度的内容中等概率抽取。增加同稀有度卡牌不会改变其他稀有度的总概率。
+卷轴和装备共用 `src/game/content/rarity.ts` 的抽取通路：先抽稀有度，再在该稀有度的内容中等概率抽取。增加同稀有度卡牌不会改变其他稀有度的总概率。
 
-`CARD_RARITY_WEIGHTS` 的**键序就是由低到高的档位顺序**，抽取按这个顺序走票，`CARD_RARITY_ORDER` 导出同一份顺序供展示排序使用。
+**所有成组的稀有度权重都在 `REWARD_RARITY_TIERS` 这一张表里**，调用方只选档位名，不要在别处另写一组四个数字：
+
+| 档位 | N / R / SR / PR | 用在哪 |
+|---|---|---|
+| `meager` | 85 / 10 / 5 / 0 | 可反复刷的来源（重复开箱）；唯一拿不到 PR 的一档 |
+| `basic` | 80 / 15 / 4 / 1 | 无词条漫游怪 |
+| `standard` | 50 / 30 / 15 / 5 | 通用档，`DEFAULT_RARITY_TIER` 指向它 |
+| `premium` | 40 / 30 / 20 / 10 | 精英怪、阶段首领 |
+| `highQuality` | 20 / 50 / 25 / 5 | 石中武器事件；不是 premium 之上的一级，而是牺牲 PR 换 R 的另一种形状 |
+
+`CARD_RARITY_ORDER` 是**由低到高这件事的唯一定义**，`CardRarity` 类型由它推导；抽取按这个顺序走票，展示排序和 `withRarityFloor`（「必出 R 及以上」这类保底）也都读它。
+
+`pickByRarity(items, rarityOf, random, weights?)` 是唯一的抽取入口，省略 `weights` 就是通用档。
 
 空档不参加抽取，其权重由剩下的档位按比例承接——所以上面四个数字只有在每一档都至少有一张卡时才等于实际概率。装备与卷轴四档现已齐全，当前都正好是 50 / 30 / 15 / 5；装备发放的临时卷轴继续用 `drawable: false` 排除在随机卡池外。
 

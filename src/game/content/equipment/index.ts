@@ -1,6 +1,7 @@
 import {
-  CARD_RARITY_WEIGHTS,
-  pickByRarityWithWeights,
+  DEFAULT_RARITY_TIER,
+  REWARD_RARITY_TIERS,
+  pickByRarity,
   withRarityFloor,
   type CardRarity,
   type RarityWeights,
@@ -54,14 +55,6 @@ export function equipmentCategory(kind: EquipmentKind): EquipmentCategory {
   return EQUIPMENT[kind].category;
 }
 
-/** 石中武器等特殊奖励使用：若四档都有卡，R 及以上合计概率为 80%。 */
-export const HIGH_QUALITY_EQUIPMENT_RARITY_WEIGHTS: RarityWeights = {
-  N: 20,
-  R: 50,
-  SR: 25,
-  PR: 5,
-};
-
 export interface EquipmentPickOptions {
   category?: EquipmentCategory;
   rarityWeights?: RarityWeights;
@@ -76,11 +69,11 @@ export function pickEquipmentKind(
   const kinds = options.category
     ? Object.keys(EQUIPMENT_BY_CATEGORY[options.category]) as EquipmentKind[]
     : Object.keys(EQUIPMENT) as EquipmentKind[];
-  const weights = options.rarityWeights ?? CARD_RARITY_WEIGHTS;
-  return pickByRarityWithWeights(
+  const weights = options.rarityWeights ?? REWARD_RARITY_TIERS[DEFAULT_RARITY_TIER];
+  return pickByRarity(
     kinds,
     (kind) => EQUIPMENT[kind].rarity,
-    options.minRarity ? withRarityFloor(weights, options.minRarity) : weights,
     random,
+    options.minRarity ? withRarityFloor(weights, options.minRarity) : weights,
   );
 }

@@ -6,7 +6,7 @@ import { canAct } from "../multiplayer";
 import { makeBattle, resolveRound } from "../testSupport";
 
 describe("循环阶段地图", () => {
-  it("未满三圈时绕过守关门并累计圈数", () => {
+  it("未满两圈时绕过守关门并累计圈数", () => {
     let state = createInitialGame(101);
     const player = state.players[state.activePlayerId];
     const region = state.map.regions[0];
@@ -96,7 +96,7 @@ describe("循环阶段地图", () => {
     const player = state.players[state.activePlayerId];
     const region = state.map.regions[0];
     player.position = region.endIndex;
-    player.stageProgress.foothill.laps = 2;
+    player.stageProgress.foothill.laps = 1;
 
     state = gameReducer(state, { type: "rollMovement" });
 
@@ -131,6 +131,24 @@ describe("循环阶段地图", () => {
     expect(state.phase.battle.stageId).toBe("foothill");
   });
 
+  it("第二阶段绕满三圈后经过守关门会截停", () => {
+    let state = createInitialGame(112);
+    const player = state.players[state.activePlayerId];
+    const mountainside = state.map.regions[1];
+    player.position = mountainside.endIndex;
+    player.stageProgress.mountainside.laps = 2;
+
+    state = gameReducer(state, { type: "rollMovement" });
+
+    expect(mountainside.requirements).toEqual([
+      { type: "laps", target: 3, label: "绕场 3 圈" },
+    ]);
+    expect(state.players[player.id].stageProgress.mountainside.laps).toBe(3);
+    expect(state.players[player.id].stageProgress.mountainside.eliteVictories).toBe(0);
+    expect(state.players[player.id].position).toBe(mountainside.gateIndex);
+    expect(state.phase.kind).toBe("bossGateChoice");
+  });
+
   it("阶段钥匙按阶段定价，购买后可以暂不进入且钥匙不会丢失", () => {
     let state = createInitialGame(106);
     const player = state.players[state.activePlayerId];
@@ -142,7 +160,7 @@ describe("循环阶段地图", () => {
     ]).toEqual([100, 200, 300]);
 
     player.position = foothill.gateIndex;
-    player.stageProgress.foothill.laps = 3;
+    player.stageProgress.foothill.laps = 2;
     player.gold = 100;
     state.phase = {
       kind: "bossGateChoice",
@@ -229,7 +247,7 @@ describe("循环阶段地图", () => {
     const region = state.map.regions[0];
     player.position = region.gateIndex;
     player.checkpointTileId = region.entryIndex;
-    player.stageProgress.foothill.laps = 3;
+    player.stageProgress.foothill.laps = 2;
     const battle = makeBattle({
       kind: "boss",
       aPlayerId: player.id,
@@ -241,6 +259,6 @@ describe("循环阶段地图", () => {
     finishBattle(state, battle, "b");
 
     expect(player.position).toBe(region.entryIndex);
-    expect(player.stageProgress.foothill.laps).toBe(3);
+    expect(player.stageProgress.foothill.laps).toBe(2);
   });
 });

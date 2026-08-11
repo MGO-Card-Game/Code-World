@@ -44,12 +44,12 @@ export const MAP_REGIONS: MapRegion[] = [
   {
     id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 31,
     gateIndex: 0, entryIndex: 1, bossEnemyId: "banditChief",
-    requirements: [{ type: "laps", target: 3, label: "绕场 3 圈" }],
+    requirements: [{ type: "laps", target: 2, label: "绕场 2 圈" }],
   },
   {
     id: "mountainside", name: "云雾山腰", startIndex: 32, endIndex: 63,
     gateIndex: 32, entryIndex: 33, bossEnemyId: "frostFang",
-    requirements: [{ type: "eliteVictories", target: 2, label: "累计击败 2 次精英格敌人" }],
+    requirements: [{ type: "laps", target: 3, label: "绕场 3 圈" }],
   },
   {
     id: "summit", name: "雷鸣峰顶", startIndex: 64, endIndex: 95,

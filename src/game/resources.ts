@@ -7,6 +7,7 @@ import {
   pickEquipmentKind,
 } from "./content/equipment";
 import { pickScrollKind, SCROLLS } from "./content/scrolls";
+import type { RarityWeights } from "./content/rarity";
 import { emit, makeInstanceId, nextRandom, rollDie } from "./state";
 import type {
   EquipmentKind,
@@ -40,8 +41,13 @@ export interface Reward {
   pendingEquipmentChoice?: boolean;
 }
 
-export function grantScroll(state: GameState, player: Player, kind?: ScrollKind): Reward {
-  const selected = kind ?? pickScrollKind(() => nextRandom(state));
+export function grantScroll(
+  state: GameState,
+  player: Player,
+  kind?: ScrollKind,
+  rarityWeights?: RarityWeights,
+): Reward {
+  const selected = kind ?? pickScrollKind(() => nextRandom(state), rarityWeights);
   const scroll: OwnedScroll = {
     instanceId: makeInstanceId(state, "scroll"),
     kind: selected,

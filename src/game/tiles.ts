@@ -3,16 +3,13 @@ import { pickTileEnemyEncounter } from "./content/enemies";
 import {
   blessingName,
   hasFreeBlessingSlot,
-  bonusTreasureEquipment,
   drawRandomBlessing,
   grantRandomBlessing,
 } from "./blessings";
-import { ECONOMY, grantGold } from "./economy";
 import { startEncounterDecision } from "./encounters";
 import { resolveRandomMapEvent } from "./mapEvents";
-import { grantRandomResourceReward, rewardSecret } from "./resources";
-import { grantTreasureEquipmentReward } from "./rewards";
 import { rollShopStock } from "./shop";
+import { openTreasure } from "./treasure";
 import { addHistory, emit, nextRandom } from "./state";
 import type { ActionResult, GameState, MapTile } from "./types";
 
@@ -92,31 +89,9 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
       addHistory(state, `${player.name}在泉水恢复了 ${healed} 点生命。`);
       return;
     }
-    case "treasure": {
-      const progress = player.stageProgress[tile.region];
-      if (progress.openedTreasureTileIds.includes(tile.id)) {
-        state.phase = { kind: "turnComplete" };
-        addHistory(state, `${player.name}检查「${tile.label}」，这里已经被搜空了。`);
-        return;
-      }
-      progress.openedTreasureTileIds.push(tile.id);
-      const gold = grantGold(state, player, ECONOMY.treasureGold, "treasure");
-      const bonusEquipment = bonusTreasureEquipment(player);
-      const reward = grantRandomResourceReward(
-        state,
-        player,
-        bonusEquipment > 0
-          ? { kind: "grantTreasureEquipment", remaining: bonusEquipment }
-          : undefined,
-      );
-      const line = (what: string) => `${player.name}打开宝箱，获得${what}和 ${gold} 金币。`;
-      addHistory(state, line(reward.name), rewardSecret(player, line, reward));
-      if (!reward.pendingEquipmentChoice) {
-        if (bonusEquipment > 0) grantTreasureEquipmentReward(state, player, bonusEquipment);
-        else state.phase = { kind: "turnComplete" };
-      }
+    case "treasure":
+      openTreasure(state, player, tile);
       return;
-    }
     case "blessing": {
       if (!hasFreeBlessingSlot(player)) {
         const offered = drawRandomBlessing(

@@ -49,6 +49,11 @@ export interface StageProgress {
   laps: number;
   eliteVictories: number;
   bossKeyPurchased: boolean;
+  /**
+   * 已经从哪些宝箱里拿到过东西。宝箱可以反复开，这份记录只用来区分
+   * 首次（standard 档）和重开（basic 档），不再是「开过就锁死」。
+   * 空箱不计入，第一次踩空不会烧掉首次那一档。
+   */
   openedTreasureTileIds: number[];
   bossDefeated: boolean;
 }

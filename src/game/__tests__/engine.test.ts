@@ -269,10 +269,10 @@ describe("game engine", () => {
 
     const resolved = gameReducer(state, { type: "chooseEquipment" });
 
-    // 宝箱被记为已开、金币到账，才说明这一格确实结算过了
-    expect(resolved.players.player1.stageProgress.foothill.openedTreasureTileIds)
-      .toContain(treasure.id);
-    expect(resolved.players.player1.gold).toBeGreaterThan(0);
+    // 宝箱留下了开箱记录，才说明这一格确实结算过了。
+    // 断言不能落在「拿到了什么」上——宝箱有空箱档，那一档同样是结算过的。
+    expect(resolved.history.some((entry) => entry.text.includes(treasure.label)))
+      .toBe(true);
   });
 
   it("旅行者短靴把移动骰从 D6 提高到 D7", () => {

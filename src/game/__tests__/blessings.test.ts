@@ -128,11 +128,28 @@ describe("赐福内容", () => {
     expect(resolved.message.text).toContain("战争财阀额外获得");
   });
 
-  it("宝物猎人开启宝箱时额外获得一件装备", () => {
-    const state = createInitialGame(5);
-    giveBlessing(state.players[state.activePlayerId], "treasureHunter");
+  /**
+   * 宝箱有空箱档，空箱不触发宝物猎人。逐个种子找到一次真的开出东西的开箱，
+   * 断言才不会被那 30% 的空箱概率变成偶尔翻红的脆弱测试。
+   */
+  function forceTreasureHaul(makeState: () => GameState) {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const resolved = forceLandingOn(makeState(), "treasure");
+      const emptied = resolved.history.some(
+        (entry) => entry.text.includes("什么都没剩下"),
+      );
+      if (!emptied) return resolved;
+    }
+    throw new Error("连续 100 次都开出空箱，权重表可能配错了");
+  }
 
-    const resolved = forceLandingOn(state, "treasure");
+  it("宝物猎人开启宝箱时额外获得一件装备", () => {
+    let seed = 5;
+    const resolved = forceTreasureHaul(() => {
+      const state = createInitialGame(seed++);
+      giveBlessing(state.players[state.activePlayerId], "treasureHunter");
+      return state;
+    });
     const player = resolved.players[resolved.activePlayerId];
 
     expect(player.equipment.length).toBeGreaterThanOrEqual(1);
@@ -140,18 +157,21 @@ describe("赐福内容", () => {
   });
 
   it("宝物猎人的额外装备在槽满时进入替换或放弃流程", () => {
-    const state = createInitialGame(51);
-    const player = state.players[state.activePlayerId];
-    giveBlessing(player, "treasureHunter");
-    player.equipment = [
-      { instanceId: "weapon-full", kind: "sword" },
-      { instanceId: "armor-full", kind: "shield" },
-      { instanceId: "shoes-full", kind: "travelerBoots" },
-      { instanceId: "accessory-full-1", kind: "charm" },
-      { instanceId: "accessory-full-2", kind: "fateCrown" },
-    ];
+    let seed = 51;
+    let resolved = forceTreasureHaul(() => {
+      const state = createInitialGame(seed++);
+      const player = state.players[state.activePlayerId];
+      giveBlessing(player, "treasureHunter");
+      player.equipment = [
+        { instanceId: "weapon-full", kind: "sword" },
+        { instanceId: "armor-full", kind: "shield" },
+        { instanceId: "shoes-full", kind: "travelerBoots" },
+        { instanceId: "accessory-full-1", kind: "charm" },
+        { instanceId: "accessory-full-2", kind: "fateCrown" },
+      ];
+      return state;
+    });
 
-    let resolved = forceLandingOn(state, "treasure");
     let choices = 0;
     while (resolved.phase.kind === "equipmentChoice") {
       choices += 1;

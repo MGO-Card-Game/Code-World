@@ -1,4 +1,8 @@
-import { CARD_RARITY_WEIGHTS, pickByRarity } from "../rarity";
+import {
+  CARD_RARITY_WEIGHTS,
+  pickByRarityWithWeights,
+  type RarityWeights,
+} from "../rarity";
 import { COMBAT_SWING_SCROLLS } from "./combatSwing";
 import type { ScrollDefinition } from "./definition";
 import { DICE_BOOST_SCROLLS } from "./diceBoost";
@@ -53,6 +57,15 @@ export function drawableScrollKinds(): ScrollKind[] {
     .filter((kind) => scrollDefinition(kind).drawable !== false);
 }
 
-export function pickScrollKind(random: () => number): ScrollKind {
-  return pickByRarity(drawableScrollKinds(), (kind) => SCROLLS[kind].rarity, random);
+/** 不传权重就是通用档；调用方可以按奖励来源给出更好或更差的品质。 */
+export function pickScrollKind(
+  random: () => number,
+  rarityWeights: RarityWeights = CARD_RARITY_WEIGHTS,
+): ScrollKind {
+  return pickByRarityWithWeights(
+    drawableScrollKinds(),
+    (kind) => SCROLLS[kind].rarity,
+    rarityWeights,
+    random,
+  );
 }

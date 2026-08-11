@@ -6,7 +6,25 @@
   background: #100e0c;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  /* Firefox：thin/color 会继承下去，所以只在根上声明一次 */
+  scrollbar-width: thin;
+  scrollbar-color: #6a5433 #17140f;
 }
+
+/*
+  滚动条统一走暗金配色。默认的系统滚动条（尤其 Windows 那条带方向箭头的）压在
+  深色面板上非常跳，而这一版有弹窗、抽屉、战斗日志、手牌栏好几处会滚动，
+  逐个套样式不如在这里收口一次。
+*/
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #17140f; }
+/* 描边和轨道同色，滑块因此看起来更细，也不会贴死在边上 */
+::-webkit-scrollbar-thumb { border: 2px solid #17140f; border-radius: 5px; background: #6a5433; }
+::-webkit-scrollbar-thumb:hover { background: #8a6d45; }
+::-webkit-scrollbar-thumb:active { background: #a9854f; }
+/* 两端的方向箭头是最不合群的一块，直接去掉 */
+::-webkit-scrollbar-button { display: none; }
+::-webkit-scrollbar-corner { background: #17140f; }
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background:
@@ -130,7 +148,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   overflow-x 一开，overflow-y 就跟着变成 auto，抬起的卡会被上边缘切掉——
   所以抬升的余量靠 padding 留在滚动区内部，而不是让卡溢出到容器外面。
 */
-.hand-rail { display: flex; align-items: flex-end; min-height: 152px; padding: 20px 0 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.hand-rail { display: flex; align-items: flex-end; min-height: 152px; padding: 20px 0 8px; overflow-x: auto; overscroll-behavior-x: contain; }
 /* flex 容器用 justify-content: center 会在溢出时切掉开头，只有 margin: auto 不会 */
 .hand-rail-track { flex: 0 0 auto; display: flex; align-items: flex-end; margin: 0 auto; }
 .hand-rail.empty { min-height: 62px; padding: 0; align-items: center; justify-content: center; }

@@ -1,4 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { createInitialGame } from "../../engine";
+import {
+  getAttack,
+  getDefense,
+  getDiceCountBonus,
+  getDieSidesBonus,
+  getMaxHpBonus,
+} from "../../selectors";
 import { CARD_RARITY_ORDER } from "../rarity";
 import {
   EQUIPMENT,
@@ -9,6 +17,7 @@ import {
   equipmentCategory,
   pickEquipmentKind,
   type EquipmentCategory,
+  type EquipmentDefinition,
   type EquipmentKind,
 } from "./index";
 
@@ -49,6 +58,46 @@ describe("装备分类表", () => {
       expect(Array.isArray(definition.modifiers)).toBe(true);
       expect(definition.name).toBeTruthy();
       expect(definition.description).toBeTruthy();
+    }
+  });
+
+  it("声明式属性修正都会通过统一 selector 生效", () => {
+    for (const [kind, definition] of Object.entries(EQUIPMENT)) {
+      const typedDefinition: EquipmentDefinition = definition;
+      // 动态修正依赖战斗进度等上下文，由各自的行为测试覆盖。
+      if (typedDefinition.effects?.modifiers) continue;
+
+      const player = createInitialGame(1).players.player1;
+      player.equipment = [{
+        instanceId: `contract-${kind}`,
+        kind: kind as EquipmentKind,
+      }];
+      const sum = (
+        matches: (modifier: EquipmentDefinition["modifiers"][number]) => boolean,
+      ) =>
+        typedDefinition.modifiers
+          .filter(matches)
+          .reduce((total, modifier) => total + modifier.value, 0);
+
+      for (const die of ["movement", "attack", "defense"] as const) {
+        expect(getDieSidesBonus(player, die), `${kind}:${die}:dieSides`).toBe(
+          sum((modifier) => modifier.type === "dieSides" && modifier.die === die),
+        );
+      }
+      for (const die of ["attack", "defense"] as const) {
+        expect(getDiceCountBonus(player, die), `${kind}:${die}:diceCount`).toBe(
+          sum((modifier) => modifier.type === "diceCount" && modifier.die === die),
+        );
+      }
+      expect(getAttack(player) - player.baseAttack, `${kind}:attack`).toBe(
+        sum((modifier) => modifier.type === "statBonus" && modifier.stat === "attack"),
+      );
+      expect(getDefense(player) - player.baseDefense, `${kind}:defense`).toBe(
+        sum((modifier) => modifier.type === "statBonus" && modifier.stat === "defense"),
+      );
+      expect(getMaxHpBonus(player), `${kind}:maxHp`).toBe(
+        sum((modifier) => modifier.type === "maxHp"),
+      );
     }
   });
 

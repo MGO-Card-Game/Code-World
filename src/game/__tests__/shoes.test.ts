@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { startBattle } from "../battle";
-import { EQUIPMENT } from "../content/equipment";
-import { drawableScrollKinds, SCROLLS, scrollCategory } from "../content/scrolls";
 import { createInitialGame } from "../engine";
-import { getDieSidesBonus } from "../selectors";
 import { makeBattle, resolveRound } from "../testSupport";
-import type { GameEvent, GameState, OwnedScroll } from "../types";
+import type { GameEvent, GameState } from "../types";
 
 function only<T extends GameEvent["type"]>(events: GameEvent[], type: T) {
   const found = events.filter(
@@ -35,36 +32,7 @@ function stalemateBattle(seed: number): GameState {
   return state;
 }
 
-describe("疾风绑腿", () => {
-  it("是鞋具 N，移动骰上限 +1、生命上限 +2，纯 modifier 无 effects", () => {
-    expect(EQUIPMENT.windboundWraps.category).toBe("shoes");
-    expect(EQUIPMENT.windboundWraps.rarity).toBe("N");
-    expect(EQUIPMENT.windboundWraps.modifiers).toEqual([
-      { type: "dieSides", die: "movement", value: 1 },
-      { type: "maxHp", value: 2 },
-    ]);
-  });
-});
-
-describe("猎踪靴", () => {
-  it("移动骰上限 +2，但防御骰上限 -1，走普通 modifier", () => {
-    const state = createInitialGame(1);
-    const player = state.players.player1;
-    player.equipment = [{ instanceId: "hound-1", kind: "houndstepBoots" }];
-
-    expect(getDieSidesBonus(player, "movement")).toBe(2);
-    expect(getDieSidesBonus(player, "defense")).toBe(-1);
-    expect(getDieSidesBonus(player, "attack")).toBe(0);
-  });
-});
-
 describe("逃亡者短靴", () => {
-  it("移动骰上限 +1 走普通 modifier", () => {
-    expect(EQUIPMENT.runnersBoots.modifiers).toEqual([
-      { type: "dieSides", die: "movement", value: 1 },
-    ]);
-  });
-
   it("本场战斗第一次结算己方防御骰时，防御骰上限额外 +1", () => {
     let state = stalemateBattle(20260805);
     state.players.player2.equipment = [
@@ -95,13 +63,6 @@ describe("逃亡者短靴", () => {
 });
 
 describe("迅雷战靴", () => {
-  it("移动骰上限 +1，攻击骰上限 +1，走普通 modifier", () => {
-    expect(EQUIPMENT.stormstepBoots.modifiers).toEqual([
-      { type: "dieSides", die: "movement", value: 1 },
-      { type: "dieSides", die: "attack", value: 1 },
-    ]);
-  });
-
   it("本场战斗第一次由自己发起攻击时，额外投 1 个攻击骰", () => {
     let state = stalemateBattle(20260805);
     state.players.player1.equipment = [
@@ -139,60 +100,50 @@ describe("迅雷战靴", () => {
 });
 
 describe("逐日靴", () => {
-  it("是鞋具 PR，移动骰上限 +2 走普通 modifier", () => {
-    expect(EQUIPMENT.sunchaserBoots.category).toBe("shoes");
-    expect(EQUIPMENT.sunchaserBoots.rarity).toBe("PR");
-    expect(EQUIPMENT.sunchaserBoots.modifiers).toEqual([
-      { type: "dieSides", die: "movement", value: 2 },
-    ]);
-  });
-
-  it("发的是攻防通用牌，且不进随机卡池", () => {
-    expect(SCROLLS.sunchaserBootsBoost.timings).toEqual([
-      "beforeAttackRoll",
-      "beforeDefenseRoll",
-    ]);
-    expect(scrollCategory(SCROLLS.sunchaserBootsBoost)).toBe("universal");
-    expect(SCROLLS.sunchaserBootsBoost.drawable).toBe(false);
-    expect(drawableScrollKinds()).not.toContain("sunchaserBootsBoost");
-  });
-
-  it("战斗开始时发一张，且标记为临时牌", () => {
-    const state = createInitialGame(4242);
+  function battle(seed: number) {
+    const state = createInitialGame(seed);
     state.players.player1.equipment = [
-      { instanceId: "boots-1", kind: "sunchaserBoots" },
+      { instanceId: `boots-${seed}`, kind: "sunchaserBoots" },
     ];
     startBattle(state, "pvp", "player1", undefined, "player2");
     if (state.phase.kind !== "battle") throw new Error("应该已经进入战斗");
+    for (const player of Object.values(state.players)) {
+      player.baseAttack = 0;
+      player.baseDefense = 99;
+    }
+    return state;
+  }
 
-    const granted = state.players.player1.scrolls.filter(
-      (scroll: OwnedScroll) => scroll.kind === "sunchaserBootsBoost",
-    );
-    expect(granted).toHaveLength(1);
-    expect(granted[0].temporary).toBe(true);
+  it("每场战斗开始时随机选择本场攻击或防御 +3，不再发临时卷轴", () => {
+    const byMemo = new Map<number, GameState>();
+    for (let seed = 1; seed <= 100 && byMemo.size < 2; seed += 1) {
+      const state = battle(seed);
+      const memo = state.players.player1.equipment[0].battleMemo;
+      if (memo !== undefined) byMemo.set(memo, state);
+      expect(state.players.player1.scrolls).toHaveLength(0);
+    }
+
+    expect([...byMemo.keys()].sort()).toEqual([1, 2]);
+
+    let attackState = byMemo.get(1)!;
+    if (attackState.phase.kind !== "battle") throw new Error("应该已经进入战斗");
+    attackState.phase.battle.attacker = "a";
+    attackState = resolveRound(attackState);
+    expect(only(attackState.lastEvents, "attackRolled").flatBonus).toBe(3);
+    attackState = resolveRound(attackState);
+    expect(only(attackState.lastEvents, "defenseRolled").flatBonus).toBe(0);
+
+    let defenseState = byMemo.get(2)!;
+    if (defenseState.phase.kind !== "battle") throw new Error("应该已经进入战斗");
+    defenseState.phase.battle.attacker = "b";
+    defenseState = resolveRound(defenseState);
+    expect(only(defenseState.lastEvents, "defenseRolled").flatBonus).toBe(3);
+    defenseState = resolveRound(defenseState);
+    expect(only(defenseState.lastEvents, "attackRolled").flatBonus).toBe(0);
   });
 
-  it("打出后本次攻击或防御 +2，攻防都能用", () => {
-    let state = stalemateBattle(7);
-    state.players.player1.equipment = [
-      { instanceId: "boots-1", kind: "sunchaserBoots" },
-    ];
-    state.players.player1.scrolls = [
-      { instanceId: "boost-1", kind: "sunchaserBootsBoost", temporary: true },
-    ];
-
-    state = resolveRound(state, { attack: "boost-1" });
-    expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(2);
-
-    let defenseState = stalemateBattle(7);
-    defenseState.players.player2.equipment = [
-      { instanceId: "boots-2", kind: "sunchaserBoots" },
-    ];
-    defenseState.players.player2.scrolls = [
-      { instanceId: "boost-2", kind: "sunchaserBootsBoost", temporary: true },
-    ];
-
-    defenseState = resolveRound(defenseState, { defense: "boost-2" });
-    expect(only(defenseState.lastEvents, "defenseRolled").flatBonus).toBe(2);
+  it("相同种子会得到相同的加成方向", () => {
+    expect(battle(4242).players.player1.equipment[0].battleMemo)
+      .toBe(battle(4242).players.player1.equipment[0].battleMemo);
   });
 });

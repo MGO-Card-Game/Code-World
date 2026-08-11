@@ -48,14 +48,6 @@ function addProbe(kind: string, definition: EquipmentDefinition) {
 }
 
 describe("磨损铁甲", () => {
-  it("是防具 R，防御骰上限 +1 走普通 modifier", () => {
-    expect(EQUIPMENT.wornIronArmor.category).toBe("armor");
-    expect(EQUIPMENT.wornIronArmor.rarity).toBe("R");
-    expect(EQUIPMENT.wornIronArmor.modifiers).toEqual([
-      { type: "dieSides", die: "defense", value: 1 },
-    ]);
-  });
-
   it("每次受到伤害都减少 1，不像灰铁胸甲那样只咬第一口", () => {
     let state = createInitialGame(4242);
     state.players.player1.baseAttack = 8;
@@ -87,14 +79,6 @@ describe("磨损铁甲", () => {
 });
 
 describe("岩心甲", () => {
-  it("是防具 R，防御骰上限 +1 走普通 modifier", () => {
-    expect(EQUIPMENT.stoneheartArmor.category).toBe("armor");
-    expect(EQUIPMENT.stoneheartArmor.rarity).toBe("R");
-    expect(EQUIPMENT.stoneheartArmor.modifiers).toEqual([
-      { type: "dieSides", die: "defense", value: 1 },
-    ]);
-  });
-
   it("防御骰掷出 1 时，本次伤害减少 3", () => {
     const remove = addProbe("testLockDefenseOne", lockDefenseAt(1));
     try {
@@ -148,14 +132,6 @@ describe("岩心甲", () => {
 });
 
 describe("残月胸甲", () => {
-  it("是防具 SR，防御骰上限 +2 走普通 modifier", () => {
-    expect(EQUIPMENT.waningMoonCuirass.category).toBe("armor");
-    expect(EQUIPMENT.waningMoonCuirass.rarity).toBe("SR");
-    expect(EQUIPMENT.waningMoonCuirass.modifiers).toEqual([
-      { type: "dieSides", die: "defense", value: 2 },
-    ]);
-  });
-
   it("本场战斗第一次受到伤害时伤害减半，此后不再触发", () => {
     let state = createInitialGame(4242);
     state.players.player1.baseAttack = 9;

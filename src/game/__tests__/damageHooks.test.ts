@@ -163,14 +163,6 @@ describe("伤害落地前的装备钩子", () => {
 });
 
 describe("灰铁胸甲", () => {
-  it("是防具 N，防御骰上限 +1", () => {
-    expect(EQUIPMENT.ashenIronCuirass.category).toBe("armor");
-    expect(EQUIPMENT.ashenIronCuirass.rarity).toBe("N");
-    expect(EQUIPMENT.ashenIronCuirass.modifiers).toEqual([
-      { type: "dieSides", die: "defense", value: 1 },
-    ]);
-  });
-
   it("只减第一次伤害，第二次照常挨满", () => {
     withAnvil(() => {
       let state = oneSidedBattle(5, 99);
@@ -214,14 +206,6 @@ describe("灰铁胸甲", () => {
 });
 
 describe("不灭王铠", () => {
-  it("是防具 PR，防御骰上限 +3", () => {
-    expect(EQUIPMENT.undyingKingPlate.category).toBe("armor");
-    expect(EQUIPMENT.undyingKingPlate.rarity).toBe("PR");
-    expect(EQUIPMENT.undyingKingPlate.modifiers).toEqual([
-      { type: "dieSides", die: "defense", value: 3 },
-    ]);
-  });
-
   it("致命一击后恢复至一半最大生命，战斗不结束", () => {
     withAnvil(() => {
       let state = oneSidedBattle(99, 4);

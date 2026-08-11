@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { startBattle } from "../battle";
 import { applyEquipmentBeforeRoll, newRollModifiers } from "../battleRound";
-import { EQUIPMENT } from "../content/equipment";
 import { drawableScrollKinds, SCROLLS } from "../content/scrolls";
 import { createInitialGame } from "../engine";
-import { getDieSidesBonus } from "../selectors";
 import { makeBattle, resolveRound } from "../testSupport";
 import type { BattleState, GameEvent, GameState, OwnedScroll } from "../types";
 
@@ -74,14 +72,6 @@ const lockedRound = (state: GameState) =>
   resolveRound(state, { attack: "lock-a", defense: "lock-b" });
 
 describe("磨石短匕", () => {
-  it("是武器 N，攻击骰上限 +1", () => {
-    expect(EQUIPMENT.whetstoneDagger.category).toBe("weapon");
-    expect(EQUIPMENT.whetstoneDagger.rarity).toBe("N");
-    expect(EQUIPMENT.whetstoneDagger.modifiers).toEqual([
-      { type: "dieSides", die: "attack", value: 1 },
-    ]);
-  });
-
   it("只把攻击骰的下限抬到 2，防御骰不管", () => {
     const state = pvpBattle(1);
     state.players.player1.equipment = [
@@ -139,14 +129,6 @@ describe("磨石短匕", () => {
 });
 
 describe("符匠刻刀", () => {
-  it("是武器 N，攻击骰上限 +1", () => {
-    expect(EQUIPMENT.sigilCarversKnife.category).toBe("weapon");
-    expect(EQUIPMENT.sigilCarversKnife.rarity).toBe("N");
-    expect(EQUIPMENT.sigilCarversKnife.modifiers).toEqual([
-      { type: "dieSides", die: "attack", value: 1 },
-    ]);
-  });
-
   /*
     手牌全部挑不带 flatBonus 的攻击牌（狂暴=投两次、破阵战鼓=多一颗、精准=抬下限），
     这样事件里的 flatBonus 就只剩刻刀那一份，不必再从合计里反推。
@@ -212,14 +194,6 @@ describe("裂口重盾", () => {
     return state;
   };
 
-  it("是防具 N，防御骰上限 +2", () => {
-    expect(EQUIPMENT.crackedBulwark.category).toBe("armor");
-    expect(EQUIPMENT.crackedBulwark.rarity).toBe("N");
-    expect(EQUIPMENT.crackedBulwark.modifiers).toEqual([
-      { type: "dieSides", die: "defense", value: 2 },
-    ]);
-  });
-
   it("挨打之后防御骰上限从 8 掉到 7，且暗格不被消耗", () => {
     let state = bulwarkBattle(41, 30);
 
@@ -282,14 +256,6 @@ describe("裂口重盾", () => {
 });
 
 describe("铁匠围裙", () => {
-  it("是防具 N，防御骰上限 +1", () => {
-    expect(EQUIPMENT.blacksmithsApron.category).toBe("armor");
-    expect(EQUIPMENT.blacksmithsApron.rarity).toBe("N");
-    expect(EQUIPMENT.blacksmithsApron.modifiers).toEqual([
-      { type: "dieSides", die: "defense", value: 1 },
-    ]);
-  });
-
   it("伤害达到 4 点就减 2", () => {
     // 双方骰子都钉在 4，基础防御 0，所以攻防差恰好等于 baseAttack
     let state = lockedDamageBattle(51, { baseAttack: 4 });
@@ -340,18 +306,6 @@ describe("士兵行军靴", () => {
     ];
     return state;
   };
-
-  it("是鞋具 N，移动骰上限 +1", () => {
-    expect(EQUIPMENT.veteransMarchBoots.category).toBe("shoes");
-    expect(EQUIPMENT.veteransMarchBoots.rarity).toBe("N");
-
-    const state = createInitialGame(1);
-    const player = state.players.player1;
-    player.equipment = [{ instanceId: "march-1", kind: "veteransMarchBoots" }];
-    expect(getDieSidesBonus(player, "movement")).toBe(1);
-    expect(getDieSidesBonus(player, "attack")).toBe(0);
-    expect(getDieSidesBonus(player, "defense")).toBe(0);
-  });
 
   it("前两回合没有任何加值，第 3 回合起攻防各 +1", () => {
     let state = marchBattle(61);
@@ -406,17 +360,6 @@ describe("护卫靴", () => {
     return state;
   };
 
-  it("是鞋具 N，只加移动骰", () => {
-    expect(EQUIPMENT.gamekeepersBoots.category).toBe("shoes");
-    expect(EQUIPMENT.gamekeepersBoots.rarity).toBe("N");
-
-    const state = createInitialGame(1);
-    const player = state.players.player1;
-    player.equipment = [{ instanceId: "keeper-1", kind: "gamekeepersBoots" }];
-    expect(getDieSidesBonus(player, "movement")).toBe(1);
-    expect(getDieSidesBonus(player, "defense")).toBe(0);
-  });
-
   it("对普通怪没有任何加成", () => {
     const state = resolveRound(guardedBattle(71, {}));
     expect(only(state.lastEvents, "defenseRolled").sides).toBe(6);
@@ -441,19 +384,6 @@ describe("护卫靴", () => {
 });
 
 describe("破损护腕", () => {
-  it("是饰品 N，攻防骰上限各 +1，但不碰移动骰", () => {
-    expect(EQUIPMENT.frayedBracers.category).toBe("accessory");
-    expect(EQUIPMENT.frayedBracers.rarity).toBe("N");
-
-    const state = createInitialGame(1);
-    const player = state.players.player1;
-    player.equipment = [{ instanceId: "bracers-1", kind: "frayedBracers" }];
-    expect(getDieSidesBonus(player, "attack")).toBe(1);
-    expect(getDieSidesBonus(player, "defense")).toBe(1);
-    // 和黑日碎片的区别就在这一条
-    expect(getDieSidesBonus(player, "movement")).toBe(0);
-  });
-
   it("每打出一张牌损失 1 点生命", () => {
     let state = stalemate(81);
     state.players.player1.equipment = [
@@ -507,12 +437,6 @@ describe("破损护腕", () => {
 describe("拾荒者背袋", () => {
   const satchelCards = (scrolls: readonly OwnedScroll[]) =>
     scrolls.filter((scroll) => scroll.kind === "scavengersSatchelGuard");
-
-  it("是饰品 N，本体不带任何数值修正", () => {
-    expect(EQUIPMENT.scavengersSatchel.category).toBe("accessory");
-    expect(EQUIPMENT.scavengersSatchel.rarity).toBe("N");
-    expect(EQUIPMENT.scavengersSatchel.modifiers).toEqual([]);
-  });
 
   it("发的那张牌不进随机卡池", () => {
     // 否则宝箱和战斗奖励会把这张战斗限定牌当普通卷轴发出去，变成永久卡

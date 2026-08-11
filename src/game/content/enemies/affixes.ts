@@ -58,6 +58,20 @@ export const ELITE_AFFIXES = {
     modifiers: [{ type: "dieSides", die: "attack", value: 2 }],
   },
 
+  agile: {
+    name: "敏捷的",
+    description: "防御骰上限 +2",
+    rarity: "N",
+    modifiers: [{ type: "dieSides", die: "defense", value: 2 }],
+  },
+
+  vigorous: {
+    name: "生命旺盛的",
+    description: "最大生命 +5",
+    rarity: "N",
+    modifiers: [{ type: "maxHp", value: 5 }],
+  },
+
   venomous: {
     name: "淬毒的",
     description: "攻击时额外造成 1 点无视防御的伤害",

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { startBattle } from "../battle";
-import { EQUIPMENT } from "../content/equipment";
 import { createInitialGame } from "../engine";
 import { resolveRound } from "../testSupport";
 import type { GameEvent, GameState } from "../types";
@@ -35,12 +34,6 @@ const talisman = (state: GameState) =>
   state.players.player1.equipment.find((item) => item.instanceId === "talisman-1")!;
 
 describe("空白护符", () => {
-  it("是饰品 R，本体不带任何数值修正", () => {
-    expect(EQUIPMENT.blankTalisman.category).toBe("accessory");
-    expect(EQUIPMENT.blankTalisman.rarity).toBe("R");
-    expect(EQUIPMENT.blankTalisman.modifiers).toEqual([]);
-  });
-
   it("开战时抽签写进暗格，并立刻上一条战报", () => {
     const state = talismanBattle(4242);
     if (state.phase.kind !== "battle") throw new Error("应该已经进入战斗");

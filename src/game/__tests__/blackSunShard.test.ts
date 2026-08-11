@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EQUIPMENT } from "../content/equipment";
 import { createInitialGame, gameReducer } from "../engine";
-import { getDieSidesBonus } from "../selectors";
 import { makeBattle, resolveRound } from "../testSupport";
 import type { GameEvent, GameState } from "../types";
 
@@ -31,18 +29,6 @@ function shardBattle(seed: number): GameState {
 }
 
 describe("黑日碎片", () => {
-  it("是饰品 SR，三种骰子上限各 +1", () => {
-    expect(EQUIPMENT.blackSunShard.category).toBe("accessory");
-    expect(EQUIPMENT.blackSunShard.rarity).toBe("SR");
-
-    const state = createInitialGame(1);
-    const player = state.players.player1;
-    player.equipment = [{ instanceId: "shard-1", kind: "blackSunShard" }];
-    expect(getDieSidesBonus(player, "attack")).toBe(1);
-    expect(getDieSidesBonus(player, "defense")).toBe(1);
-    expect(getDieSidesBonus(player, "movement")).toBe(1);
-  });
-
   it("战斗里每打出一张牌就损失 1 点生命", () => {
     let state = shardBattle(20260805);
     state.players.player1.scrolls = [

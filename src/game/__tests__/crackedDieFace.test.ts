@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { startBattle } from "../battle";
-import { EQUIPMENT } from "../content/equipment";
 import { drawableScrollKinds, SCROLLS } from "../content/scrolls";
 import { createInitialGame } from "../engine";
 import { makeBattle, resolveRound } from "../testSupport";
@@ -32,12 +31,6 @@ function stagedWithHand(
 }
 
 describe("裂纹骰面", () => {
-  it("是饰品 N，本体不带任何数值修正", () => {
-    expect(EQUIPMENT.crackedDieFace.category).toBe("accessory");
-    expect(EQUIPMENT.crackedDieFace.rarity).toBe("N");
-    expect(EQUIPMENT.crackedDieFace.modifiers).toEqual([]);
-  });
-
   it("发的那张牌不进随机卡池", () => {
     // 否则宝箱和战斗奖励会把这张战斗限定牌当普通卷轴发出去
     expect(SCROLLS.crackedDieFaceLock.drawable).toBe(false);

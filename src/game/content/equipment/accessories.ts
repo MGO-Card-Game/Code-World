@@ -93,7 +93,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
     rarity: "N",
     modifiers: [],
     effects: {
-      // 套路同裂纹骰面/命运王冠/逐日靴：每场战斗一次的主动技 = 开战时发一张战斗限定牌。
+      // 套路同裂纹骰面/命运王冠：每场战斗一次的主动技 = 开战时发一张战斗限定牌。
       // 和同为 N 档的裂纹骰面分工：那张管骰子的两头，这张只是一次纯防御补正。
       onBattleStart({ grantBattleScroll }) {
         grantBattleScroll("scavengersSatchelGuard");

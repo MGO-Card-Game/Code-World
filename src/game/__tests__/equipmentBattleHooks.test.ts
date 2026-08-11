@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EQUIPMENT, type EquipmentDefinition } from "../content/equipment";
 import { createInitialGame } from "../engine";
-import { getDieSidesBonus } from "../selectors";
 import { makeBattle, resolveRound } from "../testSupport";
 import type { GameEvent, GameState } from "../types";
 
@@ -533,20 +532,4 @@ describe("已接入的武器", () => {
     }
   });
 
-  it("数值型新装备直接复用骰面 modifier", () => {
-    const state = createInitialGame(1);
-    const player = state.players.player1;
-
-    player.equipment = [{ instanceId: "axe-1", kind: "rendingAxe" }];
-    expect(getDieSidesBonus(player, "attack")).toBe(2);
-    expect(getDieSidesBonus(player, "defense")).toBe(-1);
-
-    player.equipment = [{ instanceId: "wall-1", kind: "heavyBulwark" }];
-    expect(getDieSidesBonus(player, "defense")).toBe(2);
-    expect(getDieSidesBonus(player, "movement")).toBe(-1);
-
-    player.equipment = [{ instanceId: "pointer-1", kind: "huntersPointer" }];
-    expect(getDieSidesBonus(player, "movement")).toBe(1);
-    expect(getDieSidesBonus(player, "attack")).toBe(1);
-  });
 });

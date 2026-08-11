@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { EQUIPMENT } from "../content/equipment";
 import { drawableScrollKinds, SCROLLS } from "../content/scrolls";
 import { createInitialGame, gameReducer } from "../engine";
 import { makeBattle, resolveRound } from "../testSupport";
@@ -25,12 +24,6 @@ function wearingCrown(seed: number): GameState {
 }
 
 describe("命运王冠", () => {
-  it("是饰品 PR，本体不带任何数值修正", () => {
-    expect(EQUIPMENT.fateCrown.category).toBe("accessory");
-    expect(EQUIPMENT.fateCrown.rarity).toBe("PR");
-    expect(EQUIPMENT.fateCrown.modifiers).toEqual([]);
-  });
-
   it("发的那张牌不进随机卡池", () => {
     // 否则宝箱和战斗奖励会把这张战斗限定牌当普通卷轴发出去
     expect(SCROLLS.fateCrownDecree.drawable).toBe(false);

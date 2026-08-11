@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { EQUIPMENT } from "../content/equipment";
 import { drawableScrollKinds, SCROLLS, scrollCategory } from "../content/scrolls";
 import { createInitialGame, gameReducer } from "../engine";
 import { makeBattle, resolveRound } from "../testSupport";
@@ -36,14 +35,6 @@ function wieldingBreaker(seed: number): GameState {
 }
 
 describe("王座破坏者", () => {
-  it("是武器 PR，攻击骰上限 +3 走普通 modifier", () => {
-    expect(EQUIPMENT.throneBreaker.category).toBe("weapon");
-    expect(EQUIPMENT.throneBreaker.rarity).toBe("PR");
-    expect(EQUIPMENT.throneBreaker.modifiers).toEqual([
-      { type: "dieSides", die: "attack", value: 3 },
-    ]);
-  });
-
   it("发的是攻击牌，且不进随机卡池", () => {
     // 只有攻击时机——这是它和命运王冠（攻防通用）唯一的差别
     expect(SCROLLS.throneBreakerStrike.timings).toEqual(["beforeAttackRoll"]);

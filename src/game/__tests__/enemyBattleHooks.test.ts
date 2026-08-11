@@ -69,6 +69,14 @@ describe("怪物战斗钩子", () => {
     expect(only(honed.lastEvents, "attackRolled").sides).toBe(8);
   });
 
+  it("敏捷的：怪物防御骰上限增加 2", () => {
+    const plain = resolveRound(pveBattle(20260805, "wolf", undefined, { attacker: "a" }));
+    const agile = resolveRound(pveBattle(20260805, "wolf", "agile", { attacker: "a" }));
+
+    expect(only(plain.lastEvents, "defenseRolled").sides).toBe(6);
+    expect(only(agile.lastEvents, "defenseRolled").sides).toBe(8);
+  });
+
   it("岩穴蝠群本体自己的攻击骰面修正生效", () => {
     const state = resolveRound(
       pveBattle(20260805, "caveBats", undefined, { attacker: "b" }),
@@ -505,6 +513,18 @@ describe("精英怪属性折算", () => {
       maxHp: wolf.maxHp + eliteHpBonus,
       attack: wolf.attack + frenziedAttackBonus,
       defense: 1,
+    });
+  });
+
+  it("生命旺盛的：在公共词条生命加成之外再增加 5 点最大生命", () => {
+    const wolf = enemyStats("wolf");
+    const sharedHpBonus = ELITE_BASE_MODIFIERS
+      .filter((modifier) => modifier.type === "maxHp")
+      .reduce((sum, modifier) => sum + modifier.value, 0);
+
+    expect(enemyStats("wolf", "vigorous")).toMatchObject({
+      name: "生命旺盛的山狼",
+      maxHp: wolf.maxHp + sharedHpBonus + 5,
     });
   });
 

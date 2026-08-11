@@ -1,6 +1,10 @@
 import { defineEquipment } from "./definition";
 import { targetsEliteOrBoss } from "../../enemyClassification";
 
+/** 逐日靴本场抽到的加成方向，存入装备的 battleMemo。 */
+const SUNCHASER_ATTACK = 1;
+const SUNCHASER_DEFENSE = 2;
+
 /** 鞋具：让玩家更容易走到关键节点，但不直接取消路线选择。 */
 export const SHOES = defineEquipment("shoes", {
   travelerBoots: {
@@ -126,13 +130,24 @@ export const SHOES = defineEquipment("shoes", {
 
   sunchaserBoots: {
     name: "逐日靴",
-    description: "移动骰上限 +2；每场战斗开始时获得一张「逐日靴」卷轴，可将本次攻击或防御 +2",
+    description: "移动骰上限 +2；每场战斗开始时，随机使本场攻击或防御 +3",
     rarity: "PR",
     modifiers: [{ type: "dieSides", die: "movement", value: 2 }],
     effects: {
-      // 套路同命运王冠/王座破坏者：每场战斗一次的主动技 = 开战时发一张战斗限定牌。
-      onBattleStart({ grantBattleScroll }) {
-        grantBattleScroll("sunchaserBootsBoost");
+      // 一场只抽一次并写入暗格；战斗结束时由 clearBattleMemos 统一清理。
+      onBattleStart({ item, random, addBattleLog }) {
+        const chosen = random() < 0.5 ? SUNCHASER_ATTACK : SUNCHASER_DEFENSE;
+        item.battleMemo = chosen;
+        addBattleLog(
+          chosen === SUNCHASER_ATTACK
+            ? "逐日靴追逐烈阳，本场攻击 +3。"
+            : "逐日靴踏住日影，本场防御 +3。",
+        );
+      },
+      beforeRoll({ dieKind, item, modifiers }) {
+        const chosen = dieKind === "attack" ? SUNCHASER_ATTACK : SUNCHASER_DEFENSE;
+        if (item.battleMemo !== chosen) return;
+        modifiers.flatBonus += 3;
       },
     },
   },

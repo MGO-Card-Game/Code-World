@@ -4,7 +4,6 @@ import {
   newRollModifiers,
   rollForSide,
 } from "../battleRound";
-import { EQUIPMENT } from "../content/equipment";
 import { createInitialGame, gameReducer } from "../engine";
 import { getDieSidesBonus } from "../selectors";
 import { makeBattle, resolveRound } from "../testSupport";
@@ -35,19 +34,6 @@ function stalemateBattle(seed: number): GameState {
   }
   return state;
 }
-
-describe("龟壳", () => {
-  it("只修改移动骰和防御骰上限", () => {
-    const state = createInitialGame(1);
-    const player = state.players.player1;
-    player.equipment = [{ instanceId: "shell-1", kind: "turtleShell" }];
-
-    expect(EQUIPMENT.turtleShell.category).toBe("armor");
-    expect(getDieSidesBonus(player, "movement")).toBe(-2);
-    expect(getDieSidesBonus(player, "defense")).toBe(4);
-    expect(getDieSidesBonus(player, "attack")).toBe(0);
-  });
-});
 
 describe("黑铁巨剑", () => {
   it("攻击消耗两次随机结果并取较低值", () => {
@@ -126,8 +112,6 @@ describe("鬼切", () => {
 
 describe("招架盾", () => {
   it("完全抵挡后使自己的下一次攻击骰上限 +4，并在使用后清空蓄力", () => {
-    expect(EQUIPMENT.parryShield.category).toBe("armor");
-
     let state = stalemateBattle(13);
     state.players.player2.equipment = [
       { instanceId: "parry-1", kind: "parryShield" },

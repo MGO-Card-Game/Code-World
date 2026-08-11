@@ -83,21 +83,8 @@ export const COMBAT_SWING_SCROLLS = {
   },
 
   /*
-    逐日靴（鞋具·PR）在每场战斗开始时发一张这个，战斗结束回收。
-    套路同命运王冠/王座破坏者，区别是攻防都能打、效果是单纯加值。
-  */
-  sunchaserBootsBoost: {
-    name: "逐日靴",
-    description: "本场战斗限定 · 本次攻击或防御 +2",
-    rarity: "PR",
-    timings: ["beforeAttackRoll", "beforeDefenseRoll"],
-    effects: [{ type: "flatBonus", value: 2 }],
-    drawable: false,
-  },
-
-  /*
     拾荒者背袋（饰品·N）在每场战斗开始时发一张这个，战斗结束回收。
-    和逐日靴那张的区别只有量级和时机：那张攻防都能打，这张只进防守时机。
+    只进防守时机，用已有的临时牌选择表达「每场战斗一次」。
   */
   scavengersSatchelGuard: {
     name: "拾荒者背袋",

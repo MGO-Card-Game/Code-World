@@ -5,7 +5,8 @@ export type BlessingEffectDefinition =
   | { type: "movementRollBonus"; value: number }
   | { type: "extraPveVictoryScroll"; count: number }
   | { type: "extraTreasureEquipment"; count: number }
-  | { type: "replacePvpPenaltyWithHpLoss"; amount: number }
+  /** 战败时留在原地以半血复活，而不是退回阶段营地。 */
+  | { type: "respawnInPlaceOnDefeat" }
   /** 只放大奖励金币；商店支付与玩家间转移不应用倍率。 */
   | { type: "goldGainMultiplier"; multiplier: number };
 

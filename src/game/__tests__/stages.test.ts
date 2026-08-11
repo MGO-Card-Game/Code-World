@@ -221,7 +221,6 @@ describe("循环阶段地图", () => {
 
     expect(player.stageProgress.foothill.bossDefeated).toBe(true);
     expect(player.position).toBe(mountainside.entryIndex);
-    expect(player.checkpointTileId).toBe(mountainside.entryIndex);
     // 落点就是云腰营地，残血通关不该带着 1 点血进下一阶段
     expect(player.hp).toBe(player.maxHp);
     // 阶段首领会发奖励，弹层要由本人确认，不能直接回到 turnComplete
@@ -241,19 +240,17 @@ describe("循环阶段地图", () => {
     expect(state.phase).toEqual({ kind: "gameOver", winnerId: player.id });
   });
 
-  it("阶段首领战败返回本阶段检查点，解锁进度不会丢失", () => {
+  it("阶段首领战败返回本阶段营地，解锁进度不会丢失", () => {
     const state = createInitialGame(105);
     const player = state.players.player1;
     const region = state.map.regions[0];
     player.position = region.gateIndex;
-    player.checkpointTileId = region.entryIndex;
     player.stageProgress.foothill.laps = 2;
     const battle = makeBattle({
       kind: "boss",
       aPlayerId: player.id,
       enemyId: region.bossEnemyId,
       stageId: region.id,
-      retreatTo: player.checkpointTileId,
     });
 
     finishBattle(state, battle, "b");

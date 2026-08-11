@@ -221,7 +221,7 @@ describe("移形换影", () => {
     if (played.phase.kind !== "scrollTargetChoice") throw new Error("应停在选人阶段");
     const targetId = played.phase.choice.candidateIds[0];
     const before = structuredClone(played);
-    // 把出牌者的落点铺成泉水：它会把落点记成休整点，是个不会和别的效果混淆的证据
+    // 把出牌者的落点铺成泉水：只有它被结算过才会发出泉水回血，不会和别的效果混淆
     const targetTile = before.players[targetId].position;
     before.map.tiles[targetTile] = {
       id: targetTile,
@@ -229,6 +229,8 @@ describe("移形换影", () => {
       type: "spring",
       label: "测试泉水",
     };
+    before.players[playerId].hp = 1;
+    before.players[targetId].hp = 1;
     const playerFrom = before.players[playerId].position;
 
     const resolved = gameReducer(before, { type: "chooseScrollTarget", targetId });
@@ -241,7 +243,9 @@ describe("移形换影", () => {
       expect.objectContaining({ playerId: targetId, from: targetTile, to: playerFrom }),
     ]);
     // 出牌者结算了新格子；目标那一侧什么都不触发
-    expect(resolved.players[playerId].checkpointTileId).toBe(targetTile);
+    expect(eventsOf(resolved, "playerHpChanged")).toEqual([
+      expect.objectContaining({ playerId, reason: "spring" }),
+    ]);
     expect(resolved.phase.kind).toBe("turnComplete");
   });
 
@@ -284,6 +288,7 @@ describe("翻跟头", () => {
       type: "spring",
       label: "测试泉水",
     };
+    state.players[playerId].hp = 1;
 
     const resolved = play(state);
     const settled = resolved.players[playerId];
@@ -291,8 +296,8 @@ describe("翻跟头", () => {
     expect(settled.position).toBe(landed);
     expect(eventsOf(resolved, "playerMoved")[0])
       .toMatchObject({ playerId, from: start, to: landed });
-    // 泉水把落点记成了休整点，说明它确实被结算过
-    expect(settled.checkpointTileId).toBe(landed);
+    // 泉水回了血，说明落点确实被结算过
+    expect(settled.hp).toBe(6);
     expect(resolved.phase.kind).toBe("turnComplete");
   });
 

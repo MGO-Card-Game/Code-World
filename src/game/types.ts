@@ -99,8 +99,6 @@ export interface Player {
   /** 商店格累计购买的永久属性次数；跨阶段保留，用于递增定价。 */
   statPurchases: number;
   position: number;
-  /** PvE 与阶段 Boss 战败时返回的本阶段检查点。 */
-  checkpointTileId: number;
   /** 三个阶段各自独立的环数、目标和一次性格子状态。 */
   stageProgress: Record<MapRegionId, StageProgress>;
   /**
@@ -181,8 +179,6 @@ export interface BattleState {
   enemyAffix?: EliteAffixKind;
   stageId?: MapRegionId;
   tileIndex?: number;
-  /** PvE 战败时返回的休整点；开战时按本次移动前的位置锁定。 */
-  retreatTo?: number;
   hpA: number;
   hpB: number;
   attacker: CombatSide;
@@ -211,9 +207,9 @@ export interface PvpPenaltyState {
   winnerId: PlayerId;
   loserId: PlayerId;
   tileIndex: number;
-  /** 不屈意志已支付真实生命，或当前无可支付项；正常惩罚应由引擎直接跳过。 */
+  /** 当前无可支付项；正常惩罚应由引擎直接跳过。 */
   waived?: true;
-  waiveReason?: "unyieldingWill" | "noPayable";
+  waiveReason?: "noPayable";
 }
 
 /** 移动结束时同格有多名对手，由本回合行动者选择本次只与其中一人互动。 */
@@ -289,7 +285,7 @@ export interface PvpBlessingChoiceState {
   offered: OwnedBlessing;
   tileIndex: number;
   penaltyWaived?: true;
-  penaltyWaiveReason?: "unyieldingWill" | "noPayable";
+  penaltyWaiveReason?: "noPayable";
 }
 
 /** 赐福槽位已满的玩家再次踩中赐福格时，决定是否换成新抽到的赐福。 */

@@ -38,7 +38,6 @@ function player(overrides: Partial<Player> = {}): Player {
     gold: 0,
     statPurchases: 0,
     position: 7,
-    checkpointTileId: 1,
     stageProgress: {
       foothill: { laps: 0, eliteVictories: 0, bossKeyPurchased: false, openedTreasureTileIds: [], bossDefeated: false },
       mountainside: { laps: 0, eliteVictories: 0, bossKeyPurchased: false, openedTreasureTileIds: [], bossDefeated: false },

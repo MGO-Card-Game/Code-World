@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  findPreviousRestTile,
-  findRestTileAtOrBefore,
   generateMap,
   MAP_COLUMNS,
   MAP_EXPANSION_BATTLE_TILES,
@@ -14,14 +12,6 @@ import { isCombatTile } from "../types";
 const RANDOM_TYPES = Object.keys(MAP_TILE_LIMITS) as RandomTileType[];
 
 describe("受约束随机地图", () => {
-  it("锁定退路时包含移动起点上的泉水，但普通查询只找身后的泉水", () => {
-    const map = generateMap(4242);
-    map.tiles[5].type = "spring";
-
-    expect(findRestTileAtOrBefore(map, 5)).toBe(5);
-    expect(findPreviousRestTile(map, 5)).toBeLessThan(5);
-  });
-
   it("同一种子生成完全相同的三地区地图", () => {
     expect(generateMap(20260805)).toEqual(generateMap(20260805));
     expect(generateMap(20260805)).not.toEqual(generateMap(20260806));

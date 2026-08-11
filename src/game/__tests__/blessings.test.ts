@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finishPvp } from "../battle";
+import { finishBattle, finishPvp } from "../battle";
 import {
   applyBlessingCombatRoll,
   blessingCapacity,
@@ -163,31 +163,54 @@ describe("赐福内容", () => {
     expect(resolved.history.some((entry) => entry.text.includes("宝物猎人额外获得"))).toBe(true);
   });
 
-  it("不屈意志用 1 点真实生命替代 PvP 惩罚，并随战败转给赢家", () => {
-    const state = createInitialGame(6);
+  it("不屈意志让战败留在原地，未持有时退回阶段营地", () => {
+    const region = createInitialGame(6).map.regions[0];
+    const spot = region.startIndex + 13;
+    const defeatAt = (kind: "pve" | "boss", blessed: boolean) => {
+      const state = createInitialGame(6);
+      const player = state.players.player1;
+      player.position = spot;
+      player.hp = 1;
+      if (blessed) giveBlessing(player, "unyieldingWill");
+      finishBattle(state, makeBattle({
+        kind,
+        aPlayerId: player.id,
+        enemyId: kind === "boss" ? region.bossEnemyId : "golem",
+        stageId: region.id,
+      }), "b");
+      return player;
+    };
+
+    // 半血复活是两条路共有的，区别只在落点
+    for (const kind of ["pve", "boss"] as const) {
+      const blessed = defeatAt(kind, true);
+      expect(blessed.position).toBe(spot);
+      expect(blessed.hp).toBe(Math.ceil(blessed.maxHp / 2));
+
+      const bare = defeatAt(kind, false);
+      expect(bare.position).toBe(region.entryIndex);
+      expect(bare.hp).toBe(Math.ceil(bare.maxHp / 2));
+    }
+  });
+
+  it("不屈意志不再免除相遇战代价", () => {
+    const state = createInitialGame(78);
     const loser = state.players.player1;
     const winner = state.players.player2;
     loser.hp = 10;
-    loser.baseDefense = 0;
-    winner.baseAttack = 99;
+    loser.gold = 100;
     giveBlessing(loser, "unyieldingWill");
-    state.phase = {
-      kind: "battle",
-      battle: makeBattle({
-        kind: "pvp",
-        aPlayerId: loser.id,
-        bPlayerId: winner.id,
-        attacker: "b",
-        hpA: 1,
-      }),
-    };
 
-    const resolved = resolveRound(state);
+    finishPvp(state, makeBattle({
+      kind: "pvp",
+      aPlayerId: loser.id,
+      bPlayerId: winner.id,
+    }), "b");
 
-    expect(resolved.players[loser.id].hp).toBe(9);
-    expect(resolved.players[loser.id].blessings).toEqual([]);
-    expect(resolved.players[winner.id].blessings[0].kind).toBe("unyieldingWill");
-    expect(resolved.phase.kind).not.toBe("pvpPenalty");
+    expect(loser.hp).toBe(10);
+    if (state.phase.kind !== "pvpPenalty") throw new Error("应进入代价阶段");
+    expect(state.phase.penalty.waived).toBeUndefined();
+    expect(winner.blessings[0].kind).toBe("unyieldingWill");
   });
 });
 
@@ -408,26 +431,6 @@ describe("赐福持有与 PvP 覆盖", () => {
     expect(getAttack(resolved.players[winner.id])).toBe(7);
     expect(getDefense(resolved.players[winner.id])).toBe(2);
     expect(resolved.phase.kind).toBe("turnComplete");
-  });
-
-  it("不屈意志遇到赐福覆盖选择时，选择后仍跳过正常惩罚", () => {
-    const state = createInitialGame(78);
-    const loser = state.players.player1;
-    const winner = state.players.player2;
-    loser.hp = 10;
-    giveBlessing(loser, "unyieldingWill");
-    giveBlessing(winner, "dragonScale");
-    finishPvp(state, makeBattle({
-      kind: "pvp",
-      aPlayerId: loser.id,
-      bPlayerId: winner.id,
-    }), "b");
-    expect(state.phase.kind).toBe("blessingChoice");
-
-    const resolved = gameReducer(state, { type: "chooseBlessing", replace: false });
-
-    expect(resolved.players[loser.id].hp).toBe(9);
-    expect(resolved.phase.kind).not.toBe("pvpPenalty");
   });
 
   it("覆盖选择阶段赢家掉线超时会自动保留原赐福", () => {

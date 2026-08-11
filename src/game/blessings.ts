@@ -53,34 +53,9 @@ export function bonusTreasureEquipment(player: Player) {
   );
 }
 
-/** 用不屈意志替代本次 PvP 惩罚，并返回随后应优先转移的赐福实例。 */
-export function applyPvpPenaltyReplacement(state: GameState, player: Player) {
-  const replacementBlessing = player.blessings.find((blessing) =>
-    blessingDefinition(blessing.kind).effects?.some(
-      (effect) => effect.type === "replacePvpPenaltyWithHpLoss",
-    )
-  );
-  if (!replacementBlessing) return undefined;
-  const amount = effects(player).reduce(
-    (sum, effect) => sum + (
-      effect.type === "replacePvpPenaltyWithHpLoss" ? effect.amount : 0
-    ),
-    0,
-  );
-  if (amount <= 0) return undefined;
-  const hpBefore = player.hp;
-  player.hp = Math.max(1, player.hp - amount);
-  if (player.hp !== hpBefore) {
-    emit(state, {
-      type: "playerHpChanged",
-      playerId: player.id,
-      from: hpBefore,
-      to: player.hp,
-      maxHp: player.maxHp,
-      reason: "blessing",
-    });
-  }
-  return replacementBlessing;
+/** 战败后是否留在原地复活，而不是退回本阶段营地。 */
+export function respawnsInPlaceOnDefeat(player: Player) {
+  return effects(player).some((effect) => effect.type === "respawnInPlaceOnDefeat");
 }
 
 function maxHpBonus(blessing: OwnedBlessing) {

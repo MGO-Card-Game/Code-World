@@ -7,7 +7,7 @@ import {
 } from "../content/scrolls";
 import { EQUIPMENT } from "../content/equipment";
 import { createInitialGame, gameReducer } from "../engine";
-import { findPreviousRestTile } from "../map";
+import { regionForPosition } from "../map";
 import { playableScrolls } from "../selectors";
 import {
   advanceAutomatically,
@@ -381,10 +381,10 @@ describe("事件流", () => {
     expect(only(state.lastEvents, "attackRolled").flatBonus).toBe(0);
   });
 
-  it("PvE 战败发出结束、回血与检查点回退三条事件", () => {
+  it("PvE 战败发出结束、回血与退回营地三条事件", () => {
     let state = createInitialGame(4242);
     state.players.player1.position = 13;
-    const expectedRetreat = findPreviousRestTile(state.map, 13);
+    const expectedRetreat = regionForPosition(state.map, 13).entryIndex;
     state.phase = {
       kind: "battle",
       battle: makeBattle({
@@ -416,7 +416,7 @@ describe("事件流", () => {
     expect(state.players.player1.position).toBe(expectedRetreat);
   });
 
-  it("战败退路在开战时锁定，不会退到本次移动途中越过的前方泉水", () => {
+  it("战败退路是阶段营地，途中越过的泉水不再改变退路", () => {
     let state = createInitialGame(4242);
     state.map.tiles[8].type = "spring";
     state.players.player1.position = 13;
@@ -426,7 +426,6 @@ describe("事件流", () => {
         kind: "pve",
         aPlayerId: "player1",
         enemyId: "golem",
-        retreatTo: 3,
         hpA: 1,
         hpB: 15,
         attacker: "b",
@@ -439,10 +438,11 @@ describe("事件流", () => {
       state = resolveRound(state);
     }
 
-    expect(state.players.player1.position).toBe(3);
+    const entryIndex = regionForPosition(state.map, 13).entryIndex;
+    expect(state.players.player1.position).toBe(entryIndex);
     const retreat = only(state.lastEvents, "playerRetreated");
     expect(retreat.from).toBe(13);
-    expect(retreat.to).toBe(3);
+    expect(retreat.to).toBe(entryIndex);
   });
 
   it("生命护符发出上限变化事件，且与实际属性一致", () => {

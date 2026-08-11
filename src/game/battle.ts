@@ -2,13 +2,13 @@ import { enemyDefinition } from "./content/enemies";
 import { equipmentDefinition, pickEquipmentKind } from "./content/equipment";
 import { REWARD_RARITY_TIERS } from "./content/rarity";
 import {
-  applyPvpPenaltyReplacement,
   bonusPveVictoryScrolls,
   detachBlessing,
   hasFreeBlessingSlot,
   receiveTransferredBlessing,
+  respawnsInPlaceOnDefeat,
 } from "./blessings";
-import { findPreviousRestTile, findRestTileAtOrBefore } from "./map";
+import { regionForPosition } from "./map";
 import {
   grantEquipment,
   grantRandomResourceReward,
@@ -82,7 +82,7 @@ export function startBattle(
   enemyId?: EnemyKind,
   bPlayerId?: PlayerId,
   enemyAffix?: EliteAffixKind,
-  context?: { stageId?: GameState["map"]["regions"][number]["id"]; tileIndex?: number; retreatTo?: number },
+  context?: { stageId?: GameState["map"]["regions"][number]["id"]; tileIndex?: number },
 ) {
   emit(state, {
     type: "battleStarted",
@@ -106,14 +106,6 @@ export function startBattle(
     enemyAffix,
     stageId: context?.stageId,
     tileIndex: context?.tileIndex,
-    retreatTo: kind === "pvp"
-      ? undefined
-      : context?.retreatTo
-        ?? state.players[aPlayerId].checkpointTileId
-        ?? findRestTileAtOrBefore(
-            state.map,
-            state.movementOrigin ?? state.players[aPlayerId].position,
-          ),
     hpA: state.players[aPlayerId].hp,
     // 精英词缀会抬高血量上限，所以这里必须走折算，不能直接读定义
     hpB: bPlayerId ? state.players[bPlayerId].hp : enemyStats(enemyId!, enemyAffix).maxHp,
@@ -184,26 +176,13 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
   const loser = state.players[loserId];
   const winner = state.players[winnerId];
   const tileIndex = state.players[state.activePlayerId].position;
-  const penaltyReplacementBlessing = applyPvpPenaltyReplacement(state, loser);
-  const unyieldingWillTriggered = penaltyReplacementBlessing !== undefined;
   const noPayablePenalty =
-    !unyieldingWillTriggered &&
     pvpGoldTransferAmount(loser) === 0 &&
     loser.scrolls.length === 0 &&
     loser.equipment.length === 0 &&
     pvpHpTransferAmount(winner, loser) === 0;
-  const penaltyWaived = unyieldingWillTriggered || noPayablePenalty;
-  const penaltyWaiveReason = unyieldingWillTriggered
-    ? "unyieldingWill" as const
-    : noPayablePenalty
-      ? "noPayable" as const
-      : undefined;
-  // 不屈意志触发时优先转移它本身，避免靠其余赐福反复代付而永久保留。
-  const offeredBlessing = detachBlessing(
-    state,
-    loser,
-    penaltyReplacementBlessing?.instanceId,
-  );
+  const penaltyWaiveReason = noPayablePenalty ? "noPayable" as const : undefined;
+  const offeredBlessing = detachBlessing(state, loser);
 
   if (offeredBlessing && !hasFreeBlessingSlot(winner)) {
     state.phase = {
@@ -214,17 +193,15 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
         loserId,
         offered: offeredBlessing,
         tileIndex,
-        penaltyWaived: penaltyWaived || undefined,
+        penaltyWaived: noPayablePenalty || undefined,
         penaltyWaiveReason,
       },
     };
     addHistory(
       state,
       `${winner.name}赢得相遇战，但赐福槽位已满，需要决定是否用${loser.name}的赐福替换一个已有赐福${
-        unyieldingWillTriggered
-          ? `；${loser.name}的不屈意志同时生效，仅损失 1 点生命并免除正常代价`
-          : noPayablePenalty
-            ? `；${loser.name}没有可支付的金币、资源或生命，免除本次代价`
+        noPayablePenalty
+          ? `；${loser.name}没有可支付的金币、资源或生命，免除本次代价`
           : ""
       }。`,
     );
@@ -241,7 +218,7 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
       winnerId,
       loserId,
       tileIndex,
-      waived: penaltyWaived || undefined,
+      waived: noPayablePenalty || undefined,
       waiveReason: penaltyWaiveReason,
     },
   };
@@ -252,10 +229,8 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
         ? `并夺得${loser.name}的赐福`
         : ""
     }，${
-      unyieldingWillTriggered
-        ? `${loser.name}的不屈意志生效，仅损失 1 点生命并免除正常代价。`
-        : noPayablePenalty
-          ? `${loser.name}没有可支付的金币、资源或生命，本次不再承受额外代价。`
+      noPayablePenalty
+        ? `${loser.name}没有可支付的金币、资源或生命，本次不再承受额外代价。`
         : `${loser.name}需要选择代价。`
     }`,
   );
@@ -374,7 +349,6 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         player.stageProgress[stageId].bossDefeated = true;
         const from = player.position;
         player.position = following.entryIndex;
-        player.checkpointTileId = following.entryIndex;
         emit(state, { type: "playerMoved", playerId: player.id, from, to: player.position });
         addHistory(state, `${player.name}击败${enemyName}，进入${following.name}！`);
         // 落点就是下一阶段营地，回血走营地那条规则，不在首领奖励里另开一份
@@ -537,10 +511,11 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
   const hpBeforeRecovery = player.hp;
   const positionBefore = player.position;
   player.hp = Math.ceil(player.maxHp / 2);
-  // retreatTo 在开战时就按移动起点锁定，不能把本次掷骰途中越过的泉水算进去。
-  // 回退分支兼容旧存档或测试中手工构造、尚未携带该字段的战斗状态。
-  const retreat = battle.retreatTo ?? findPreviousRestTile(state.map, player.position);
-  player.position = retreat;
+  // 退回落点不结算格子效果，所以站回营地也不会触发营地的回满血。
+  const inPlace = respawnsInPlaceOnDefeat(player);
+  if (!inPlace) {
+    player.position = regionForPosition(state.map, player.position).entryIndex;
+  }
   emit(state, {
     type: "playerHpChanged",
     playerId: player.id,
@@ -549,14 +524,21 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
     maxHp: player.maxHp,
     reason: "defeatRecovery",
   });
-  emit(state, {
-    type: "playerRetreated",
-    playerId: player.id,
-    from: positionBefore,
-    to: retreat,
-  });
+  if (!inPlace) {
+    emit(state, {
+      type: "playerRetreated",
+      playerId: player.id,
+      from: positionBefore,
+      to: player.position,
+    });
+  }
   state.phase = { kind: "turnComplete" };
-  addHistory(state, `${player.name}战败，恢复至半血并退回休整点。`);
+  addHistory(
+    state,
+    inPlace
+      ? `${player.name}战败，不屈意志生效，原地恢复至半血。`
+      : `${player.name}战败，恢复至半血并退回阶段营地。`,
+  );
 }
 
 /** 返回目标是否被卷轴直接击败。 */

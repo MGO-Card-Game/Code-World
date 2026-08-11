@@ -52,10 +52,10 @@ export const BLESSINGS = defineBlessings({
   },
   unyieldingWill: {
     name: "不屈意志",
-    description: "相遇战战败时免除正常惩罚，改为损失 1 点生命，最低保留 1 点。",
+    description: "战败时不退回阶段营地，改为留在原地以半血复活。",
     weight: 1,
     modifiers: [],
-    effects: [{ type: "replacePvpPenaltyWithHpLoss", amount: 1 }],
+    effects: [{ type: "respawnInPlaceOnDefeat" }],
   },
   midasTouch: {
     name: "点石成金",

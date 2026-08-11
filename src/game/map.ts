@@ -281,22 +281,3 @@ export function tilesInRegion(map: GameMap, regionId: MapRegionId) {
   if (!region) throw new Error(`地图区域 ${regionId} 不存在`);
   return map.tiles.slice(region.startIndex, region.endIndex + 1);
 }
-
-/** 最近一个已走过的泉水或起点，是 PvE 战败后的休整点。 */
-export function findPreviousRestTile(map: GameMap, position: number) {
-  const region = regionForPosition(map, position);
-  for (let offset = 1; offset < MAP_REGION_SIZE; offset += 1) {
-    const local = (position - region.startIndex - offset + MAP_REGION_SIZE) % MAP_REGION_SIZE;
-    const tile = map.tiles[region.startIndex + local];
-    if (tile.type === "start" || tile.type === "spring") return tile.id;
-  }
-  return region.entryIndex;
-}
-
-/** 位于指定位置或其后方的最近休整点；用于在掷骰移动前锁定战败退路。 */
-export function findRestTileAtOrBefore(map: GameMap, position: number) {
-  const tile = map.tiles[position];
-  return tile.type === "start" || tile.type === "spring"
-    ? position
-    : findPreviousRestTile(map, position);
-}

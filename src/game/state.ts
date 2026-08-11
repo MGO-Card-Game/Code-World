@@ -113,7 +113,6 @@ function newPlayer(id: PlayerId, name: string, color: string, entryTileId: numbe
     gold: 50,
     statPurchases: 0,
     position: entryTileId,
-    checkpointTileId: entryTileId,
     stageProgress: {
       foothill: newStageProgress(),
       mountainside: newStageProgress(),

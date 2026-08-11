@@ -87,7 +87,7 @@ export function chooseBossChallenge(state: GameState, challenge: boolean) {
     bossEnemyId,
     undefined,
     undefined,
-    { stageId, tileIndex: gateTileIndex, retreatTo: player.checkpointTileId },
+    { stageId, tileIndex: gateTileIndex },
   );
   return true;
 }

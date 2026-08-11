@@ -67,7 +67,7 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
         encounter.enemyId,
         undefined,
         encounter.enemyAffix,
-        { stageId: tile.region, tileIndex: tile.id, retreatTo: player.checkpointTileId },
+        { stageId: tile.region, tileIndex: tile.id },
       );
       return;
     }
@@ -78,7 +78,6 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
       const hpBefore = player.hp;
       const healed = Math.min(5, player.maxHp - player.hp);
       player.hp += healed;
-      player.checkpointTileId = tile.id;
       state.phase = { kind: "turnComplete" };
       if (healed > 0) {
         emit(state, {

@@ -1,4 +1,5 @@
 import { startBattle } from "./battle";
+import { pickTileEnemyEncounter } from "./content/enemies";
 import {
   blessingName,
   bonusTreasureEquipment,
@@ -11,7 +12,7 @@ import { resolveRandomMapEvent } from "./mapEvents";
 import { grantRandomResourceReward, rewardSecret } from "./resources";
 import { grantTreasureEquipmentReward } from "./rewards";
 import { rollShopStock } from "./shop";
-import { addHistory, emit } from "./state";
+import { addHistory, emit, nextRandom } from "./state";
 import type { ActionResult, GameState, MapTile } from "./types";
 
 /**
@@ -51,18 +52,24 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
 
   switch (tile.type) {
     case "battle":
-    case "elite":
-      // 两类格子共用 PvE 结算；enemyId 决定本体档位，词条只可能来自普通战斗格
+    case "elite": {
+      // 每次实际进入都生成一场新遭遇；结果只进入 BattleState，不修改共享地图。
+      const encounter = pickTileEnemyEncounter(
+        tile.type,
+        tile.region,
+        () => nextRandom(state),
+      );
       startBattle(
         state,
         "pve",
         player.id,
-        tile.enemyId,
+        encounter.enemyId,
         undefined,
-        tile.eliteAffix,
+        encounter.enemyAffix,
         { stageId: tile.region, tileIndex: tile.id, retreatTo: player.checkpointTileId },
       );
       return;
+    }
     case "boss":
       startBattle(state, "boss", player.id, tile.enemyId);
       return;

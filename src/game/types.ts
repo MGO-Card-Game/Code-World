@@ -128,11 +128,9 @@ export interface MapTile {
   region: MapRegionId;
   type: TileType;
   label: string;
+  /** 显式配置敌人的特殊格使用；随机地图的普通与精英格在每次开战时抽取。 */
   enemyId?: EnemyKind;
-  /**
-   * 普通战斗格的漫游怪可能携带的词缀。地图生成时就定死并随 GameState 广播——
-   * 交给战斗开始时再抽的话，同种子重放和联机双端就对不上了。
-   */
+  /** 显式配置遭遇时使用；随机地图不会保存普通怪词条。 */
   eliteAffix?: EliteAffixKind;
   safeZone?: boolean;
 }

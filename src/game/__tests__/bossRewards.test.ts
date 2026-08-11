@@ -113,7 +113,7 @@ describe("阶段首领奖励", () => {
       makeBattle({
         kind: "pve",
         aPlayerId: "player1",
-        enemyId: tile.enemyId,
+        enemyId: "slime",
         stageId: tile.region,
         tileIndex: tile.id,
       }),

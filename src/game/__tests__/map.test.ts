@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { ELITE_AFFIXES, ENEMIES, enemyTier } from "../content/enemies";
 import {
   findPreviousRestTile,
   findRestTileAtOrBefore,
@@ -7,7 +6,6 @@ import {
   MAP_COLUMNS,
   MAP_EXPANSION_BATTLE_TILES,
   MAP_REGION_SIZE,
-  ROAMING_AFFIX_CHANCE,
   MAP_TILE_LIMITS,
 } from "../map";
 import type { RandomTileType } from "../map";
@@ -78,50 +76,12 @@ describe("受约束随机地图", () => {
     }
   });
 
-  it("普通格抽漫游怪并可能带词条，精英格抽独立精英怪且不带词条", () => {
+  it("地图只决定战斗格类型，不预先绑定怪物或词条", () => {
     for (const seed of [1, 7, 42, 4242, 20260805]) {
       for (const tile of generateMap(seed).tiles) {
-        if (!isCombatTile(tile.type)) {
-          expect(tile.enemyId).toBeUndefined();
-          expect(tile.eliteAffix).toBeUndefined();
-          continue;
-        }
-        expect(Object.keys(ENEMIES)).toContain(tile.enemyId);
-        if (tile.type === "elite") {
-          expect(enemyTier(tile.enemyId!)).toBe("elite");
-          expect(tile.eliteAffix).toBeUndefined();
-        } else {
-          expect(enemyTier(tile.enemyId!)).toBe("roaming");
-          if (tile.eliteAffix !== undefined) {
-            expect(Object.keys(ELITE_AFFIXES)).toContain(tile.eliteAffix);
-          }
-        }
+        expect(tile.enemyId).toBeUndefined();
+        expect(tile.eliteAffix).toBeUndefined();
       }
     }
-  });
-
-  it("同一种子的漫游怪词缀完全一致——词缀是地图的一部分，不是开战时现抽的", () => {
-    const affixesOf = (seed: number) =>
-      generateMap(seed).tiles.map((tile) => tile.eliteAffix ?? null);
-
-    expect(affixesOf(20260805)).toEqual(affixesOf(20260805));
-    expect(affixesOf(20260805)).not.toEqual(affixesOf(20260806));
-  });
-
-  it("普通战斗格按集中概率投放词条，且精英与 Boss 不携带", () => {
-    expect(ROAMING_AFFIX_CHANCE).toBeGreaterThan(0);
-    expect(ROAMING_AFFIX_CHANCE).toBeLessThan(1);
-    const tiles = Array.from({ length: 100 }, (_, index) => generateMap(index + 1).tiles).flat();
-    const battles = tiles.filter((tile) => tile.type === "battle");
-    const affixed = battles.filter((tile) => tile.eliteAffix !== undefined);
-
-    expect(affixed.length).toBeGreaterThan(0);
-    expect(affixed.length).toBeLessThan(battles.length);
-    expect(tiles.filter((tile) => tile.type === "elite").every(
-      (tile) => tile.eliteAffix === undefined,
-    )).toBe(true);
-    expect(tiles.filter((tile) => tile.type === "boss").every(
-      (tile) => tile.eliteAffix === undefined,
-    )).toBe(true);
   });
 });

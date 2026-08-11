@@ -1,4 +1,3 @@
-import { pickEliteAffix, pickEliteEnemy, pickRoamingEnemy } from "./content/enemies";
 import type {
   GameMap,
   MapRegion,
@@ -13,8 +12,6 @@ export const MAP_COLUMNS = 12;
 export const MAP_REGION_SIZE = 32;
 /** 扩图前的 26 个随机功能格保持原配额；新增位置暂用普通战斗格填充。 */
 export const MAP_EXPANSION_BATTLE_TILES = 4;
-/** 普通战斗格在地图生成时成为词条遭遇的概率。 */
-export const ROAMING_AFFIX_CHANCE = 0.2;
 const MAP_RANDOM_TILE_COUNT = MAP_REGION_SIZE - 2 - MAP_EXPANSION_BATTLE_TILES;
 
 export interface TileCountRange {
@@ -217,16 +214,6 @@ function makeRandomTile(
     label: labels[randomIndex(random, labels.length)],
   };
   if (type === "shop") tile.safeZone = true;
-  if (type === "battle") tile.enemyId = pickRoamingEnemy(region, random);
-  if (type === "elite") tile.enemyId = pickEliteEnemy(region, random);
-  /*
-    词缀在地图生成时就定死并随 GameState 广播，而不是等进战斗时再抽。
-    交给战斗现抽的话，同种子重放和联机双端都会对不上——地图只生成一次，
-    战斗却在各自的随机流里发生。
-  */
-  if (type === "battle" && random() < ROAMING_AFFIX_CHANCE) {
-    tile.eliteAffix = pickEliteAffix(random);
-  }
   return tile;
 }
 

@@ -2,11 +2,11 @@ import type { EnemyEffects, StatModifier } from "../../effects/battleHooks";
 import type { CardRarity } from "../rarity";
 
 /**
- * 精英词缀：贴在漫游怪身上的一组强化。
+ * 漫游怪词条：贴在漫游怪身上的一组强化。
  *
- * 「精英」不是怪物的一个档位，而是正交的第二个维度——任何漫游怪都可能出现
- * 精英个体。结构上它就是「怪物的装备」：一组 modifier 加可选钩子，
- * 用的是和装备卡完全相同的两条通路。
+ * 精英现在是独立怪物档位，精英怪本身不携带这里的词条。历史类型名继续沿用
+ * EliteAffix；结构上词条就是「漫游怪的装备」：一组 modifier 加可选钩子，
+ * 使用和装备卡完全相同的两条通路。
  */
 export interface EliteAffixDefinition {
   /** 拼在本体名前面：「狂暴的」+「山狼」 */
@@ -18,23 +18,20 @@ export interface EliteAffixDefinition {
 }
 
 /**
- * 所有精英个体共享的强化，词缀的特色叠加在这之上。
+ * 所有携带词条的漫游怪共享的强化，具体词缀特色叠加在这之上。
  *
  * 只加血，攻防一概交给词缀——这是实测之后定的。攻防差配上 d6，
  * 每 1 点防御都很贵：基础带 +1 攻 +1 防时，基础玩家（18 血 / 攻 4 / 防 2）
- * 对精英山狼的胜率从 55% 掉到 3%，整局步数涨了三十倍。
+ * 对词条山狼的胜率从 55% 掉到 3%，整局步数涨了三十倍。
  *
  * 调平衡时这个数字是第一个该动的地方。
  */
 export const ELITE_BASE_MODIFIERS: readonly StatModifier[] = [
-  { type: "maxHp", value: 6 },
+  { type: "maxHp", value: 2 },
 ];
 
 export const ELITE_AFFIXES = {
-  /*
-    攻防各 +1 就够了。攻防差配上 d6，+2 会让基础玩家对精英山狼的胜率
-    掉到个位数——数值看着不大，放进减法式结算里份量完全不同。
-  */
+
   frenzied: {
     name: "狂暴的",
     description: "攻击 +2",

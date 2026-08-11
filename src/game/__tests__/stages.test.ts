@@ -73,8 +73,7 @@ describe("循环阶段地图", () => {
         battle: makeBattle({
           kind: "pve",
           aPlayerId: player.id,
-          enemyId: tile.enemyId,
-          enemyAffix: tile.eliteAffix,
+          enemyId: "razorbackAlpha",
           stageId: tile.region,
           tileIndex: tile.id,
           hpB: 1,

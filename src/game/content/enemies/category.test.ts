@@ -8,12 +8,14 @@ import {
   ENEMIES,
   ENEMIES_BY_TIER,
   ENEMY_TIER_NAMES,
+  ROAMING_AFFIX_CHANCE,
   eliteAffixDefinition,
   enemyDefinition,
   enemyTier,
   hasRegionPool,
   pickEliteEnemy,
   pickRoamingEnemy,
+  pickTileEnemyEncounter,
   type EliteAffixKind,
   type EnemyKind,
   type EnemyTier,
@@ -143,6 +145,33 @@ describe("怪物档位表", () => {
       .toEqual(["mireHexer", "cliffOgre", "frostWraith"]);
     expect([0.1, 0.3, 0.65, 0.95].map((ticket) => pickAt("summit", ticket)))
       .toEqual(["frostWraith", "watcherWyvern", "thunderRoc", "obsidianSentinel"]);
+  });
+
+  it("踩格遭遇集中执行漫游词条概率与精英档位规则", () => {
+    expect(ROAMING_AFFIX_CHANCE).toBeGreaterThan(0);
+    expect(ROAMING_AFFIX_CHANCE).toBeLessThan(1);
+
+    const affixedTickets = [0, ROAMING_AFFIX_CHANCE / 2, 0, 0];
+    const affixed = pickTileEnemyEncounter(
+      "battle",
+      "foothill",
+      () => affixedTickets.shift() ?? 0,
+    );
+    expect(enemyTier(affixed.enemyId)).toBe("roaming");
+    expect(affixed.enemyAffix).toBeDefined();
+
+    const plainTickets = [0, ROAMING_AFFIX_CHANCE];
+    const plain = pickTileEnemyEncounter(
+      "battle",
+      "foothill",
+      () => plainTickets.shift() ?? 0,
+    );
+    expect(enemyTier(plain.enemyId)).toBe("roaming");
+    expect(plain.enemyAffix).toBeUndefined();
+
+    const elite = pickTileEnemyEncounter("elite", "foothill", () => 0);
+    expect(enemyTier(elite.enemyId)).toBe("elite");
+    expect(elite.enemyAffix).toBeUndefined();
   });
 
   it("精英词缀都有名字、描述、合法稀有度和 modifiers 数组", () => {

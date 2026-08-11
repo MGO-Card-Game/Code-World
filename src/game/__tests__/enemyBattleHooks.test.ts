@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ELITE_AFFIXES,
   ELITE_BASE_MODIFIERS,
+  enemyTier,
   type EliteAffixDefinition,
 } from "../content/enemies";
 import { newRollModifiers } from "../battleRound";
@@ -514,22 +515,22 @@ describe("精英怪属性折算", () => {
     state.players.player1.position = 10;
     // 对手挪远，免得撞上触发相遇战
     state.players.player2.position = 60;
-    // 把这一掷可能落到的六格全铺成同一种精英格，移动骰投几点都会进同一场战斗
+    // 把这一掷可能落到的六格全铺成精英格，移动骰投几点都会现场抽取精英怪
     for (let id = 11; id <= 16; id += 1) {
       state.map.tiles[id] = {
         id,
         region: "foothill",
         type: "elite",
         label: "测试精英",
-        enemyId: "slime",
-        eliteAffix: "frenzied",
       };
     }
 
     const next = gameReducer(state, { type: "rollMovement" });
 
     if (next.phase.kind !== "battle") throw new Error("应当进入战斗");
-    expect(next.phase.battle.enemyAffix).toBe("frenzied");
-    expect(next.phase.battle.hpB).toBe(enemyStats("slime", "frenzied").maxHp);
+    const { enemyId, enemyAffix } = next.phase.battle;
+    expect(enemyTier(enemyId!)).toBe("elite");
+    expect(enemyAffix).toBeUndefined();
+    expect(next.phase.battle.hpB).toBe(enemyStats(enemyId!, enemyAffix).maxHp);
   });
 });

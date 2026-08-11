@@ -16,6 +16,9 @@ export {
 } from "./affixes";
 export type { EliteAffixDefinition, EliteAffixKind } from "./affixes";
 
+/** 普通战斗遭遇携带随机词条的概率。 */
+export const ROAMING_AFFIX_CHANCE = 0.2;
+
 /** 档位表原样保留一份，便于按档位遍历（调试面板、投放分析都用得上）。 */
 export const ENEMIES_BY_TIER = {
   roaming: ROAMING_ENEMIES,
@@ -85,4 +88,25 @@ export function hasRegionPool(tier: EnemyTier, region: MapRegionId) {
 export function pickEliteAffix(random: () => number): EliteAffixKind {
   const kinds = Object.keys(ELITE_AFFIXES) as EliteAffixKind[];
   return pickByRarity(kinds, (kind) => ELITE_AFFIXES[kind].rarity, random);
+}
+
+/**
+ * 为一次实际踩格生成敌人。
+ *
+ * 普通格从漫游池抽取，并独立判定是否携带词条；精英格从独立精英池抽取，
+ * 不携带词条。调用方提供对局随机源，结果因此可以被服务端同步和按种子重放。
+ */
+export function pickTileEnemyEncounter(
+  tileType: "battle" | "elite",
+  region: MapRegionId,
+  random: () => number,
+): { enemyId: EnemyKind; enemyAffix?: EliteAffixKind } {
+  if (tileType === "elite") {
+    return { enemyId: pickEliteEnemy(region, random) };
+  }
+  const enemyId = pickRoamingEnemy(region, random);
+  const enemyAffix = random() < ROAMING_AFFIX_CHANCE
+    ? pickEliteAffix(random)
+    : undefined;
+  return { enemyId, enemyAffix };
 }

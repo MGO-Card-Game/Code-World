@@ -118,7 +118,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .inspect-button { width: 100%; margin-top: 16px; font-size: 11px; padding: 8px; }
 
 /* 资源弹窗 */
-.resource-modal { --player-color: #fff; width: min(600px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
+.resource-modal { --player-color: #fff; width: min(720px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; border: 1px solid #8a6d45; background: linear-gradient(160deg, #28221c, #12110f); padding: 27px 32px; box-shadow: 0 30px 100px #000, inset 0 1px #ffffff10; text-align: center; }
 .resource-modal h2 { font: 900 22px "Noto Serif SC", serif; margin: 7px 0 4px; color: var(--player-color); }
 .resource-heading { display: flex; justify-content: space-between; align-items: baseline; margin: 22px 0 0; padding-bottom: 6px; border-bottom: 1px solid #463d33; color: #baa98f; font-size: 11px; letter-spacing: .08em; }
 .resource-heading span { color: #d8b66c; }
@@ -126,11 +126,22 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .resource-chips .chip { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; font-size: 10px; }
 .resource-chips .chip i { font-style: normal; font-size: 10px; color: #a99b87; }
 .resource-modal .primary-button { margin-top: 22px; }
-.hand-rail { display: flex; justify-content: center; align-items: flex-end; min-height: 146px; padding-top: 16px; }
-.hand-rail.empty { min-height: 62px; padding-top: 0; align-items: center; }
+/*
+  overflow-x 一开，overflow-y 就跟着变成 auto，抬起的卡会被上边缘切掉——
+  所以抬升的余量靠 padding 留在滚动区内部，而不是让卡溢出到容器外面。
+*/
+.hand-rail { display: flex; align-items: flex-end; min-height: 152px; padding: 20px 0 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+/* flex 容器用 justify-content: center 会在溢出时切掉开头，只有 margin: auto 不会 */
+.hand-rail-track { flex: 0 0 auto; display: flex; align-items: flex-end; margin: 0 auto; }
+.hand-rail.empty { min-height: 62px; padding: 0; align-items: center; justify-content: center; }
+.hand-rail-position { margin: 4px 0 0; color: #8a7c68; font-size: 10px; letter-spacing: .06em; }
 .hand-empty { color: #6e6559; font-size: 11px; margin: 0; }
 /* 支点压到卡面下方，旋转就会自然摊成扇形 */
-.hand-card { position: relative; flex: 0 0 auto; width: 96px; height: 128px; padding: 10px 9px; display: flex; flex-direction: column; gap: 5px; border: 1px solid #5b4e40; border-radius: 5px; background: linear-gradient(165deg, #2e2620, #1a1613); box-shadow: inset 0 1px #ffffff12, 0 8px 22px #0008; transform-origin: 50% 135%; cursor: default; }
+/* 不再扇形：支点落在底边，选中时的放大只往上长，卡的下沿始终对齐 */
+.hand-card { position: relative; flex: 0 0 auto; width: 96px; height: 128px; padding: 10px 9px; display: flex; flex-direction: column; gap: 5px; border: 1px solid #5b4e40; border-radius: 5px; background: linear-gradient(165deg, #2e2620, #1a1613); box-shadow: inset 0 1px #ffffff12, 0 8px 22px #0008; transform-origin: 50% 100%; text-align: left; cursor: pointer; }
+.hand-card:hover { border-color: #a08a63; }
+.hand-card:focus-visible { outline: 2px solid #edc46e; outline-offset: 2px; }
+.hand-card.selected { border-color: #edc46e; box-shadow: inset 0 1px #ffffff1f, 0 0 0 1px #edc46e55, 0 14px 30px #000a; }
 .hand-card::after { content: ""; position: absolute; inset: 4px; border: 1px solid #ffffff09; border-radius: 3px; pointer-events: none; }
 .card-rarity { position: absolute; z-index: 2; top: 7px; right: 7px; min-width: 20px; padding: 2px 4px; border: 1px solid currentColor; border-radius: 2px; text-align: center; font: 800 9px/1 "Noto Sans SC", sans-serif; letter-spacing: .04em; background: #11100ee8; }
 .card-rarity.rarity-n { color: #a9a49b; }
@@ -157,12 +168,13 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .hand-card.scroll-fateCrownDecree .hand-card-name { color: #ffcf6b; }
 .hand-card.card-healing { height: 150px; border-color: #477a58; background: linear-gradient(165deg, #1c3023, #111a14); }
 .hand-card.card-healing .hand-card-name { color: #9be0b0; }
-.hand-card-use { margin-top: 2px; padding: 6px 4px; border: 1px solid #538566; border-radius: 3px; background: #17291d; color: #aee8be; font-size: 10px; }
-.hand-card-use:hover:not(:disabled) { border-color: #8dd9a5; background: #203a29; }
 .hand-card.movement-configurable { border-bottom-color: #b38b3f; box-shadow: inset 0 -2px #b38b3f55, inset 0 1px #ffffff12, 0 8px 22px #0008; }
+/* 位置固定的操作区：手牌栏只负责选，使用和配置都在这里，按钮永远在同一个位置 */
+.scroll-action-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 13px 18px; min-height: 104px; margin: 14px 0 0; padding: 15px 17px; border: 1px solid #6a5837; border-radius: 5px; background: linear-gradient(145deg, #251e13, #15120e); box-shadow: inset 0 1px #ffffff0d, 0 10px 28px #0006; text-align: left; }
+.scroll-action-hint { grid-column: 1 / -1; margin: 0; color: #7d7060; font-size: 11px; text-align: center; }
+.scroll-action-reason { margin-top: 3px; color: #d38f6d; font-size: 10px; font-style: normal; }
 
 /* 移动卷轴的固定配置区：控件不再跟着扇形卡牌的 hover 动画移动。 */
-.movement-config-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 13px 18px; margin: 14px 0 3px; padding: 15px 17px; border: 1px solid #816737; border-radius: 5px; background: linear-gradient(145deg, #251e13, #15120e); box-shadow: inset 0 1px #ffffff0d, 0 10px 28px #0006; text-align: left; }
 .movement-config-copy { min-width: 0; display: grid; gap: 3px; }
 .movement-config-copy > span, .movement-preview span { color: #a58855; font-size: 9px; letter-spacing: .14em; }
 .movement-config-copy > strong { color: #ebcb8a; font: 700 15px "Noto Serif SC", serif; }
@@ -765,9 +777,8 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   .shop-stock-grid { grid-template-columns: 1fr; }
   .encounter-intent-options, .trade-comparison { grid-template-columns: 1fr; }
   .trade-gold-field { grid-template-columns: 1fr; }
-  .hand-rail { justify-content: flex-start; overflow-x: auto; padding-bottom: 6px; }
-  .hand-card { width: 84px; height: 116px; }
-  .movement-config-panel { grid-template-columns: 1fr; }
+  /* 卡宽不跟着窄屏缩：JS 按 96 算好了整排宽度，改宽度两边就对不上，横向滚动即可 */
+  .scroll-action-bar { grid-template-columns: 1fr; }
   .movement-stepper { justify-content: center; }
   .movement-config-actions { justify-content: stretch; }
   .movement-config-actions > button { flex: 1; }

@@ -258,6 +258,44 @@ describe("显示数值回拉", () => {
     expect(visualRoll("defense", events, pendingEvents(queue))).toBeUndefined();
   });
 
+  it("一个回合连打两击时，第一击的骰点在它自己的动画里就亮着", () => {
+    /*
+      山匪头目的「动作如潮」让一批事件里出现两条 attackRolled。若一律取最后一条，
+      第一击整段动画期间那条还在 pending，骰子格会空着，等第二击播到才突然跳出来。
+      */
+    let state = createInitialGame(20260805);
+    state.players.player1.maxHp = 60;
+    state.players.player1.hp = 60;
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({
+        kind: "boss",
+        aPlayerId: "player1",
+        enemyId: "banditChief",
+        attacker: "b",
+        hpA: 60,
+        hpB: 28,
+      }),
+    };
+
+    state = resolveRound(state);
+    const events = state.lastEvents;
+    const rolls = events.filter((event) => event.type === "attackRolled");
+    expect(rolls).toHaveLength(2);
+
+    let queue = enqueue(createEventQueue(), events);
+    const shownWhenPlayed: (number | undefined)[] = [];
+    while (isPlaying(queue)) {
+      const playing = queue.current?.event;
+      queue = advance(queue, remainingMs(queue)!);
+      if (playing?.type !== "attackRolled") continue;
+      shownWhenPlayed.push(visualRoll("attack", events, pendingEvents(queue))?.id);
+    }
+
+    // 每一击刚播完时显示的都是它自己那一条
+    expect(shownWhenPlayed).toEqual(rolls.map((event) => event.id));
+  });
+
   it("跳过演出后末击的骰点仍然显示，不会留下空格", () => {
     /*
       这正是骰点必须派生、不能在"事件成为当前"的那一帧抄进局部 state 的原因：

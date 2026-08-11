@@ -132,12 +132,17 @@ export function visualRoll(
   pending: readonly GameEvent[],
 ): RollEvent | undefined {
   const wanted = role === "attack" ? "attackRolled" : "defenseRolled";
-  // 取最后一条：一批事件里同一种投骰只会有一条，倒着取是为了容忍将来一批含多轮
-  const roll = events.filter(isRollEvent).filter((event) => event.type === wanted).at(-1);
-  if (!roll) return undefined;
-
   const played = (id: number) => !pending.some((event) => event.id === id);
-  if (!played(roll.id)) return undefined;
+  /*
+    取**已经播过**的最后一条。一批事件里同一种投骰不再只有一条——「动作如潮」
+    这类效果会让一个回合连结算两次攻击。直接取最后一条的话，第一击的动画期间
+    那条还在 pending，骰子格会空着，等第二击播到才突然出现。
+  */
+  const roll = events
+    .filter(isRollEvent)
+    .filter((event) => event.type === wanted && played(event.id))
+    .at(-1);
+  if (!roll) return undefined;
 
   const advanced = events.find(
     (event) => event.type === "battleRoundAdvanced" && event.id > roll.id,

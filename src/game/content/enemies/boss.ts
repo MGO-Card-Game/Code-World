@@ -10,11 +10,29 @@ export const BOSS_ENEMIES = defineEnemies("boss", {
     maxHp: 28,
     attack: 6,
     defense: 3,
-    abilities: [{
-      name: "重斧",
-      description: "攻击骰中出现最高点时，额外造成 2 点无视防御的伤害。",
-    }],
+    abilities: [
+      {
+        name: "重斧",
+        description: "攻击骰中出现最高点时，额外造成 2 点无视防御的伤害。",
+      },
+      {
+        name: "动作如潮",
+        description: "本场战斗中的第一次攻击结算两次：重新投骰、重新判定伤害。",
+      },
+    ],
     effects: {
+      /*
+        追加的是完整一击，不是伤害翻倍——两次各自投骰，重斧也就各判一次。
+
+        条件读 attacksPerformed 而不是回合数：这只怪不一定先攻，"第一次攻击"
+        该是它自己挥出的第一斧，和它在第几轮才轮到没关系。追加出来的那一击
+        会把 beforeRoll 再跑一遍，那时计数已是 1，于是只涨这一次。
+      */
+      beforeRoll({ dieKind, attacksPerformed, modifiers, addBattleLog }) {
+        if (dieKind !== "attack" || attacksPerformed > 0) return;
+        modifiers.extraAttacks += 1;
+        addBattleLog("山匪头目动作如潮，开场这一击连挥两次。");
+      },
       afterRoll({ dieKind, roll, modifiers, addBattleLog }) {
         if (dieKind !== "attack" || !roll.dice.includes(roll.sides)) return;
         modifiers.bonusDamage += 2;

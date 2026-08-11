@@ -64,6 +64,17 @@ export interface RollModifiers {
   bonusDamage: number;
   /** 最终伤害的保底值，在防御与减伤结算后应用。 */
   minimumDamage: number;
+  /**
+   * 这一击之外再结算几次攻击，只读取攻击方这一份。
+   *
+   * 不是"伤害乘二"：追加的是**完整的一次结算**——重新投骰、重新过双方钩子。
+   * 两者差别不小：重斧那类看骰面的能力会各判一次，凝胶质那类按次封顶的减伤
+   * 也各挡一次，攻防差为 0 时第二次照样可能打不动。
+   *
+   * 卷轴不跟着重打。它的作用范围是「一次攻击回合」（GameRule 8.4），追加的攻击
+   * 仍在同一个回合内，所以两次共用同一份卷轴修正，见 resolveBattleRound 的基线。
+   */
+  extraAttacks: number;
   /** 攻防差与追加伤害合计后再减免；只读取防守方这一份。 */
   damageReduction: number;
 }
@@ -109,6 +120,13 @@ export interface BattleHookContext extends BattleEffectContext {
 }
 
 export interface EnemyBeforeRollContext extends BattleHookContext {
+  /**
+   * 本场战斗中这只怪已经**打完**的攻击次数，和 EnemyAfterAttackContext 那份同一个计数。
+   *
+   * 「开场第一击」这类条件只能这样判：钩子每次结算都会重跑一遍，读不到次数的话，
+   * 追加出来的那一击会把自己再追加一次。
+   */
+  attacksPerformed: number;
   /** 对对手造成会被其防御值减免的能力伤害；返回对手是否被击倒。 */
   dealDamage: (rawDamage: number, abilityName: string) => boolean;
 }

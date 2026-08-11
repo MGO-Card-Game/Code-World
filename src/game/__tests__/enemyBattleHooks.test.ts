@@ -18,10 +18,14 @@ import type {
   GameState,
 } from "../types";
 
-function only<T extends GameEvent["type"]>(events: GameEvent[], type: T) {
-  const found = events.filter(
+function allOf<T extends GameEvent["type"]>(events: GameEvent[], type: T) {
+  return events.filter(
     (event): event is Extract<GameEvent, { type: T }> => event.type === type,
   );
+}
+
+function only<T extends GameEvent["type"]>(events: GameEvent[], type: T) {
+  const found = allOf(events, type);
   expect(found).toHaveLength(1);
   return found[0];
 }
@@ -53,6 +57,19 @@ function pveBattle(
 
 function attackBonusOf(state: GameState) {
   return only(state.lastEvents, "attackRolled").flatBonus;
+}
+
+/** 山匪头目先攻的一场首领战。玩家血量默认拉高，好让开场那两击都落在场上。 */
+function banditChiefBattle(seed: number, playerHp = 60): GameState {
+  const state = pveBattle(seed, "banditChief", undefined, {
+    kind: "boss",
+    attacker: "b",
+    hpA: playerHp,
+    hpB: 28,
+  });
+  state.players.player1.maxHp = 60;
+  state.players.player1.hp = playerHp;
+  return state;
 }
 
 describe("怪物战斗钩子", () => {
@@ -391,6 +408,58 @@ describe("怪物战斗钩子", () => {
       roll: { sides: 6, dice: [6], sum: 6 },
     });
     expect(modifiers.bonusDamage).toBe(2);
+  });
+
+  /*
+    动作如潮追加的是**完整一击**，不是把第一击的伤害翻倍。差别在事件流里看得最清楚：
+    两条 attackRolled、两条 battleDamage，各自投骰、各自过一遍减伤。
+  */
+  it("动作如潮：头目开场的攻击回合结算两次攻击", () => {
+    const state = resolveRound(banditChiefBattle(20260805));
+
+    expect(allOf(state.lastEvents, "attackRolled")).toHaveLength(2);
+    expect(allOf(state.lastEvents, "defenseRolled")).toHaveLength(2);
+    expect(allOf(state.lastEvents, "battleDamage")).toHaveLength(2);
+    // 两击属于同一个攻击回合，攻防身份只交接一次
+    expect(allOf(state.lastEvents, "battleRoundAdvanced")).toHaveLength(1);
+  });
+
+  it("动作如潮：只在本场第一次攻击时触发，追加出来的那一击不会再追加", () => {
+    let state = resolveRound(banditChiefBattle(20260805));
+    expect(state.phase.kind).toBe("battle");
+
+    state = resolveRound(state); // 玩家还手
+    state = resolveRound(state); // 头目的第二个攻击回合
+
+    expect(allOf(state.lastEvents, "attackRolled")).toHaveLength(1);
+  });
+
+  it("动作如潮：防御卷轴对追加的那一击同样有效", () => {
+    /*
+      卷轴的作用范围是「一次攻击回合」（GameRule 8.4），两击都在这个回合里。
+      只护住前半段的话，一张牌会因为对手的技能凭空缩水一半，而玩家出牌时
+      根本没有信息去规避——牌是在看到第一击结果之前就交出去的。
+    */
+    let state = banditChiefBattle(20260805);
+    state.players.player1.scrolls = [{ instanceId: "guard-1", kind: "guard" }];
+
+    state = resolveRound(state, { defense: "guard-1" });
+
+    const defenses = allOf(state.lastEvents, "defenseRolled");
+    expect(defenses.map((event) => event.flatBonus)).toEqual([3, 3]);
+    // 只打了一张，也只消耗一张
+    expect(state.players.player1.scrolls).toHaveLength(0);
+  });
+
+  it("动作如潮：第一击就打倒玩家时不会再打第二次", () => {
+    // 防御归零后攻击总和必定压过防御总和，这一击稳定见血
+    const state = banditChiefBattle(20260805, 1);
+    state.players.player1.baseDefense = 0;
+
+    const next = resolveRound(state);
+
+    expect(allOf(next.lastEvents, "attackRolled")).toHaveLength(1);
+    expect(only(next.lastEvents, "battleEnded").outcome).toBe("playerLost");
   });
 
   it("凝胶质：生化蛞蝓受到的每一次伤害至多 3 点", () => {

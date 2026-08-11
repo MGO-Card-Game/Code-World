@@ -70,6 +70,7 @@ export function newRollModifiers(): RollModifiers {
     fixedRollValue: 0,
     bonusDamage: 0,
     minimumDamage: 0,
+    extraAttacks: 0,
     damageReduction: 0,
   };
 }
@@ -406,6 +407,7 @@ export function applyEnemyBeforeRoll(
     effects.beforeRoll?.(
       {
         ...battleHookContext(state, battle, side, opponentSide, dieKind, modifiers),
+        attacksPerformed: battle.enemyAttacksPerformed,
         dealDamage(rawDamage, abilityName) {
           opponentDefeated = applyEnemyAbilityDamage(
             state,
@@ -477,72 +479,31 @@ export function applyEnemyAfterAttack(
   return defeated;
 }
 
-export function resolveBattleRound(state: GameState) {
-  if (state.phase.kind !== "battle") return;
-  const battle = state.phase.battle;
-  const attackerSide = battle.attacker;
-  const defenderSideForChoice: CombatSide = attackerSide === "a" ? "b" : "a";
-  const attackScrollIds = chosenInstanceIds(choiceFor(battle, attackerSide));
-  const defenseScrollIds = chosenInstanceIds(choiceFor(battle, defenderSideForChoice));
-  const defenderSide = attackerSide === "a" ? "b" : "a";
+/**
+ * 一次攻击的完整结算：双方钩子、投骰、伤害落地、攻击后钩子。
+ *
+ * 从回合里单独拎出来，是因为一个攻击回合不再必然只含一次攻击——山匪头目的
+ * 「动作如潮」会让同一个回合连打两次。卷轴刻意留在外面：它按回合结算一次，
+ * 追加的攻击共用同一份卷轴修正，理由见 RollModifiers.extraAttacks。
+ *
+ * 每次结算都从基线**复制**一份修正：钩子改的是自己这一击，加值不该渗到下一击，
+ * 一次性的骰面覆盖也不该在第二击里白送一遍。
+ *
+ * 返回战斗是否已经在这一击里分出胜负——若是，finishBattle 已经调用过了。
+ */
+function resolveAttackSettlement(
+  state: GameState,
+  battle: BattleState,
+  attackerSide: CombatSide,
+  defenderSide: CombatSide,
+  attackBaseline: RollModifiers,
+  defenseBaseline: RollModifiers,
+): { finished: boolean; extraAttacks: number } {
+  const attackModifiers = { ...attackBaseline };
+  const defenseModifiers = { ...defenseBaseline };
   const attackerId = battlePlayerForSide(battle, attackerSide);
   const defenderId = battlePlayerForSide(battle, defenderSide);
-  const attackScrollKinds = attackerId
-    ? consumeScrolls(state, state.players[attackerId], attackScrollIds)
-    : [];
-  /*
-    计数排在效果结算之前，所以本回合打出的牌对本回合就已经算数了。
 
-    反过来（先结算再计数）会让「对手每用一张卷轴，攻击 +1」这类效果慢半拍：
-    玩家在被攻击的回合打防御牌，怪物要到下一回合才变强，牌面写的因果就断了。
-  */
-  countScrollUse(battle, attackerSide, attackScrollKinds.length);
-  const attackModifiers = newRollModifiers();
-  if (applyScrollEffects(
-    state,
-    battle,
-    attackerSide,
-    defenderSide,
-    attackScrollKinds,
-    attackModifiers,
-  )) {
-    finishBattle(state, battle, attackerSide);
-    return;
-  }
-  /*
-    「使用道具后……」这类代价排在效果结算**之后**，和地图上那条路径对齐
-    （engine.ts 的 useMapScroll）。反过来的话，残血时打疗牌会因为扣血下限
-    白嫖掉代价——恰恰是它最该疼的时候。牌已经把对手打倒时上面已经 return，
-    代价自然不再发生：赢下来的这一场没有"之后"。
-
-    自己被代价扣倒时本回合就此中止，对面选好的牌还留在手里，
-    和"卷轴直接把对手打倒"那条路径一致。
-  */
-  if (applyEquipmentScrollUse(state, battle, attackerSide, attackScrollKinds)) {
-    finishBattle(state, battle, defenderSide);
-    return;
-  }
-
-  const defenseScrollKinds = defenderId
-    ? consumeScrolls(state, state.players[defenderId], defenseScrollIds)
-    : [];
-  countScrollUse(battle, defenderSide, defenseScrollKinds.length);
-  const defenseModifiers = newRollModifiers();
-  if (applyScrollEffects(
-    state,
-    battle,
-    defenderSide,
-    attackerSide,
-    defenseScrollKinds,
-    defenseModifiers,
-  )) {
-    finishBattle(state, battle, defenderSide);
-    return;
-  }
-  if (applyEquipmentScrollUse(state, battle, defenderSide, defenseScrollKinds)) {
-    finishBattle(state, battle, attackerSide);
-    return;
-  }
   applyEquipmentBeforeRoll(
     state, battle, attackerSide, defenderSide, "attack", attackModifiers,
   );
@@ -553,13 +514,13 @@ export function resolveBattleRound(state: GameState) {
     state, battle, attackerSide, defenderSide, "attack", attackModifiers,
   )) {
     finishBattle(state, battle, attackerSide);
-    return;
+    return { finished: true, extraAttacks: 0 };
   }
   if (applyEnemyBeforeRoll(
     state, battle, defenderSide, attackerSide, "defense", defenseModifiers,
   )) {
     finishBattle(state, battle, defenderSide);
-    return;
+    return { finished: true, extraAttacks: 0 };
   }
   if (attackerId) applyBlessingCombatRoll(state.players[attackerId], attackModifiers);
   if (defenderId) applyBlessingCombatRoll(state.players[defenderId], defenseModifiers);
@@ -652,12 +613,109 @@ export function resolveBattleRound(state: GameState) {
   );
   if (defenderDefeated) {
     finishBattle(state, battle, attackerSide);
-    return;
+    return { finished: true, extraAttacks: 0 };
   }
   const damageDealt = Math.max(0, defenderHpBefore - sideHp(battle, defenderSide));
   if (applyEnemyAfterAttack(state, battle, attackerSide, defenderSide, damageDealt)) {
     finishBattle(state, battle, defenderSide);
+    return { finished: true, extraAttacks: 0 };
+  }
+  return { finished: false, extraAttacks: Math.max(0, attackModifiers.extraAttacks) };
+}
+
+/**
+ * 一个攻击回合最多结算几次攻击。
+ *
+ * 追加出来的攻击会重新过一遍 beforeRoll，所以一条写错条件的能力可以每次都再追加
+ * 一次，把回合卡死在这里。这个上限不是规则的一部分，只是不让引擎有机会不返回的
+ * 护栏——真要打更多次时，改这个常数比赌内容侧永远写对要稳。
+ */
+const MAX_ATTACKS_PER_ROUND = 4;
+
+export function resolveBattleRound(state: GameState) {
+  if (state.phase.kind !== "battle") return;
+  const battle = state.phase.battle;
+  const attackerSide = battle.attacker;
+  const defenderSideForChoice: CombatSide = attackerSide === "a" ? "b" : "a";
+  const attackScrollIds = chosenInstanceIds(choiceFor(battle, attackerSide));
+  const defenseScrollIds = chosenInstanceIds(choiceFor(battle, defenderSideForChoice));
+  const defenderSide = attackerSide === "a" ? "b" : "a";
+  const attackerId = battlePlayerForSide(battle, attackerSide);
+  const defenderId = battlePlayerForSide(battle, defenderSide);
+  const attackScrollKinds = attackerId
+    ? consumeScrolls(state, state.players[attackerId], attackScrollIds)
+    : [];
+  /*
+    计数排在效果结算之前，所以本回合打出的牌对本回合就已经算数了。
+
+    反过来（先结算再计数）会让「对手每用一张卷轴，攻击 +1」这类效果慢半拍：
+    玩家在被攻击的回合打防御牌，怪物要到下一回合才变强，牌面写的因果就断了。
+  */
+  countScrollUse(battle, attackerSide, attackScrollKinds.length);
+  const attackBaseline = newRollModifiers();
+  if (applyScrollEffects(
+    state,
+    battle,
+    attackerSide,
+    defenderSide,
+    attackScrollKinds,
+    attackBaseline,
+  )) {
+    finishBattle(state, battle, attackerSide);
     return;
+  }
+  /*
+    「使用道具后……」这类代价排在效果结算**之后**，和地图上那条路径对齐
+    （engine.ts 的 useMapScroll）。反过来的话，残血时打疗牌会因为扣血下限
+    白嫖掉代价——恰恰是它最该疼的时候。牌已经把对手打倒时上面已经 return，
+    代价自然不再发生：赢下来的这一场没有"之后"。
+
+    自己被代价扣倒时本回合就此中止，对面选好的牌还留在手里，
+    和"卷轴直接把对手打倒"那条路径一致。
+  */
+  if (applyEquipmentScrollUse(state, battle, attackerSide, attackScrollKinds)) {
+    finishBattle(state, battle, defenderSide);
+    return;
+  }
+
+  const defenseScrollKinds = defenderId
+    ? consumeScrolls(state, state.players[defenderId], defenseScrollIds)
+    : [];
+  countScrollUse(battle, defenderSide, defenseScrollKinds.length);
+  const defenseBaseline = newRollModifiers();
+  if (applyScrollEffects(
+    state,
+    battle,
+    defenderSide,
+    attackerSide,
+    defenseScrollKinds,
+    defenseBaseline,
+  )) {
+    finishBattle(state, battle, defenderSide);
+    return;
+  }
+  if (applyEquipmentScrollUse(state, battle, defenderSide, defenseScrollKinds)) {
+    finishBattle(state, battle, attackerSide);
+    return;
+  }
+  /*
+    卷轴结算完的这两份就是本回合的基线，之后每次攻击各复制一份去用。
+
+    追加攻击（RollModifiers.extraAttacks）只让「投骰到扣血」这一段重来，
+    卷轴不重打：牌已经离手，而它的作用范围本来就是整个攻击回合。
+  */
+  let pendingAttacks = 1;
+  for (let settled = 0; pendingAttacks > 0 && settled < MAX_ATTACKS_PER_ROUND; settled += 1) {
+    const outcome = resolveAttackSettlement(
+      state,
+      battle,
+      attackerSide,
+      defenderSide,
+      attackBaseline,
+      defenseBaseline,
+    );
+    if (outcome.finished) return;
+    pendingAttacks += outcome.extraAttacks - 1;
   }
 
   const previousRound = battle.round;
@@ -671,7 +729,9 @@ export function resolveBattleRound(state: GameState) {
     fromRound: previousRound,
     fromAttacker: attackerSide,
   });
-  state.message = { text: `战斗第 ${battle.round} 轮：轮到${defenderName}攻击。` };
+  state.message = {
+    text: `战斗第 ${battle.round} 轮：轮到${combatantName(state, battle, defenderSide)}攻击。`,
+  };
 }
 
 /**

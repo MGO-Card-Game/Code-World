@@ -11,7 +11,7 @@ import type { ScrollDefinition } from "./definition";
 export const MOVEMENT_SCROLLS = {
   remoteDice: {
     name: "灵活行动",
-    description: "地图阶段使用：指定本回合的移动点数（不超过当前移动骰上限），代替正常掷骰",
+    description: "地图阶段使用：指定本回合的移动点数（不超过当前移动骰上限）",
     rarity: "SR",
     timings: ["map"],
     effects: [{ type: "chooseMovement" }],
@@ -19,7 +19,7 @@ export const MOVEMENT_SCROLLS = {
 
   shortRangeTeleportCharm: {
     name: "短程传送符",
-    description: "地图阶段使用：直接跃至前方至多 3 格处，代替正常移动；途中的营地回血与守关门计次都不会触发",
+    description: "地图阶段使用：直接跃至前方至多 3 格处；途中的营地回血与守关门计次都不会触发",
     rarity: "N",
     timings: ["map"],
     effects: [{ type: "teleport", maxDistance: 3 }],
@@ -35,7 +35,7 @@ export const MOVEMENT_SCROLLS = {
 
   somersault: {
     name: "翻跟头",
-    description: "地图阶段使用：不掷骰，直接前进 2 格，代替正常移动；沿途效果与落点都照常触发",
+    description: "地图阶段使用：不掷骰，直接前进 2 格，落点触发",
     /*
       和触手可得（跃 1 格）的区别是"走"与"跳"：这张会逐格前进，路过营地照样回血、
       经过守关门照样计圈。走 2 格的期望收益低于掷骰的 3.5，值在于点数确定。
@@ -47,7 +47,7 @@ export const MOVEMENT_SCROLLS = {
 
   anywhereDoor: {
     name: "任意门",
-    description: "地图阶段使用：直接传送至当前阶段地图上的任意一格，代替正常移动；不触发沿途任何效果",
+    description: "地图阶段使用：直接传送至当前阶段地图上的任意一格，不触发沿途任何效果",
     rarity: "PR",
     timings: ["map"],
     effects: [{ type: "teleportAnywhere" }],

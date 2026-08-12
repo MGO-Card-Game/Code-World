@@ -1,0 +1,14 @@
+.git
+.gitignore
+.agents
+.superpowers
+.ua
+.codex-*
+.env
+.env.*
+node_modules
+dist
+coverage
+.vite
+*.log
+*.tsbuildinfo

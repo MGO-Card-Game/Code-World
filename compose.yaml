@@ -1,0 +1,15 @@
+services:
+  code-world:
+    image: code-world:latest
+    build:
+      context: .
+    container_name: code-world
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 8787
+    ports:
+      - "8787:8787"
+    security_opt:
+      - no-new-privileges:true

@@ -21,6 +21,8 @@ import type {
   EncounterChoiceState,
   ScrollTargetChoiceState,
   GameStateView,
+  MapEventEquipmentChoiceState,
+  MapEventScrollChoiceState,
   MapEventNoticeState,
   PlayerId,
   PlayerView,
@@ -209,6 +211,10 @@ export function MapEventPanel({ state, notice, dispatch, viewerSeat }: {
             ? "走进赌场"
             : notice.resume?.kind === "equipmentChoice"
               ? "处理装备"
+              : notice.resume?.kind === "mapEventScrollChoice"
+                ? "选择卷轴"
+                : notice.resume?.kind === "mapEventEquipmentChoice"
+                  ? "决定是否交易"
               : "继续前行"}
         </button>
       }
@@ -221,6 +227,117 @@ export function MapEventPanel({ state, notice, dispatch, viewerSeat }: {
         ))}
       </div>
     </DecisionModal>
+  );
+}
+
+export function MapEventScrollChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: MapEventScrollChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[choice.playerId];
+  const event = mapEventDefinition(choice.eventKind);
+  const candidates = visibleScrolls(player.scrolls).filter((scroll) =>
+    choice.candidateIds.includes(scroll.instanceId)
+  );
+  const canChoose = viewerSeat === choice.playerId;
+
+  return (
+    <DecisionModal
+      backdrop="reward-backdrop"
+      className="equipment-choice-modal"
+      emblem={<NoticeEmblem>◈</NoticeEmblem>}
+      kicker={event.name}
+      title={`${player.name}选择要复制的卷轴`}
+      lead="原卷轴会保留；复制品将以新的卡牌实例加入手牌。"
+      canAct={canChoose}
+      waiting={<p className="waiting-notice">{`等待${player.name}选择卷轴……`}</p>}
+      actions={
+        <div className="equipment-choice-options">
+          {candidates.map((scroll) => {
+            const definition = SCROLLS[scroll.kind];
+            return (
+              <button
+                type="button"
+                key={scroll.instanceId}
+                disabled={playing}
+                onClick={() => dispatch({
+                  type: "chooseMapEventScroll",
+                  instanceId: scroll.instanceId,
+                })}
+              >
+                <span>复制</span>
+                <strong>{definition.name}</strong>
+                <small>{definition.description}</small>
+              </button>
+            );
+          })}
+        </div>
+      }
+    />
+  );
+}
+
+export function MapEventEquipmentChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: MapEventEquipmentChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[choice.playerId];
+  const event = mapEventDefinition(choice.eventKind);
+  const candidates = player.equipment.filter((item) =>
+    choice.candidateIds.includes(item.instanceId)
+  );
+  const canChoose = viewerSeat === choice.playerId;
+
+  return (
+    <DecisionModal
+      backdrop="reward-backdrop"
+      className="equipment-choice-modal"
+      emblem={<NoticeEmblem>◈</NoticeEmblem>}
+      kicker={event.name}
+      title={`${player.name}是否交出一件装备？`}
+      lead="交出的装备会永久失去；作为交换，你的基础防御永久 +1。"
+      canAct={canChoose}
+      waiting={<p className="waiting-notice">{`等待${player.name}决定是否交易……`}</p>}
+      actions={
+        <div className="equipment-choice-options">
+          {candidates.map((item) => {
+            const definition = EQUIPMENT[item.kind];
+            const category = equipmentCategory(item.kind);
+            return (
+              <button
+                type="button"
+                key={item.instanceId}
+                disabled={playing}
+                onClick={() => dispatch({
+                  type: "chooseMapEventEquipment",
+                  instanceId: item.instanceId,
+                })}
+              >
+                <span>交出 · {EQUIPMENT_CATEGORY_NAMES[category]}</span>
+                <strong>{definition.name}</strong>
+                <small>{definition.description}</small>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            className="discard-equipment"
+            disabled={playing}
+            onClick={() => dispatch({ type: "chooseMapEventEquipment" })}
+          >
+            <span>保留全部装备</span>
+            <strong>拒绝交易</strong>
+            <small>不交出装备，也不获得防御提升。</small>
+          </button>
+        </div>
+      }
+    />
   );
 }
 

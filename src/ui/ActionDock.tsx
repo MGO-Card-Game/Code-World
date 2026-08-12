@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { getDieSidesBonus } from "../game/selectors";
+import { getDiceCountBonus, getDieSidesBonus } from "../game/selectors";
 import { canUseShop } from "../game/economy";
 import { canOpenBossGate } from "../game/stages";
 import type { GameStateView, PlayerId } from "../game/types";
@@ -13,13 +13,20 @@ interface ActionGuidance {
 }
 
 /** 把引擎阶段翻译成玩家真正需要完成的下一步。 */
-export function actionGuidance(state: GameStateView, movementSides: number): ActionGuidance {
+export function actionGuidance(
+  state: GameStateView,
+  movementSides: number,
+  movementDiceCount = 1,
+): ActionGuidance {
   const phase = state.phase;
+  const movementDiceLabel = movementDiceCount > 1
+    ? `${movementDiceCount}D${movementSides}`
+    : `D${movementSides}`;
   switch (phase.kind) {
     case "awaitingRoll":
       return {
         label: "移动阶段",
-        action: `投掷 D${movementSides}`,
+        action: `投掷 ${movementDiceLabel}`,
         waitingAction: "投骰",
         actorIds: [state.activePlayerId],
       };
@@ -39,6 +46,18 @@ export function actionGuidance(state: GameStateView, movementSides: number): Act
       return {
         label: "选定目标",
         action: "选择一名玩家",
+        actorIds: [phase.choice.playerId],
+      };
+    case "mapEventScrollChoice":
+      return {
+        label: "双子杀手",
+        action: "选择一张卷轴进行复制",
+        actorIds: [phase.choice.playerId],
+      };
+    case "mapEventEquipmentChoice":
+      return {
+        label: "武器收藏家",
+        action: "交出一件装备或拒绝交易",
         actorIds: [phase.choice.playerId],
       };
     case "encounterDecision": {
@@ -174,7 +193,11 @@ export function ActionDock({ state, dispatch, message, playback, viewerSeat, onO
   const rollPending = playback.pending.some((event) => event.type === "movementRolled");
   const die = rollPending ? undefined : state.lastMovementRoll;
   const movementSides = Math.max(2, 6 + getDieSidesBonus(active, "movement"));
-  const guidance = actionGuidance(state, movementSides);
+  const movementDiceCount = Math.max(1, 1 + getDiceCountBonus(active, "movement"));
+  const movementDiceLabel = movementDiceCount > 1
+    ? `${movementDiceCount}D${movementSides}`
+    : `D${movementSides}`;
+  const guidance = actionGuidance(state, movementSides, movementDiceCount);
   const canControlTurn = viewerSeat === state.activePlayerId;
   const viewerMustAct = guidance.actorIds.includes(viewerSeat);
   const hasPendingActor = guidance.actorIds.length > 0;
@@ -225,7 +248,7 @@ export function ActionDock({ state, dispatch, message, playback, viewerSeat, onO
           <motion.div
             className="die-result"
             key={`${state.turn}-${die}`}
-            aria-label={`D${movementSides} 骰子结果 ${die}`}
+            aria-label={`${movementDiceLabel} 骰子总结果 ${die}`}
             initial={{ scale: 0.2, rotate: -180, opacity: 0 }}
             animate={{ scale: 1, rotate: 3, opacity: 1 }}
             exit={{ scale: 0.4, opacity: 0 }}
@@ -249,7 +272,7 @@ export function ActionDock({ state, dispatch, message, playback, viewerSeat, onO
               <button className="primary-button action-primary-button" onClick={() => dispatch({ type: "rollMovement" })}>
                 <span className="action-button-icon" aria-hidden="true">骰</span>
                 <span>
-                  <strong>投掷 D{movementSides}</strong>
+                  <strong>投掷 {movementDiceLabel}</strong>
                   <small>为{active.name}</small>
                 </span>
               </button>

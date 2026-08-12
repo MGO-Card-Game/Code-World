@@ -28,6 +28,7 @@ export type TileType =
   | "spring"
   | "event"
   | "shop"
+  | "tunnel"
   | "gate"
   | "boss";
 
@@ -365,7 +366,27 @@ export interface MapEventNoticeState {
    */
   resume?:
     | { kind: "casino"; casino: CasinoState }
-    | { kind: "equipmentChoice"; choice: EquipmentChoiceState };
+    | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
+    | { kind: "mapEventScrollChoice"; choice: MapEventScrollChoiceState }
+    | { kind: "mapEventEquipmentChoice"; choice: MapEventEquipmentChoiceState };
+}
+
+/** 地图事件要求玩家从自己的暗牌中选择一张卷轴时使用。 */
+export interface MapEventScrollChoiceState {
+  playerId: PlayerId;
+  /** 只允许选择事件触发瞬间已经在手里的牌，复制品本身不会反复成为候选。 */
+  candidateIds: string[];
+  /** 回内容表读取选择完成后的私密旁白，避免把函数塞进可广播的 GameState。 */
+  eventKind: MapEventKind;
+  effectIndex: number;
+}
+
+/** 地图事件允许玩家交出一件已有装备时使用。 */
+export interface MapEventEquipmentChoiceState {
+  playerId: PlayerId;
+  candidateIds: string[];
+  eventKind: MapEventKind;
+  effectIndex: number;
 }
 
 /** 三选一的永久成长；数值和文案在 growth.ts 的 STAT_GROWTH。 */
@@ -464,6 +485,8 @@ export type GamePhase =
   | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
   | { kind: "pveReward"; notice: PveRewardNoticeState }
   | { kind: "mapEventNotice"; notice: MapEventNoticeState }
+  | { kind: "mapEventScrollChoice"; choice: MapEventScrollChoiceState }
+  | { kind: "mapEventEquipmentChoice"; choice: MapEventEquipmentChoiceState }
   | { kind: "statGrowthChoice"; choice: StatGrowthChoiceState }
   | { kind: "shop"; shop: ShopState }
   | { kind: "casino"; casino: CasinoState }
@@ -521,7 +544,13 @@ export type GameEventBody =
       turnOrder: PlayerId[];
     }
   | { type: "turnStarted"; playerId: PlayerId; turn: number }
-  | { type: "movementRolled"; playerId: PlayerId; value: number; sides: number }
+  | {
+      type: "movementRolled";
+      playerId: PlayerId;
+      value: number;
+      sides: number;
+      dice: number[];
+    }
   | { type: "playerMoved"; playerId: PlayerId; from: number; to: number }
   | { type: "playerRetreated"; playerId: PlayerId; from: number; to: number }
   /** 玩家真实生命值变化。战斗中的临时生命值请看 battleDamage */
@@ -724,6 +753,9 @@ export type GameAction =
   | { type: "chooseBlessing"; replace: boolean; replaceInstanceId?: string }
   | { type: "acknowledgePveReward" }
   | { type: "acknowledgeMapEvent" }
+  | { type: "chooseMapEventScroll"; instanceId: string }
+  /** 省略 instanceId 表示拒绝收藏家的可选交易。 */
+  | { type: "chooseMapEventEquipment"; instanceId?: string }
   | { type: "buyShopItem"; item: "scroll" | "healing" }
   | { type: "buyShopOffer"; offerId: number }
   | { type: "leaveShop" }

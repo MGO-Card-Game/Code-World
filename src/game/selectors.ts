@@ -7,6 +7,8 @@ import { EQUIPMENT, equipmentDefinition } from "./content/equipment";
 import { blessingDefinition } from "./content/blessings";
 import { scrollDefinition } from "./content/scrolls";
 import type {
+  BattleDiceKind,
+  CountedDiceKind,
   DiceKind,
   EnemyEffects,
   StatModifier,
@@ -50,7 +52,7 @@ function dieSidesBonus(modifiers: readonly StatModifier[], die: DiceKind) {
 
 function diceCountBonus(
   modifiers: readonly StatModifier[],
-  die: Exclude<DiceKind, "movement">,
+  die: CountedDiceKind,
 ) {
   return foldModifiers(
     modifiers,
@@ -96,7 +98,7 @@ export function getDieSidesBonus(player: PlayerStats, die: DiceKind) {
 
 export function getDiceCountBonus(
   player: PlayerStats,
-  die: Exclude<DiceKind, "movement">,
+  die: CountedDiceKind,
 ) {
   return diceCountBonus(playerModifiers(player), die);
 }
@@ -147,7 +149,7 @@ export function enemyDieSidesBonus(
 export function enemyDiceCountBonus(
   kind: EnemyKind,
   affix: EliteAffixKind | undefined,
-  die: Exclude<DiceKind, "movement">,
+  die: BattleDiceKind,
 ) {
   return diceCountBonus(enemyModifiers(kind, affix), die);
 }
@@ -192,7 +194,20 @@ export function describeEquipment(player: PlayerStats) {
  * 按 timing 过滤而不是按 kind——加新卷轴时这里不用改。
  */
 export function playableScrolls(player: Player, timing: ScrollTiming) {
+  const blocked = player.equipment.some((item) =>
+    equipmentDefinition(item.kind).effects?.blockedScrollTimings?.includes(timing)
+  );
+  if (blocked) return [];
   return player.scrolls.filter((scroll) =>
     scrollDefinition(scroll.kind).timings.includes(timing)
+  );
+}
+
+export function equipmentBlocksScrollTiming(
+  player: Pick<PlayerStats, "equipment">,
+  timing: ScrollTiming,
+) {
+  return player.equipment.some((item) =>
+    equipmentDefinition(item.kind).effects?.blockedScrollTimings?.includes(timing)
   );
 }

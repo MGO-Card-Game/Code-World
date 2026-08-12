@@ -13,7 +13,7 @@ import { resolveTile } from "./tiles";
 import { advanceCompletedTurn } from "./turns";
 import { settleActionResult } from "./actionResult";
 import { chooseBossChallenge } from "./mapActions";
-import { acknowledgeMapEvent } from "./mapEvents";
+import { acknowledgeMapEvent, chooseMapEventEquipment } from "./mapEvents";
 import type { GameState, Player } from "./types";
 
 /**
@@ -52,6 +52,17 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       if (next.phase.choice.playerId !== playerId) return state;
       next.phase = { kind: "turnComplete" };
       addHistory(next, `${timedOut.name}掉线超时，放弃本次针对。`);
+      advanceCompletedTurn(next);
+      return next;
+    case "mapEventScrollChoice":
+      if (next.phase.choice.playerId !== playerId) return state;
+      next.phase = { kind: "turnComplete" };
+      addHistory(next, `${timedOut.name}掉线超时，放弃复制卷轴。`);
+      advanceCompletedTurn(next);
+      return next;
+    case "mapEventEquipmentChoice":
+      if (next.phase.choice.playerId !== playerId) return state;
+      chooseMapEventEquipment(next);
       advanceCompletedTurn(next);
       return next;
     case "encounterChoice":

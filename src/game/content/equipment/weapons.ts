@@ -25,16 +25,17 @@ export const WEAPONS = defineEquipment("weapon", {
 
   oniBlade: {
     name: "鬼切",
-    description: "累计击败 3 次精英后解锁：攻击骰上限 +3；攻击被完全抵挡时仍造成 2 点固定伤害",
+    description: "先攻骰上限 +1；累计击败 2 次精英后解锁：攻击骰上限 +3，攻击被完全抵挡时仍造成 3 点固定伤害",
     rarity: "SR",
-    modifiers: [],
+    modifiers: [
+      { type: "dieSides", die: "initiative", value: 1 }],
     effects: {
       modifiers({ player }) {
         const victories = Object.values(player.stageProgress).reduce(
           (total, progress) => total + progress.eliteVictories,
           0,
         );
-        return victories >= 3
+        return victories >= 2
           ? [{ type: "dieSides", die: "attack", value: 3 }]
           : [];
       },
@@ -44,9 +45,23 @@ export const WEAPONS = defineEquipment("weapon", {
           (total, progress) => total + progress.eliteVictories,
           0,
         );
-        if (victories < 3) return;
-        modifiers.minimumDamage = Math.max(modifiers.minimumDamage, 2);
-        addBattleLog("鬼切已经解锁，本次攻击至少造成 2 点固定伤害。");
+        if (victories < 2) return;
+        modifiers.minimumDamage = Math.max(modifiers.minimumDamage, 3);
+        addBattleLog("鬼切已经解锁，本次攻击至少造成 3 点固定伤害。");
+      },
+    },
+  },
+
+  shadowlessSword: {
+    name: "无影剑",
+    description: "攻击骰上限 -2；若本次攻击骰点数高于对手防御骰点数，附加 4 点伤害",
+    rarity: "SR",
+    modifiers: [{ type: "dieSides", die: "attack", value: -2 }],
+    effects: {
+      afterOpposedRoll({ attackRoll, defenseRoll, modifiers, addBattleLog }) {
+        if (attackRoll.sum <= defenseRoll.sum) return;
+        modifiers.bonusDamage += 4;
+        addBattleLog("无影剑越过防守的空隙，本次攻击附加 4 点伤害。");
       },
     },
   },
@@ -303,9 +318,12 @@ export const WEAPONS = defineEquipment("weapon", {
 
   throneBreaker: {
     name: "王座破坏者",
-    description: "攻击骰上限 +3；每场战斗开始时获得一张「王座破坏者」攻击牌",
+    description: "攻击骰上限 +3；攻击力+2；每场战斗开始时获得一张「王座破坏者」攻击牌",
     rarity: "PR",
-    modifiers: [{ type: "dieSides", die: "attack", value: 3 }],
+    modifiers: [
+      { type: "dieSides", die: "attack", value: 3 },
+      { type: "statBonus", stat: "attack", value: 2 }
+    ],
     effects: {
       // 和命运王冠同一套路：每场战斗一次的主动技 = 战斗开始时发一张战斗限定牌。
       // 区别只有时机——王冠攻防都能打，这张只在攻击时机可用。

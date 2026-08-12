@@ -30,7 +30,7 @@ import {
   getDieSidesBonus,
   playableScrolls,
 } from "./selectors";
-import { emit, rollDie } from "./state";
+import { emit, nextRandom, rollDie } from "./state";
 import type {
   BattleEffectContext,
   BattleHookContext,
@@ -370,6 +370,34 @@ export function applyEquipmentAfterRoll(
 }
 
 /**
+ * 双方骰点都公开后的攻击方装备钩子。
+ *
+ * 只遍历攻击方，避免防守方装备借“对手攻击成功”错误地追加伤害。多个装备的
+ * 追加伤害可以自然累加；随机数统一取自 GameState 的种子流。
+ */
+export function applyEquipmentAfterOpposedRoll(
+  state: GameState,
+  battle: BattleState,
+  attackerSide: CombatSide,
+  defenderSide: CombatSide,
+  modifiers: RollModifiers,
+  attackRoll: RollResult,
+  defenseRoll: RollResult,
+) {
+  forEachEquipmentEffects(state, battle, attackerSide, (effects, item, player) => {
+    effects.afterOpposedRoll?.({
+      ...battleEffectContext(state, battle, attackerSide, defenderSide),
+      player,
+      item,
+      attackRoll,
+      defenseRoll,
+      modifiers,
+      random: () => nextRandom(state),
+    });
+  });
+}
+
+/**
  * 打完牌之后的装备钩子，每张牌各调用一次。返回这一侧是否因此倒下。
  *
  * 在战斗里，扣血走 applyBattleHpLoss 而不是 dealBattleDamage：牌面写的是
@@ -566,6 +594,15 @@ function resolveAttackSettlement(
   );
   applyEnemyAfterRoll(
     state, battle, defenderSide, attackerSide, "defense", defenseModifiers, defenseRoll,
+  );
+  applyEquipmentAfterOpposedRoll(
+    state,
+    battle,
+    attackerSide,
+    defenderSide,
+    attackModifiers,
+    attackRoll,
+    defenseRoll,
   );
 
   const attackBase = sideStats(state, battle, attackerSide).attack;

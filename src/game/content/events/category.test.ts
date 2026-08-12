@@ -19,6 +19,8 @@ describe("地图事件内容注册表", () => {
       "coinRain",
       "campfire",
       "requisition",
+      "twinSlayer",
+      "weaponCollector",
       "veteranGuidance",
       "guardianInscription",
       "casinoRoulette",
@@ -35,6 +37,8 @@ describe("地图事件内容注册表", () => {
     expect(MAP_EVENTS.coinRain.category).toBe("reward");
     expect(MAP_EVENTS.campfire.category).toBe("reward");
     expect(MAP_EVENTS.requisition.category).toBe("reward");
+    expect(MAP_EVENTS.twinSlayer.category).toBe("reward");
+    expect(MAP_EVENTS.weaponCollector.category).toBe("reward");
     expect(MAP_EVENTS.veteranGuidance.category).toBe("boon");
     expect(MAP_EVENTS.guardianInscription.category).toBe("boon");
     expect(MAP_EVENTS.casinoRoulette.category).toBe("casino");
@@ -56,6 +60,8 @@ describe("地图事件内容注册表", () => {
         ["coinRain", 0.5],
         ["campfire", 0.5],
         ["requisition", 0.25],
+        ["twinSlayer", 0.5],
+        ["weaponCollector", 0.5],
         ["veteranGuidance", 0.5],
         ["guardianInscription", 0.5],
         ["casinoRoulette", 0.5],
@@ -75,24 +81,26 @@ describe("地图事件内容注册表", () => {
     }
   });
 
-  it("一次权重抽取消耗一个随机数并覆盖十五个事件区间", () => {
-    // 取值都落在各自区间的中段：权重总和是 9.5，边界值容易随权重微调而漂移。
+  it("一次权重抽取消耗一个随机数并覆盖十七个事件区间", () => {
+    // 取值都落在各自区间的中段：权重总和是 10.5，边界值容易随权重微调而漂移。
     const cases = [
       [0.05, "roadsideRespite"],
-      [0.13, "hotSpring"],
-      [0.21, "fallingRocks"],
-      [0.29, "mire"],
-      [0.37, "impulseBuy"],
-      [0.47, "lostPurse"],
-      [0.58, "travelerGift"],
-      [0.66, "fallenAdventurer"],
-      [0.7, "weaponInStone"],
-      [0.74, "coinRain"],
-      [0.79, "campfire"],
-      [0.83, "requisition"],
-      [0.87, "veteranGuidance"],
-      [0.92, "guardianInscription"],
-      [0.97, "casinoRoulette"],
+      [0.12, "hotSpring"],
+      [0.19, "fallingRocks"],
+      [0.26, "mire"],
+      [0.33, "impulseBuy"],
+      [0.43, "lostPurse"],
+      [0.52, "travelerGift"],
+      [0.595, "fallenAdventurer"],
+      [0.63, "weaponInStone"],
+      [0.665, "coinRain"],
+      [0.715, "campfire"],
+      [0.75, "requisition"],
+      [0.785, "twinSlayer"],
+      [0.835, "weaponCollector"],
+      [0.88, "veteranGuidance"],
+      [0.93, "guardianInscription"],
+      [0.975, "casinoRoulette"],
     ] as const;
 
     let calls = 0;

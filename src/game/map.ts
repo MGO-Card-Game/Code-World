@@ -13,6 +13,8 @@ export const MAP_REGION_SIZE = 32;
 /** 扩图前的 26 个随机功能格保持原配额；新增位置暂用普通战斗格填充。 */
 export const MAP_EXPANSION_BATTLE_TILES = 4;
 const MAP_RANDOM_TILE_COUNT = MAP_REGION_SIZE - 2 - MAP_EXPANSION_BATTLE_TILES;
+/** 每局有一半概率生成一对神秘隧道。 */
+export const MAP_TUNNEL_PAIR_CHANCE = 0.5;
 
 export interface TileCountRange {
   min: number;
@@ -20,6 +22,7 @@ export interface TileCountRange {
 }
 
 export type RandomTileType = Exclude<TileType, "start" | "boss" | "gate">;
+export type QuotaTileType = Exclude<RandomTileType, "tunnel">;
 
 /**
  * 每个区域独立满足这组上下限，避免某一类格子全部挤在同一段路上。
@@ -30,7 +33,7 @@ export type RandomTileType = Exclude<TileType, "start" | "boss" | "gate">;
  * 现在是 min 23、max 29，原随机功能格容量保持为 26；扩出的 4 格另行填入普通战斗。
  * 泉水与商店固定两个；商店增加的名额从宝箱配额中划出。
  */
-export const MAP_TILE_LIMITS: Record<RandomTileType, TileCountRange> = {
+export const MAP_TILE_LIMITS: Record<QuotaTileType, TileCountRange> = {
   battle: { min: 6, max: 8 },
   elite: { min: 2, max: 3 },
   event: { min: 7, max: 9 },
@@ -62,7 +65,7 @@ export const MAP_REGIONS: MapRegion[] = [
   },
 ];
 
-const RANDOM_TYPES = Object.keys(MAP_TILE_LIMITS) as RandomTileType[];
+const RANDOM_TYPES = Object.keys(MAP_TILE_LIMITS) as QuotaTileType[];
 
 const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
   foothill: {
@@ -73,6 +76,7 @@ const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
     blessing: ["古树赐福", "晨曦祭坛", "山灵石龛", "荒径圣印"],
     spring: ["微光泉水", "林间清泉", "苔石水潭", "山脚驿泉"],
     shop: ["荒径商栈", "旧道货亭", "旅商帐篷", "林间市集"],
+    tunnel: ["神秘隧道"],
   },
   mountainside: {
     battle: ["峭壁伏击", "古道守卫", "云中兽影", "断桥强敌"],
@@ -82,6 +86,7 @@ const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
     blessing: ["云中古坛", "风语石龛", "先民圣印", "雾隐祷所"],
     spring: ["半山泉眼", "雾隐清潭", "石壁灵泉", "云杉水涧"],
     shop: ["云腰商栈", "悬崖货亭", "行商营帐", "雾中市集"],
+    tunnel: ["神秘隧道"],
   },
   summit: {
     battle: ["雷脊伏击", "峰顶守卫", "龙巢爪牙", "风暴强敌"],
@@ -91,6 +96,7 @@ const LABELS: Record<MapRegionId, Record<RandomTileType, string[]>> = {
     blessing: ["雷霆祭坛", "星辉石龛", "峰顶圣印", "龙脉祷所"],
     spring: ["云上清泉", "雷霆圣泉", "峰顶雪池", "龙眠水潭"],
     shop: ["峰顶商栈", "天梯货亭", "登顶商队", "云巅市集"],
+    tunnel: ["神秘隧道"],
   },
 };
 
@@ -126,7 +132,7 @@ function shuffle<T>(items: T[], random: () => number) {
 function chooseCounts(capacity: number, random: () => number) {
   const counts = Object.fromEntries(
     RANDOM_TYPES.map((type) => [type, MAP_TILE_LIMITS[type].min]),
-  ) as Record<RandomTileType, number>;
+  ) as Record<QuotaTileType, number>;
   let remaining = capacity - RANDOM_TYPES.reduce((sum, type) => sum + counts[type], 0);
 
   while (remaining > 0) {
@@ -216,7 +222,7 @@ function makeRandomTile(
     type,
     label: labels[randomIndex(random, labels.length)],
   };
-  if (type === "shop") tile.safeZone = true;
+  if (type === "shop" || type === "tunnel") tile.safeZone = true;
   return tile;
 }
 
@@ -262,6 +268,25 @@ export function generateMap(seed: number): GameMap {
         poolIndex += 1;
         tiles.push(makeRandomTile(id, region.id, type, random));
       }
+    }
+  }
+
+  /*
+    隧道使用独立随机流，并在基础地图完整生成后替换两格战斗格。这样没有隧道的
+    旧种子不会因为多消耗一枚随机数而整张重排；两端又只会吃掉扩展出的战斗格配额。
+  */
+  const tunnelRandom = makeRandom(normalized ^ 0x6d2b79f5);
+  if (tunnelRandom() < MAP_TUNNEL_PAIR_CHANCE) {
+    const region = MAP_REGIONS[randomIndex(tunnelRandom, MAP_REGIONS.length)];
+    const candidates = tiles.filter(
+      (tile) => tile.region === region.id && tile.type === "battle",
+    );
+    for (let remaining = 2; remaining > 0; remaining -= 1) {
+      const chosenIndex = randomIndex(tunnelRandom, candidates.length);
+      const chosen = candidates.splice(chosenIndex, 1)[0];
+      chosen.type = "tunnel";
+      chosen.label = "神秘隧道";
+      chosen.safeZone = true;
     }
   }
 

@@ -12,6 +12,7 @@ export {
   type AmountNarrationContext,
   type BaseStatNarrationContext,
   type DonorNarrationContext,
+  type EquipmentExchangeNarrationContext,
   type MapEventAmount,
   type MapEventBody,
   type MapEventBaseStat,

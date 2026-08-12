@@ -15,7 +15,14 @@ import {
   grantScroll,
   rewardSecret,
 } from "./resources";
-import { enemyEffects, enemyStats, getAttack, getDefense, pvpHpTransferAmount } from "./selectors";
+import {
+  enemyEffects,
+  enemyStats,
+  getAttack,
+  getDefense,
+  getDieSidesBonus,
+  pvpHpTransferAmount,
+} from "./selectors";
 import { addHistory, emit, makeInstanceId, nextRandom, rollDie } from "./state";
 import { ECONOMY, grantGold, pvpGoldTransferAmount } from "./economy";
 import { battleHasEliteEnemy } from "./enemyClassification";
@@ -75,6 +82,12 @@ function rollInitiative(state: GameState, enemyId?: EnemyKind) {
   return min + Math.floor(nextRandom(state) * (max - min + 1));
 }
 
+/** 玩家先攻骰会叠加装备与赐福提供的骰面上限修正。 */
+function rollPlayerInitiative(state: GameState, playerId: PlayerId) {
+  const sides = Math.max(2, 6 + getDieSidesBonus(state.players[playerId], "initiative"));
+  return rollDie(state, sides);
+}
+
 export function startBattle(
   state: GameState,
   kind: BattleState["kind"],
@@ -92,11 +105,15 @@ export function startBattle(
     enemyId,
     enemyAffix,
   });
-  let initiativeA = rollDie(state);
-  let initiativeB = bPlayerId ? rollDie(state) : rollInitiative(state, enemyId);
+  let initiativeA = rollPlayerInitiative(state, aPlayerId);
+  let initiativeB = bPlayerId
+    ? rollPlayerInitiative(state, bPlayerId)
+    : rollInitiative(state, enemyId);
   while (initiativeA === initiativeB) {
-    initiativeA = rollDie(state);
-    initiativeB = bPlayerId ? rollDie(state) : rollInitiative(state, enemyId);
+    initiativeA = rollPlayerInitiative(state, aPlayerId);
+    initiativeB = bPlayerId
+      ? rollPlayerInitiative(state, bPlayerId)
+      : rollInitiative(state, enemyId);
   }
   const battle: BattleState = {
     kind,

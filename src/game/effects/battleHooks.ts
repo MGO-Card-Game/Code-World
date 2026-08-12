@@ -8,7 +8,9 @@ import type { BattleState, CombatSide, GameState } from "../types";
  * 也避免了怪物去 import 一个名字里写着 Equipment 的类型。
  */
 
-export type DiceKind = "attack" | "defense" | "movement";
+export type BattleDiceKind = "attack" | "defense";
+export type DiceKind = BattleDiceKind | "movement" | "initiative";
+export type CountedDiceKind = BattleDiceKind | "movement";
 
 /**
  * 可以直接由配置表达的永久数值修正。
@@ -19,7 +21,7 @@ export type DiceKind = "attack" | "defense" | "movement";
 export type StatModifier =
   | { type: "statBonus"; stat: "attack" | "defense"; value: number }
   | { type: "dieSides"; die: DiceKind; value: number }
-  | { type: "diceCount"; die: Exclude<DiceKind, "movement">; value: number }
+  | { type: "diceCount"; die: CountedDiceKind; value: number }
   | { type: "maxHp"; value: number };
 
 /**
@@ -120,7 +122,7 @@ export interface BattleEffectContext {
 
 export interface BattleHookContext extends BattleEffectContext {
   /** 本次投的是攻击骰还是防御骰 */
-  dieKind: Exclude<DiceKind, "movement">;
+  dieKind: BattleDiceKind;
   modifiers: RollModifiers;
 }
 

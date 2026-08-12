@@ -1,4 +1,5 @@
 import type {
+  BattleEffectContext,
   BattleHookContext,
   RollModifiers,
   RollResult,
@@ -12,6 +13,7 @@ import type {
   OwnedScroll,
   Player,
   PlayerStats,
+  ScrollTiming,
 } from "../types";
 
 /**
@@ -143,6 +145,23 @@ export type EquipmentBattleContext = BattleHookContext & {
 };
 
 /**
+ * 攻防双方都完成投骰后的装备上下文。
+ *
+ * 这个时机专门承载“自己的攻击骰点数高于对方防御骰点数”一类能力：普通
+ * afterRoll 只能看到持有者自己的骰子，无法安全地比较对手结果。
+ */
+export interface EquipmentOpposedRollContext extends BattleEffectContext {
+  player: Player;
+  item: OwnedEquipment;
+  attackRoll: RollResult;
+  defenseRoll: RollResult;
+  /** 追加伤害写入攻击方的本次修正，随后仍会经过防守方的受伤钩子。 */
+  modifiers: RollModifiers;
+  /** 使用游戏种子流，保证回放与联机结果一致。 */
+  random: () => number;
+}
+
+/**
  * 战斗开始时装备能做的事。
  *
  * grantBattleScroll 发的是**临时牌**：战斗结束时统一回收，不进常驻手牌，
@@ -239,6 +258,8 @@ export interface EquipmentScrollUseContext {
  * 和卷轴的 custom 同理：定义不进 GameState，放函数是安全的。
  */
 export interface EquipmentEffects {
+  /** 在指定战斗时机禁止使用卷轴；空选择仍可正常提交并继续投骰。 */
+  blockedScrollTimings?: readonly ScrollTiming[];
   /** 战斗开始、投先攻骰之后。 */
   onBattleStart?: (context: EquipmentBattleStartContext) => void;
   /** 条件装备可根据玩家当前状态动态返回额外修正。 */
@@ -257,6 +278,8 @@ export interface EquipmentEffects {
    * 此时改 flatBonus 仍会计入本次合计。
    */
   afterRoll?: (context: EquipmentBattleContext & { roll: RollResult }) => void;
+  /** 攻击方与防守方都完成投骰后，仅对攻击方装备调用。 */
+  afterOpposedRoll?: (context: EquipmentOpposedRollContext) => void;
   /**
    * 伤害落地前，只对受击方调用。
    *

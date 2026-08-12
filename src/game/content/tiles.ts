@@ -10,6 +10,7 @@ export const TILE_ICON: Record<MapTile["type"], string> = {
   spring: "✦",
   event: "?",
   shop: "¤",
+  tunnel: "◉",
   gate: "♜",
   boss: "♛",
 };

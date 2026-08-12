@@ -137,6 +137,24 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
       state.phase = { kind: "shop", shop: rollShopStock(state, player) };
       addHistory(state, `${player.name}走进「${tile.label}」，货架已经摆好。`);
       return;
+    case "tunnel": {
+      const exit = state.map.tiles.find(
+        (candidate) => candidate.type === "tunnel" && candidate.id !== tile.id,
+      );
+      state.phase = { kind: "turnComplete" };
+      if (!exit) {
+        addHistory(state, `${player.name}进入「${tile.label}」，却没有找到另一端出口。`);
+        return;
+      }
+      const from = player.position;
+      player.position = exit.id;
+      emit(state, { type: "playerMoved", playerId: player.id, from, to: player.position });
+      addHistory(
+        state,
+        `${player.name}穿过「${tile.label}」，从另一端出口抵达了「${exit.label}」。`,
+      );
+      return;
+    }
     case "start":
     case "gate":
       state.phase = { kind: "turnComplete" };

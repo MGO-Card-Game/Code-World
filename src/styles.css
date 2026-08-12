@@ -291,6 +291,8 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .tile.event .tile-icon { color: #9b79bd; }
 .tile.shop { border-color: #9f7c3f; background: linear-gradient(145deg, #332815, #1d180f); }
 .tile.shop .tile-icon { color: #efc86c; text-shadow: 0 0 10px #dcae4f77; }
+.tile.tunnel { border-color: #567f91; background: linear-gradient(145deg, #172a31, #111d22); }
+.tile.tunnel .tile-icon { color: #79cee4; text-shadow: 0 0 11px #55c7e688; }
 .tile.gate { border-color: #bc8d45; background: linear-gradient(145deg, #392816, #20170f); }
 .tile.gate .tile-icon { color: #f0be60; text-shadow: 0 0 10px #e1a53c88; }
 .tile.boss { border-color: #965a3f; background: linear-gradient(145deg, #382018, #211714); }

@@ -21,6 +21,7 @@ const tileClassNames: Record<MapTile["type"], string> = {
   spring: "spring",
   event: "event",
   shop: "shop",
+  tunnel: "tunnel",
   gate: "gate",
   boss: "boss",
 };

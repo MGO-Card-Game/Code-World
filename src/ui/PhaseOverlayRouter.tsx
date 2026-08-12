@@ -10,6 +10,8 @@ import {
   EquipmentChoicePanel,
   GameOverPanel,
   MapEventPanel,
+  MapEventEquipmentChoicePanel,
+  MapEventScrollChoicePanel,
   PenaltyPanel,
   PveRewardPanel,
   ScrollTargetChoicePanel,
@@ -58,6 +60,16 @@ export function pendingDecision(state: GameStateView) {
       return {
         key: `event-${state.turn}-${state.phase.notice.playerId}-${state.phase.notice.kind}`,
         label: "查看事件结果",
+      };
+    case "mapEventScrollChoice":
+      return {
+        key: `event-scroll-${state.turn}-${state.phase.choice.playerId}-${state.phase.choice.eventKind}`,
+        label: "继续选择卷轴",
+      };
+    case "mapEventEquipmentChoice":
+      return {
+        key: `event-equipment-${state.turn}-${state.phase.choice.playerId}-${state.phase.choice.eventKind}`,
+        label: "继续收藏家交易",
       };
     case "statGrowthChoice":
       return {
@@ -274,6 +286,26 @@ export function PhaseOverlayRouter({
           state={state}
           notice={state.phase.notice}
           dispatch={dispatch}
+          viewerSeat={viewerSeat}
+        />
+      )}
+      {visible && !playback.playing && state.phase.kind === "mapEventScrollChoice" && (
+        <MapEventScrollChoicePanel
+          key="map-event-scroll-choice"
+          state={state}
+          choice={state.phase.choice}
+          dispatch={dispatch}
+          playing={playback.playing}
+          viewerSeat={viewerSeat}
+        />
+      )}
+      {visible && !playback.playing && state.phase.kind === "mapEventEquipmentChoice" && (
+        <MapEventEquipmentChoicePanel
+          key="map-event-equipment-choice"
+          state={state}
+          choice={state.phase.choice}
+          dispatch={dispatch}
+          playing={playback.playing}
           viewerSeat={viewerSeat}
         />
       )}

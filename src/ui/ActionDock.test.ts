@@ -15,6 +15,12 @@ describe("行动区阶段提示", () => {
     });
   });
 
+  it("多颗移动骰会显示完整骰子记法", () => {
+    const state = createInitialGame(1);
+
+    expect(actionGuidance(state, 6, 2).action).toBe("投掷 2D6");
+  });
+
   it("双方秘密选择时只保留尚未提交的操作方", () => {
     const state = createInitialGame(2);
     state.phase = {
@@ -49,6 +55,44 @@ describe("行动区阶段提示", () => {
     expect(actionGuidance(state, 6)).toMatchObject({
       label: "战斗阶段 · 攻击方",
       action: "选择本轮卷轴",
+      actorIds: ["player2"],
+    });
+  });
+
+  it("卷轴复制阶段指向事件当事人", () => {
+    const state = createInitialGame(4);
+    state.phase = {
+      kind: "mapEventScrollChoice",
+      choice: {
+        playerId: "player2",
+        candidateIds: ["scroll-1"],
+        eventKind: "twinSlayer",
+        effectIndex: 0,
+      },
+    };
+
+    expect(actionGuidance(state, 6)).toMatchObject({
+      label: "双子杀手",
+      action: "选择一张卷轴进行复制",
+      actorIds: ["player2"],
+    });
+  });
+
+  it("收藏家交易阶段指向事件当事人", () => {
+    const state = createInitialGame(5);
+    state.phase = {
+      kind: "mapEventEquipmentChoice",
+      choice: {
+        playerId: "player2",
+        candidateIds: ["equipment-1"],
+        eventKind: "weaponCollector",
+        effectIndex: 0,
+      },
+    };
+
+    expect(actionGuidance(state, 6)).toMatchObject({
+      label: "武器收藏家",
+      action: "交出一件装备或拒绝交易",
       actorIds: ["player2"],
     });
   });

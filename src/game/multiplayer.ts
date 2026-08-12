@@ -62,6 +62,18 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
         state.phase.choice.playerId === actor
       );
 
+    case "chooseMapEventScroll":
+      return (
+        state.phase.kind === "mapEventScrollChoice" &&
+        state.phase.choice.playerId === actor
+      );
+
+    case "chooseMapEventEquipment":
+      return (
+        state.phase.kind === "mapEventEquipmentChoice" &&
+        state.phase.choice.playerId === actor
+      );
+
     case "chooseEncounterIntent": {
       if (state.phase.kind !== "encounterDecision") return false;
       const encounter = state.phase.encounter;
@@ -379,6 +391,10 @@ export function currentActor(state: GameState): PlayerId {
     case "encounterChoice":
       return state.phase.choice.challengerId;
     case "scrollTargetChoice":
+      return state.phase.choice.playerId;
+    case "mapEventScrollChoice":
+      return state.phase.choice.playerId;
+    case "mapEventEquipmentChoice":
       return state.phase.choice.playerId;
     case "encounterDecision": {
       const encounter = state.phase.encounter;

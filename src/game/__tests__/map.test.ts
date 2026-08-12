@@ -6,10 +6,10 @@ import {
   MAP_REGION_SIZE,
   MAP_TILE_LIMITS,
 } from "../map";
-import type { RandomTileType } from "../map";
+import type { QuotaTileType } from "../map";
 import { isCombatTile } from "../types";
 
-const RANDOM_TYPES = Object.keys(MAP_TILE_LIMITS) as RandomTileType[];
+const RANDOM_TYPES = Object.keys(MAP_TILE_LIMITS) as QuotaTileType[];
 
 describe("受约束随机地图", () => {
   it("同一种子生成完全相同的三地区地图", () => {
@@ -43,14 +43,31 @@ describe("受约束随机地图", () => {
       const map = generateMap(seed);
       for (const region of map.regions) {
         const tiles = map.tiles.slice(region.startIndex, region.endIndex + 1);
+        const tunnelCount = tiles.filter((tile) => tile.type === "tunnel").length;
         for (const type of RANDOM_TYPES) {
           const count = tiles.filter((tile) => tile.type === type).length;
-          const expansion = type === "battle" ? MAP_EXPANSION_BATTLE_TILES : 0;
+          const expansion = type === "battle"
+            ? MAP_EXPANSION_BATTLE_TILES - tunnelCount
+            : 0;
           expect(count).toBeGreaterThanOrEqual(MAP_TILE_LIMITS[type].min + expansion);
           expect(count).toBeLessThanOrEqual(MAP_TILE_LIMITS[type].max + expansion);
         }
       }
     }
+  });
+
+  it("神秘隧道在整张地图中只会生成 0 个或同地区的一对", () => {
+    const observedCounts = new Set<number>();
+    for (const seed of [1, 7, 42, 4242, 8192, 20260805, 0x7fffffff]) {
+      const tunnels = generateMap(seed).tiles.filter((tile) => tile.type === "tunnel");
+      observedCounts.add(tunnels.length);
+      expect([0, 2]).toContain(tunnels.length);
+      if (tunnels.length === 2) {
+        expect(tunnels[0].region).toBe(tunnels[1].region);
+        expect(tunnels.every((tile) => tile.safeZone)).toBe(true);
+      }
+    }
+    expect(observedCounts).toEqual(new Set([0, 2]));
   });
 
   it("不会产生连续三个战斗类格子——精英格也算", () => {

@@ -52,7 +52,7 @@ export const SHOES = defineEquipment("shoes", {
   gamekeepersBoots: {
     name: "护卫靴",
     description: "移动骰上限 +1；对手是精英或首领时，防御骰上限 +1",
-    rarity: "N",
+    rarity: "R",
     modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
     effects: {
       /*
@@ -113,7 +113,7 @@ export const SHOES = defineEquipment("shoes", {
   headwindBoots: {
     name: "逆风长靴",
     description: "地图移动骰上限 +2；战斗前 2 回合，战斗骰上限 -1，之后各 +1",
-    rarity: "R",
+    rarity: "N",
     modifiers: [{ type: "dieSides", die: "movement", value: 2 }],
     effects: {
       /*

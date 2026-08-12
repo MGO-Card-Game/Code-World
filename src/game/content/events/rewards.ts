@@ -99,4 +99,39 @@ export const REWARD_EVENTS = defineMapEvents("reward", {
         `没有人能向${playerName}交出一张卷轴。`,
     }],
   },
+
+  twinSlayer: {
+    name: "双子杀手",
+    description: "选择你的一张卷轴，将它的复制品加入你的手牌。",
+    // 能复制手里最合适的一张，比随机抽牌更稳定，因此按强化奖励使用半权重。
+    regions: { foothill: 0.5, mountainside: 0.5, summit: 0.5 },
+    effects: [{
+      type: "duplicateOwnedScroll",
+      narration: ({ playerName }) =>
+        `双子杀手向${playerName}递出一面染血的镜子，等待一张卷轴的倒影。`,
+      selectedNarration: ({ playerName, rewardName }) =>
+        `${playerName}借双子杀手的镜子复制了${rewardName}。`,
+      emptyNarration: ({ playerName }) =>
+        `${playerName}没有可供双子杀手复制的卷轴。`,
+    }],
+  },
+
+  weaponCollector: {
+    name: "武器收藏家",
+    description: "你可以将一件装备交给收藏家，使基础防御 +1。",
+    // 需要永久失去一件装备才生效，收益稳定但有明确代价，使用半权重。
+    regions: { foothill: 0.5, mountainside: 0.5, summit: 0.5 },
+    effects: [{
+      type: "exchangeEquipmentForDefense",
+      defenseBonus: 1,
+      narration: ({ playerName }) =>
+        `武器收藏家邀请${playerName}交出一件藏品，换取防身心得。`,
+      acceptedNarration: ({ playerName, equipmentName, amount }) =>
+        `${playerName}将${equipmentName}交给武器收藏家，基础防御 +${amount}。`,
+      declinedNarration: ({ playerName }) =>
+        `${playerName}谢绝了武器收藏家的交易。`,
+      emptyNarration: ({ playerName }) =>
+        `${playerName}没有可以交给武器收藏家的装备。`,
+    }],
+  },
 });

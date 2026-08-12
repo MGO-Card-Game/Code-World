@@ -1,8 +1,9 @@
-import { pickEquipmentKind } from "./content/equipment";
+import { EQUIPMENT, pickEquipmentKind } from "./content/equipment";
 import { DEFAULT_RARITY_TIER, REWARD_RARITY_TIERS } from "./content/rarity";
 import {
   mapEventDefinition,
   pickMapEvent,
+  type MapEventKind,
   type MapEventAmount,
   type MapEventEffectDefinition,
 } from "./content/events";
@@ -10,6 +11,7 @@ import {
   grantEquipment,
   grantMapEventResource,
   grantScroll,
+  removeEquipmentStats,
   rewardSecret,
 } from "./resources";
 import { addHistory, emit, nextRandom, rollDie } from "./state";
@@ -44,6 +46,7 @@ export function applyMapEventEffect(
   state: GameState,
   player: Player,
   effect: MapEventEffectDefinition,
+  source?: { eventKind: MapEventKind; effectIndex: number },
 ) {
   switch (effect.type) {
     case "heal": {
@@ -183,6 +186,42 @@ export function applyMapEventEffect(
       }
       return false;
     }
+    case "duplicateOwnedScroll": {
+      if (player.scrolls.length === 0) {
+        addHistory(state, effect.emptyNarration({ playerName: player.name }));
+        return false;
+      }
+      if (!source) throw new Error("复制卷轴事件缺少内容表来源");
+      state.phase = {
+        kind: "mapEventScrollChoice",
+        choice: {
+          playerId: player.id,
+          candidateIds: player.scrolls.map((scroll) => scroll.instanceId),
+          eventKind: source.eventKind,
+          effectIndex: source.effectIndex,
+        },
+      };
+      addHistory(state, effect.narration({ playerName: player.name }));
+      return true;
+    }
+    case "exchangeEquipmentForDefense": {
+      if (player.equipment.length === 0) {
+        addHistory(state, effect.emptyNarration({ playerName: player.name }));
+        return false;
+      }
+      if (!source) throw new Error("装备交换事件缺少内容表来源");
+      state.phase = {
+        kind: "mapEventEquipmentChoice",
+        choice: {
+          playerId: player.id,
+          candidateIds: player.equipment.map((item) => item.instanceId),
+          eventKind: source.eventKind,
+          effectIndex: source.effectIndex,
+        },
+      };
+      addHistory(state, effect.narration({ playerName: player.name }));
+      return true;
+    }
     case "grantEquipment": {
       const kind = pickEquipmentKind(
         () => nextRandom(state),
@@ -235,8 +274,8 @@ export function resolveRandomMapEvent(
     区间才对得上"这个事件产生了哪几句"。
   */
   const from = state.lastEvents.length;
-  for (const effect of definition.effects) {
-    if (applyMapEventEffect(state, player, effect)) break;
+  for (const [effectIndex, effect] of definition.effects.entries()) {
+    if (applyMapEventEffect(state, player, effect, { eventKind: kind, effectIndex })) break;
   }
   const lines: LogEntry[] = [];
   for (const event of state.lastEvents.slice(from)) {
@@ -245,7 +284,10 @@ export function resolveRandomMapEvent(
   }
   // 效果可能已经把阶段切去赌场或装备取舍，先讲完事件，确认后再把它交还回去
   const taken = currentPhase(state);
-  const resume = taken.kind === "casino" || taken.kind === "equipmentChoice"
+  const resume = taken.kind === "casino"
+    || taken.kind === "equipmentChoice"
+    || taken.kind === "mapEventScrollChoice"
+    || taken.kind === "mapEventEquipmentChoice"
     ? taken
     : undefined;
   /*
@@ -266,5 +308,64 @@ export function resolveRandomMapEvent(
 export function acknowledgeMapEvent(state: GameState) {
   if (state.phase.kind !== "mapEventNotice") return false;
   state.phase = state.phase.notice.resume ?? { kind: "turnComplete" };
+  return true;
+}
+
+/** 完成地图事件发起的卷轴复制选择。原牌保留，复制品走统一发牌事件与暗牌旁白。 */
+export function chooseMapEventScroll(state: GameState, instanceId: string) {
+  if (state.phase.kind !== "mapEventScrollChoice") return false;
+  const { choice } = state.phase;
+  if (!choice.candidateIds.includes(instanceId)) return false;
+  const player = state.players[choice.playerId];
+  const original = player.scrolls.find((scroll) => scroll.instanceId === instanceId);
+  if (!original) return false;
+  const effect = mapEventDefinition(choice.eventKind).effects[choice.effectIndex];
+  if (effect?.type !== "duplicateOwnedScroll") return false;
+
+  const reward = grantScroll(state, player, original.kind);
+  const line = (rewardName: string) => effect.selectedNarration({
+    playerName: player.name,
+    rewardName,
+  });
+  addHistory(state, line(reward.name), rewardSecret(player, line, reward));
+  state.phase = { kind: "turnComplete" };
+  return true;
+}
+
+/** 接受或拒绝地图事件发起的装备交换。 */
+export function chooseMapEventEquipment(state: GameState, instanceId?: string) {
+  if (state.phase.kind !== "mapEventEquipmentChoice") return false;
+  const { choice } = state.phase;
+  const player = state.players[choice.playerId];
+  const effect = mapEventDefinition(choice.eventKind).effects[choice.effectIndex];
+  if (effect?.type !== "exchangeEquipmentForDefense") return false;
+
+  if (!instanceId) {
+    addHistory(state, effect.declinedNarration({ playerName: player.name }));
+    state.phase = { kind: "turnComplete" };
+    return true;
+  }
+  if (!choice.candidateIds.includes(instanceId)) return false;
+  const removed = removeEquipmentStats(state, player, instanceId);
+  if (!removed) return false;
+
+  const from = player.baseDefense;
+  player.baseDefense += Math.max(0, Math.floor(effect.defenseBonus));
+  const amount = player.baseDefense - from;
+  if (amount > 0) {
+    emit(state, {
+      type: "baseStatChanged",
+      playerId: player.id,
+      stat: "defense",
+      from,
+      to: player.baseDefense,
+    });
+  }
+  addHistory(state, effect.acceptedNarration({
+    playerName: player.name,
+    equipmentName: EQUIPMENT[removed.kind].name,
+    amount,
+  }));
+  state.phase = { kind: "turnComplete" };
   return true;
 }

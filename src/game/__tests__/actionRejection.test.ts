@@ -25,6 +25,8 @@ describe("动作被拒时原样返回 state", () => {
     expect(gameReducer(state, { type: "endTurn" })).toBe(state);
     expect(gameReducer(state, { type: "choosePvpPenalty", choice: "hp" })).toBe(state);
     expect(gameReducer(state, { type: "chooseEquipment" })).toBe(state);
+    expect(gameReducer(state, { type: "chooseMapEventScroll", instanceId: "ghost" })).toBe(state);
+    expect(gameReducer(state, { type: "chooseMapEventEquipment", instanceId: "ghost" })).toBe(state);
     expect(gameReducer(state, { type: "submitScrollChoice", side: "a" })).toBe(state);
   });
 
@@ -84,6 +86,54 @@ describe("动作被拒时原样返回 state", () => {
     ).toBe(state);
     // 放弃新装备是合法的，会推进
     expect(gameReducer(state, { type: "chooseEquipment" })).not.toBe(state);
+  });
+
+  it("双子杀手不能复制候选之外或已经离手的卷轴", () => {
+    const state = createInitialGame(20260805);
+    state.players.player1.scrolls = [{ instanceId: "might-1", kind: "might" }];
+    state.phase = {
+      kind: "mapEventScrollChoice",
+      choice: {
+        playerId: "player1",
+        candidateIds: ["might-1"],
+        eventKind: "twinSlayer",
+        effectIndex: 0,
+      },
+    };
+
+    expect(gameReducer(state, {
+      type: "chooseMapEventScroll",
+      instanceId: "ghost",
+    })).toBe(state);
+    state.players.player1.scrolls = [];
+    expect(gameReducer(state, {
+      type: "chooseMapEventScroll",
+      instanceId: "might-1",
+    })).toBe(state);
+  });
+
+  it("武器收藏家不能收取候选之外或已经离手的装备", () => {
+    const state = createInitialGame(20260805);
+    state.players.player1.equipment = [{ instanceId: "sword-1", kind: "sword" }];
+    state.phase = {
+      kind: "mapEventEquipmentChoice",
+      choice: {
+        playerId: "player1",
+        candidateIds: ["sword-1"],
+        eventKind: "weaponCollector",
+        effectIndex: 0,
+      },
+    };
+
+    expect(gameReducer(state, {
+      type: "chooseMapEventEquipment",
+      instanceId: "ghost",
+    })).toBe(state);
+    state.players.player1.equipment = [];
+    expect(gameReducer(state, {
+      type: "chooseMapEventEquipment",
+      instanceId: "sword-1",
+    })).toBe(state);
   });
 
   it("被接受的动作一定返回新对象", () => {

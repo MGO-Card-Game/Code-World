@@ -29,6 +29,8 @@ const EVENT_NARRATIONS = {
   impulseBuy: "被摊主说动",
   // 收到牌和无人可收两条旁白共用这一段，两种情况都认得出来
   requisition: "交出一张卷轴",
+  twinSlayer: "双子杀手",
+  weaponCollector: "武器收藏家",
   veteranGuidance: "得到武者指点",
   guardianInscription: "参悟守护碑铭",
   casinoRoulette: "走进路边的赌场",
@@ -178,6 +180,16 @@ describe("地图事件结算", () => {
           // 这个测试床里对手手上没有卷轴，走的是「一张都收不到」那条分支
           expect(player.scrolls).toHaveLength(0);
           expect(eventsOf(state, "scrollTransferred")).toHaveLength(0);
+          break;
+        case "twinSlayer":
+          // 默认测试床里没有手牌，事件应明确说明无牌可复制并直接收尾
+          expect(player.scrolls).toHaveLength(0);
+          expect(state.message.text).toContain("没有可供双子杀手复制的卷轴");
+          break;
+        case "weaponCollector":
+          // 默认测试床里没有装备，不应凭空获得防御
+          expect(player.baseDefense).toBe(2);
+          expect(state.message.text).toContain("没有可以交给武器收藏家的装备");
           break;
         case "fallenAdventurer":
           expect(eventsOf(state, "equipmentGranted")).toHaveLength(1);
@@ -477,6 +489,134 @@ describe("地图事件结算", () => {
       checked = true;
     }
     expect(checked).toBe(true);
+  });
+
+  it("双子杀手让玩家选择已有卷轴，并把具有新实例 ID 的复制品加入手牌", () => {
+    let found: GameState | undefined;
+    for (let seed = 1; seed <= 2000 && !found; seed += 1) {
+      const state = createInitialGame(seed);
+      state.players[state.activePlayerId].scrolls = [
+        { instanceId: "might-original", kind: "might" },
+        { instanceId: "guard-original", kind: "guard" },
+      ];
+      const resolved = landOnEventFrom(state);
+      if (identify(resolved) === "twinSlayer") found = resolved;
+    }
+    if (!found || found.phase.kind !== "mapEventNotice") {
+      throw new Error("2000 个种子内应抽到双子杀手并停在事件通知");
+    }
+
+    const owner = found.phase.notice.playerId;
+    expect(found.phase.notice.resume).toMatchObject({
+      kind: "mapEventScrollChoice",
+      choice: {
+        playerId: owner,
+        candidateIds: ["might-original", "guard-original"],
+        eventKind: "twinSlayer",
+      },
+    });
+
+    const choosing = gameReducer(found, { type: "acknowledgeMapEvent" });
+    expect(choosing.phase.kind).toBe("mapEventScrollChoice");
+    expect(canAct(
+      choosing,
+      { type: "chooseMapEventScroll", instanceId: "might-original" },
+      owner,
+    )).toBe(true);
+    const other = choosing.turnOrder.find((id) => id !== owner)!;
+    expect(canAct(
+      choosing,
+      { type: "chooseMapEventScroll", instanceId: "might-original" },
+      other,
+    )).toBe(false);
+
+    const copied = gameReducer(choosing, {
+      type: "chooseMapEventScroll",
+      instanceId: "might-original",
+    });
+    const mightCards = copied.players[owner].scrolls.filter((scroll) => scroll.kind === "might");
+    expect(mightCards).toHaveLength(2);
+    expect(new Set(mightCards.map((scroll) => scroll.instanceId)).size).toBe(2);
+    expect(copied.players[owner].scrolls.map((scroll) => scroll.instanceId))
+      .toContain("might-original");
+    expect(eventsOf(copied, "scrollGranted")).toHaveLength(1);
+    expect(copied.phase.kind).toBe("turnComplete");
+
+    const outsider = viewFor(copied, other);
+    expect(eventsOf(outsider, "scrollGranted")[0].kind).toBeUndefined();
+    expect(outsider.message.text).toContain("复制了一张卷轴");
+    expect(outsider.message.text).not.toContain(SCROLLS.might.name);
+  });
+
+  it("武器收藏家可收走所选装备并永久增加 1 点基础防御", () => {
+    let found: GameState | undefined;
+    for (let seed = 1; seed <= 2000 && !found; seed += 1) {
+      const state = createInitialGame(seed);
+      const player = state.players[state.activePlayerId];
+      player.equipment = [
+        { instanceId: "boots-offer", kind: "windboundWraps" },
+        { instanceId: "sword-keep", kind: "sword" },
+      ];
+      // windboundWraps 提供 2 点最大生命，验证交出时走统一卸装逻辑。
+      player.maxHp += 2;
+      player.hp = player.maxHp;
+      const resolved = landOnEventFrom(state);
+      if (identify(resolved) === "weaponCollector") found = resolved;
+    }
+    if (!found || found.phase.kind !== "mapEventNotice") {
+      throw new Error("2000 个种子内应抽到武器收藏家并停在事件通知");
+    }
+
+    const owner = found.phase.notice.playerId;
+    const defenseBefore = found.players[owner].baseDefense;
+    expect(found.phase.notice.resume).toMatchObject({
+      kind: "mapEventEquipmentChoice",
+      choice: {
+        playerId: owner,
+        candidateIds: ["boots-offer", "sword-keep"],
+        eventKind: "weaponCollector",
+      },
+    });
+
+    const choosing = gameReducer(found, { type: "acknowledgeMapEvent" });
+    expect(choosing.phase.kind).toBe("mapEventEquipmentChoice");
+    const traded = gameReducer(choosing, {
+      type: "chooseMapEventEquipment",
+      instanceId: "boots-offer",
+    });
+    expect(traded.players[owner].equipment.map((item) => item.instanceId))
+      .toEqual(["sword-keep"]);
+    expect(traded.players[owner].baseDefense).toBe(defenseBefore + 1);
+    expect(traded.players[owner].maxHp).toBe(20);
+    expect(traded.players[owner].hp).toBe(20);
+    expect(eventsOf(traded, "baseStatChanged")).toContainEqual(expect.objectContaining({
+      stat: "defense",
+      from: defenseBefore,
+      to: defenseBefore + 1,
+    }));
+    expect(traded.phase.kind).toBe("turnComplete");
+  });
+
+  it("武器收藏家的交易可以拒绝，装备与防御均保持不变", () => {
+    const state = createInitialGame(20260812);
+    state.players.player1.equipment = [{ instanceId: "sword-keep", kind: "sword" }];
+    state.phase = {
+      kind: "mapEventEquipmentChoice",
+      choice: {
+        playerId: "player1",
+        candidateIds: ["sword-keep"],
+        eventKind: "weaponCollector",
+        effectIndex: 0,
+      },
+    };
+    const defenseBefore = state.players.player1.baseDefense;
+
+    const declined = gameReducer(state, { type: "chooseMapEventEquipment" });
+    expect(declined.players.player1.equipment).toEqual(state.players.player1.equipment);
+    expect(declined.players.player1.baseDefense).toBe(defenseBefore);
+    expect(eventsOf(declined, "baseStatChanged")).toHaveLength(0);
+    expect(declined.message.text).toContain("谢绝了武器收藏家的交易");
+    expect(declined.phase.kind).toBe("turnComplete");
   });
 });
 

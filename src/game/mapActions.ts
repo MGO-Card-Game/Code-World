@@ -8,7 +8,7 @@ import { bossKeyPrice, spendGold, transferGold } from "./economy";
 import { MAP_REGION_SIZE, regionForPosition } from "./map";
 import { advanceAlongLoop, landDirectlyAt } from "./movement";
 import { consumeScroll } from "./resources";
-import { getDieSidesBonus } from "./selectors";
+import { getDiceCountBonus, getDieSidesBonus } from "./selectors";
 import { addHistory, emit, rollDie } from "./state";
 import { canOpenBossGate, restAtStageCamp, stageBossUnlocked } from "./stages";
 import { resolveTile } from "./tiles";
@@ -30,6 +30,7 @@ export function rollMovement(state: GameState) {
   if (state.phase.kind !== "awaitingRoll") return false;
   const player = state.players[state.activePlayerId];
   const sides = Math.max(2, 6 + getDieSidesBonus(player, "movement"));
+  const diceCount = Math.max(1, 1 + getDiceCountBonus(player, "movement"));
   /*
     被绊倒时点数直接钉死，赐福的移动加成也不叠上去——"下次掷骰点数为 1"
     说的是最终点数。这一支不消耗随机数，同种子重放照样对得上：
@@ -37,7 +38,11 @@ export function rollMovement(state: GameState) {
   */
   const forced = player.forcedMovementRoll;
   delete player.forcedMovementRoll;
-  const roll = forced ?? rollDie(state, sides) + blessingMovementRollBonus(player);
+  const dice = forced === undefined
+    ? Array.from({ length: diceCount }, () => rollDie(state, sides))
+    : [forced];
+  const roll = forced ??
+    dice.reduce((total, die) => total + die, 0) + blessingMovementRollBonus(player);
   state.lastMovementRoll = roll;
   const positionBefore = player.position;
   state.movementOrigin = positionBefore;
@@ -48,6 +53,7 @@ export function rollMovement(state: GameState) {
     playerId: player.id,
     value: roll,
     sides,
+    dice,
   });
   emit(state, {
     type: "playerMoved",
@@ -244,7 +250,13 @@ function useMovementScroll(
     const roll = distance + blessingMovementRollBonus(player);
     state.lastMovementRoll = roll;
     const { region, interceptedAtGate, passedCamp, targetTile } = advanceAlongLoop(state, player, roll);
-    emit(state, { type: "movementRolled", playerId: player.id, value: roll, sides });
+    emit(state, {
+      type: "movementRolled",
+      playerId: player.id,
+      value: roll,
+      sides,
+      dice: [distance],
+    });
     emit(state, { type: "playerMoved", playerId: player.id, from: positionBefore, to: player.position });
     addHistory(
       state,

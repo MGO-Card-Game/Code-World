@@ -78,12 +78,12 @@ describe("装备分类表", () => {
           .filter(matches)
           .reduce((total, modifier) => total + modifier.value, 0);
 
-      for (const die of ["movement", "attack", "defense"] as const) {
+      for (const die of ["movement", "initiative", "attack", "defense"] as const) {
         expect(getDieSidesBonus(player, die), `${kind}:${die}:dieSides`).toBe(
           sum((modifier) => modifier.type === "dieSides" && modifier.die === die),
         );
       }
-      for (const die of ["attack", "defense"] as const) {
+      for (const die of ["movement", "attack", "defense"] as const) {
         expect(getDiceCountBonus(player, die), `${kind}:${die}:diceCount`).toBe(
           sum((modifier) => modifier.type === "diceCount" && modifier.die === die),
         );

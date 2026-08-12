@@ -2,6 +2,34 @@ import { defineEquipment } from "./definition";
 
 /** 防具：抬高防御骰上限，或者降低吃亏时的损失。 */
 export const ARMOR = defineEquipment("armor", {
+  bloodthirstyBattleplate: {
+    name: "嗜血战甲",
+    description: "防御骰上限 +1；若本次攻击骰点数高于对手防御骰点数，附加 1D2 点伤害",
+    rarity: "SR",
+    modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
+    effects: {
+      afterOpposedRoll({ attackRoll, defenseRoll, modifiers, random, addBattleLog }) {
+        if (attackRoll.sum <= defenseRoll.sum) return;
+        const bonus = Math.floor(random() * 2) + 1;
+        modifiers.bonusDamage += bonus;
+        addBattleLog(`嗜血战甲汲取攻势，本次攻击附加 ${bonus} 点伤害。`);
+      },
+    },
+  },
+
+  warcasterPauldron: {
+    name: "魔战肩",
+    description: "防御骰上限 -2；自己攻击时不能使用卷轴，但攻击骰数量 +1",
+    rarity: "SR",
+    modifiers: [
+      { type: "dieSides", die: "defense", value: -2 },
+      { type: "diceCount", die: "attack", value: 1 },
+    ],
+    effects: {
+      blockedScrollTimings: ["beforeAttackRoll"],
+    },
+  },
+
   turtleShell: {
     name: "龟壳",
     description: "地图移动骰上限 -2；防御骰上限 +4",
@@ -159,8 +187,8 @@ export const ARMOR = defineEquipment("armor", {
 
   namelessKnightArmor: {
     name: "无名骑士遗甲",
-    description: "防御骰上限 +2；战斗生命值低于三成时，防御骰上限再 +1",
-    rarity: "SR",
+    description: "防御骰上限 +2；战斗生命值低于三成时，防御骰再 +1",
+    rarity: "R",
     modifiers: [{ type: "dieSides", die: "defense", value: 2 }],
     effects: {
       /*
@@ -220,7 +248,7 @@ export const ARMOR = defineEquipment("armor", {
   oathkeeperCloak: {
     name: "缄誓披风",
     description: "防御骰上限 +1；对手的基础攻击高于你的基础防御时，本场战斗防御 +2",
-    rarity: "R",
+    rarity: "SR",
     modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
     effects: {
       /*

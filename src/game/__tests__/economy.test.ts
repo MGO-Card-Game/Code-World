@@ -79,7 +79,7 @@ describe("装备折算", () => {
 
     expect(equipmentSalvageValue(player, "shield")).toBe(20);
     expect(equipmentSalvageValue(player, "heavyBulwark")).toBe(40);
-    expect(equipmentSalvageValue(player, "namelessKnightArmor")).toBe(80);
+    expect(equipmentSalvageValue(player, "oathkeeperCloak")).toBe(80);
     expect(equipmentSalvageValue(player, "undyingKingPlate")).toBe(150);
   });
 

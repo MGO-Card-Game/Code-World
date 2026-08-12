@@ -63,6 +63,13 @@ export interface PlayerNarrationContext {
   playerName: string;
 }
 
+export interface EquipmentExchangeNarrationContext {
+  playerName: string;
+  equipmentName: string;
+  /** 实际增加的基础防御。 */
+  amount: number;
+}
+
 /**
  * 地图事件可复用的即时效果词汇。
  *
@@ -151,6 +158,27 @@ export type MapEventEffectDefinition =
        * 一张都没收到时的旁白。必填而不是可选：漏掉它时踩中这一格的玩家会看到
        * 事件格毫无反应——没有旁白、没有结构化事件，和卡住了没法区分。
        */
+      emptyNarration: (context: PlayerNarrationContext) => string;
+    }
+  | {
+      /**
+       * 让玩家从自己的手牌中选择一张卷轴，并获得一个新的同名实例。
+       *
+       * 选择必须跨 action 完成，所以这条效果会接管阶段；手牌为空时则直接走
+       * emptyNarration，不打开一个没有选项的弹层。
+       */
+      type: "duplicateOwnedScroll";
+      narration: (context: PlayerNarrationContext) => string;
+      selectedNarration: (context: RewardNarrationContext) => string;
+      emptyNarration: (context: PlayerNarrationContext) => string;
+    }
+  | {
+      /** 可选地交出一件已有装备，换取永久基础防御。 */
+      type: "exchangeEquipmentForDefense";
+      defenseBonus: number;
+      narration: (context: PlayerNarrationContext) => string;
+      acceptedNarration: (context: EquipmentExchangeNarrationContext) => string;
+      declinedNarration: (context: PlayerNarrationContext) => string;
       emptyNarration: (context: PlayerNarrationContext) => string;
     }
   | {

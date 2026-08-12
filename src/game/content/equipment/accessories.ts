@@ -19,6 +19,13 @@ const HOURGLASS_DEFENSE_SPENT = 2;
 
 /** 饰品：骰子控制、探索与条件效果。槽位有两个，是唯一能叠的分类。 */
 export const ACCESSORIES = defineEquipment("accessory", {
+  inkBambooBracelet: {
+    name: "墨竹手环",
+    description: "地图移动骰数量 +1",
+    rarity: "SR",
+    modifiers: [{ type: "diceCount", die: "movement", value: 1 }],
+  },
+
   fateCoin: {
     name: "命运硬币",
     description: "你的攻击骰和防御骰只会掷出最小值或最大值",

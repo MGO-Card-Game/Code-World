@@ -4,7 +4,7 @@ import type { GameState, Player, StatGrowthOption } from "./types";
 /**
  * 阶段首领的永久成长：三选一，由玩家自己点。
  *
- * 三档刻意不等价，也不打算等价——攻防各 +1 是立刻能感到的，生命上限 +3 是
+ * 三档刻意不等价，也不打算等价——攻防各 +1 是立刻能感到的，生命上限 +5 是
  * 换取容错。一局里只有两次机会（山脚、云腰；峰顶打完直接结算），所以这两次
  * 选择要能拉开两个玩家的成长方向，做成等价的数值反而没得选。
  *
@@ -15,7 +15,7 @@ import type { GameState, Player, StatGrowthOption } from "./types";
 export const STAT_GROWTH = {
   attack: { name: "攻击 +1", description: "永久提高攻击，每一次出手都更疼。", value: 1 },
   defense: { name: "防御 +1", description: "永久提高防御，挨打时少扣一点。", value: 1 },
-  maxHp: { name: "生命上限 +3", description: "永久提高生命上限，并立即补满这 3 点。", value: 3 },
+  maxHp: { name: "生命上限 +5", description: "永久提高生命上限，并立即补上这 5 点。", value: 5 },
 } as const satisfies Record<
   StatGrowthOption,
   { name: string; description: string; value: number }
@@ -37,7 +37,7 @@ export function applyStatGrowth(
     return;
   }
   // 上限涨了就把那几点一起给，和赐福的 maxHp 加成保持同一种手感：
-  // 否则「生命上限 +3」在满血时等于什么都没发生，选它的人当场亏一步。
+  // 否则「生命上限 +5」在满血时等于什么都没发生，选它的人当场亏一步。
   const maxHpBefore = player.maxHp;
   const hpBefore = player.hp;
   player.maxHp += STAT_GROWTH.maxHp.value;

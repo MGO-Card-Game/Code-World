@@ -184,7 +184,7 @@ describe("自主加点", () => {
     expect(getDefense(defense.players.player1)).toBe(defenseBefore + 1);
   });
 
-  it("生命上限加 3，并把这 3 点当场补上", () => {
+  it("生命上限加 5，并把这 5 点当场补上", () => {
     const base = atGrowthChoice();
     base.players.player1.hp = 6;
     const maxHpBefore = base.players.player1.maxHp;
@@ -198,7 +198,7 @@ describe("自主加点", () => {
       type: "playerHpChanged",
       playerId: "player1",
       from: 6,
-      to: 9,
+      to: 6 + STAT_GROWTH.maxHp.value,
       reason: "growth",
     }));
   });

@@ -22,6 +22,12 @@ export const BLESSINGS = defineBlessings({
     weight: 1,
     modifiers: [{ type: "statBonus", stat: "defense", value: 2 }],
   },
+  ancientTreeHeart: {
+    name: "古树之心",
+    description: "生命上限永久 +10，获得时恢复 6 点生命。",
+    weight: 1,
+    modifiers: [{ type: "maxHp", value: 10 }],
+  },
   favoredByFate: {
     name: "命运垂青",
     description: "攻击骰和防御骰的每颗骰子最低视为 3 点。",

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { finishBattle, finishPvp } from "../battle";
 import {
+  acceptDrawnBlessing,
   applyBlessingCombatRoll,
   blessingCapacity,
   blessingMovementRollBonus,
+  detachBlessing,
   grantRandomBlessing,
 } from "../blessings";
 import {
@@ -62,6 +64,7 @@ describe("赐福内容", () => {
     expect(Object.keys(BLESSINGS)).toEqual([
       "giantStrength",
       "dragonScale",
+      "ancientTreeHeart",
       "favoredByFate",
       "windrunner",
       "warTycoon",
@@ -84,6 +87,28 @@ describe("赐福内容", () => {
     // 基础 攻 5 / 防 2，各加 2
     expect(getAttack(state.players.player1)).toBe(7);
     expect(getDefense(state.players.player2)).toBe(4);
+  });
+
+  it("古树之心提高生命上限，获得时回血，失去时扣回", () => {
+    const state = createInitialGame(1);
+    const player = state.players.player1;
+    const maxHpBefore = player.maxHp;
+    const bonus = BLESSINGS.ancientTreeHeart.modifiers
+      .filter((modifier) => modifier.type === "maxHp")
+      .reduce((sum, modifier) => sum + modifier.value, 0);
+    player.hp = maxHpBefore - 5;
+    const blessing = {
+      instanceId: "ancient-tree-heart",
+      kind: "ancientTreeHeart" as const,
+    };
+
+    expect(acceptDrawnBlessing(state, player, blessing)).toBe(true);
+    expect(player.maxHp).toBe(maxHpBefore + bonus);
+    expect(player.hp).toBe(maxHpBefore - 5 + bonus);
+
+    expect(detachBlessing(state, player, blessing.instanceId)).toEqual(blessing);
+    expect(player.maxHp).toBe(maxHpBefore);
+    expect(player.hp).toBe(maxHpBefore);
   });
 
   it("命运垂青把攻防骰最低点数提高到 3", () => {

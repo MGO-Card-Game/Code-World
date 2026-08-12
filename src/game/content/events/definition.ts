@@ -1,4 +1,4 @@
-import type { MapRegionId, ScrollKind } from "../../types";
+import type { MapRegionId, ScrollKind, TileType } from "../../types";
 import type { EquipmentCategory } from "../equipment/definition";
 import type { RewardRarityTier } from "../rarity";
 
@@ -67,6 +67,22 @@ export interface EquipmentExchangeNarrationContext {
   playerName: string;
   equipmentName: string;
   /** 实际增加的基础防御。 */
+  amount: number;
+}
+
+export interface TeleportNarrationContext {
+  playerName: string;
+  tileLabel: string;
+}
+
+export interface PaidTravelNarrationContext extends TeleportNarrationContext {
+  price: number;
+}
+
+export interface StatConversionNarrationContext {
+  playerName: string;
+  fromStat: MapEventBaseStat;
+  toStat: MapEventBaseStat;
   amount: number;
 }
 
@@ -180,6 +196,31 @@ export type MapEventEffectDefinition =
       acceptedNarration: (context: EquipmentExchangeNarrationContext) => string;
       declinedNarration: (context: PlayerNarrationContext) => string;
       emptyNarration: (context: PlayerNarrationContext) => string;
+    }
+  | {
+      /** 在当前区域的环路内，沿前进方向传送到下一处指定类型的格子。 */
+      type: "teleportToNextTile";
+      tileType: TileType;
+      narration: (context: TeleportNarrationContext) => string;
+      emptyNarration: (context: PlayerNarrationContext) => string;
+    }
+  | {
+      /** 可选地支付固定金币，沿当前区域的前进方向移动到最近的指定格。 */
+      type: "offerPaidTravelToNextTile";
+      tileType: TileType;
+      price: number;
+      narration: (context: PaidTravelNarrationContext) => string;
+      acceptedNarration: (context: PaidTravelNarrationContext) => string;
+      declinedNarration: (context: PaidTravelNarrationContext) => string;
+      emptyNarration: (context: PlayerNarrationContext) => string;
+    }
+  | {
+      /** 可选地把固定点数的基础攻击与基础防御向任一方向转换。 */
+      type: "offerBaseStatConversion";
+      amount: number;
+      narration: (context: PlayerNarrationContext) => string;
+      convertedNarration: (context: StatConversionNarrationContext) => string;
+      declinedNarration: (context: PlayerNarrationContext) => string;
     }
   | {
       type: "grantEquipment";

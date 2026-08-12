@@ -5,17 +5,21 @@ import { CasinoTileModal } from "./CasinoTileModal";
 import { DecisionMinimizeProvider } from "./DecisionModal";
 import {
   BlessingChoicePanel,
+  BlessingRewardPanel,
   BossGatePanel,
   EncounterChoicePanel,
   EquipmentChoicePanel,
   GameOverPanel,
   MapEventPanel,
   MapEventEquipmentChoicePanel,
+  MapEventHarmonyChoicePanel,
   MapEventScrollChoicePanel,
+  MapEventTravelChoicePanel,
   PenaltyPanel,
   PveRewardPanel,
   ScrollTargetChoicePanel,
   StatGrowthPanel,
+  TreasureRewardPanel,
 } from "./outcomePanels";
 import { ShopTileModal } from "./ShopTileModal";
 import {
@@ -24,6 +28,20 @@ import {
   TradeOfferPanel,
 } from "./TradePanels";
 import type { Dispatch, Playback } from "./shared";
+
+/**
+ * 阶段弹窗只等待自己的前置演出，不再被同一批里的奖励动画和结果旁白拖到最后。
+ * 未设置边界的旧状态与手工测试状态保持立即可见。
+ */
+export function presentationReady(
+  playback: Pick<Playback, "event" | "pending">,
+  revealAfterEventId?: number,
+) {
+  if (revealAfterEventId === undefined) return true;
+  return ![playback.event, ...playback.pending].some(
+    (event) => event !== null && event.id <= revealAfterEventId,
+  );
+}
 
 /**
  * 哪些阶段的弹层可以「暂时隐藏」，以及恢复条上的按钮文案。
@@ -56,6 +74,16 @@ export function pendingDecision(state: GameStateView) {
         key: `reward-${state.turn}-${state.phase.notice.playerId}-${state.phase.notice.enemyName}`,
         label: "查看战斗奖励",
       };
+    case "treasureReward":
+      return {
+        key: `treasure-${state.turn}-${state.phase.notice.playerId}-${state.phase.notice.tileLabel}`,
+        label: "查看宝箱收获",
+      };
+    case "blessingReward":
+      return {
+        key: `blessing-reward-${state.turn}-${state.phase.notice.playerId}-${state.phase.notice.blessing.instanceId}`,
+        label: "查看新赐福",
+      };
     case "mapEventNotice":
       return {
         key: `event-${state.turn}-${state.phase.notice.playerId}-${state.phase.notice.kind}`,
@@ -70,6 +98,16 @@ export function pendingDecision(state: GameStateView) {
       return {
         key: `event-equipment-${state.turn}-${state.phase.choice.playerId}-${state.phase.choice.eventKind}`,
         label: "继续收藏家交易",
+      };
+    case "mapEventTravelChoice":
+      return {
+        key: `event-travel-${state.turn}-${state.phase.choice.playerId}-${state.phase.choice.targetTileIndex}`,
+        label: "继续商会驿站行程",
+      };
+    case "mapEventHarmonyChoice":
+      return {
+        key: `event-harmony-${state.turn}-${state.phase.choice.playerId}`,
+        label: "继续调和攻防",
       };
     case "statGrowthChoice":
       return {
@@ -261,7 +299,10 @@ export function PhaseOverlayRouter({
           dispatch={dispatch}
         />
       )}
-      {visible && state.phase.kind === "equipmentChoice" && (
+      {visible
+        && state.phase.kind === "equipmentChoice"
+        && presentationReady(playback, state.phase.choice.revealAfterEventId)
+        && (
         <EquipmentChoicePanel
           key="equipment-choice"
           state={state}
@@ -271,21 +312,55 @@ export function PhaseOverlayRouter({
           viewerSeat={viewerSeat}
         />
       )}
-      {visible && !playback.playing && state.phase.kind === "pveReward" && (
+      {visible
+        && state.phase.kind === "pveReward"
+        && presentationReady(playback, state.phase.notice.revealAfterEventId)
+        && (
         <PveRewardPanel
           key="pve-reward"
           state={state}
           notice={state.phase.notice}
           dispatch={dispatch}
+          playing={playback.playing}
           viewerSeat={viewerSeat}
         />
       )}
-      {visible && !playback.playing && state.phase.kind === "mapEventNotice" && (
+      {visible
+        && state.phase.kind === "treasureReward"
+        && presentationReady(playback, state.phase.notice.revealAfterEventId)
+        && (
+        <TreasureRewardPanel
+          key="treasure-reward"
+          state={state}
+          notice={state.phase.notice}
+          dispatch={dispatch}
+          playing={playback.playing}
+          viewerSeat={viewerSeat}
+        />
+      )}
+      {visible
+        && state.phase.kind === "blessingReward"
+        && presentationReady(playback, state.phase.notice.revealAfterEventId)
+        && (
+        <BlessingRewardPanel
+          key="blessing-reward"
+          state={state}
+          notice={state.phase.notice}
+          dispatch={dispatch}
+          playing={playback.playing}
+          viewerSeat={viewerSeat}
+        />
+      )}
+      {visible
+        && state.phase.kind === "mapEventNotice"
+        && presentationReady(playback, state.phase.notice.revealAfterEventId)
+        && (
         <MapEventPanel
           key="map-event"
           state={state}
           notice={state.phase.notice}
           dispatch={dispatch}
+          playing={playback.playing}
           viewerSeat={viewerSeat}
         />
       )}
@@ -302,6 +377,26 @@ export function PhaseOverlayRouter({
       {visible && !playback.playing && state.phase.kind === "mapEventEquipmentChoice" && (
         <MapEventEquipmentChoicePanel
           key="map-event-equipment-choice"
+          state={state}
+          choice={state.phase.choice}
+          dispatch={dispatch}
+          playing={playback.playing}
+          viewerSeat={viewerSeat}
+        />
+      )}
+      {visible && !playback.playing && state.phase.kind === "mapEventTravelChoice" && (
+        <MapEventTravelChoicePanel
+          key="map-event-travel-choice"
+          state={state}
+          choice={state.phase.choice}
+          dispatch={dispatch}
+          playing={playback.playing}
+          viewerSeat={viewerSeat}
+        />
+      )}
+      {visible && !playback.playing && state.phase.kind === "mapEventHarmonyChoice" && (
+        <MapEventHarmonyChoicePanel
+          key="map-event-harmony-choice"
           state={state}
           choice={state.phase.choice}
           dispatch={dispatch}

@@ -28,6 +28,7 @@ export function roundGold(price: number) {
 
 export const ECONOMY = {
   bossKeyPerStage: 100,
+  commerceOutpostTravel: 10 * GOLD_SCALE,
   // 战斗胜利金币砍半：普通/精英战本就高频，原数值让战斗收益盖过宝箱与事件。
   pveGold: 2.5 * GOLD_SCALE,
   eliteBonusGold: 2.5 * GOLD_SCALE,

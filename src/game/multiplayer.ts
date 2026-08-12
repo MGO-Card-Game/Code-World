@@ -74,6 +74,18 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
         state.phase.choice.playerId === actor
       );
 
+    case "chooseMapEventTravel":
+      return (
+        state.phase.kind === "mapEventTravelChoice" &&
+        state.phase.choice.playerId === actor
+      );
+
+    case "chooseMapEventHarmony":
+      return (
+        state.phase.kind === "mapEventHarmonyChoice" &&
+        state.phase.choice.playerId === actor
+      );
+
     case "chooseEncounterIntent": {
       if (state.phase.kind !== "encounterDecision") return false;
       const encounter = state.phase.encounter;
@@ -121,6 +133,18 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
     case "acknowledgePveReward":
       return (
         state.phase.kind === "pveReward" &&
+        state.phase.notice.playerId === actor
+      );
+
+    case "acknowledgeTreasureReward":
+      return (
+        state.phase.kind === "treasureReward" &&
+        state.phase.notice.playerId === actor
+      );
+
+    case "acknowledgeBlessingReward":
+      return (
+        state.phase.kind === "blessingReward" &&
         state.phase.notice.playerId === actor
       );
 
@@ -249,6 +273,18 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
         })),
       };
 
+  const redactTreasureNotice = (
+    notice: Extract<GamePhase, { kind: "treasureReward" }>["notice"],
+  ) => notice.playerId === viewer
+    ? notice
+    : {
+        ...notice,
+        rewards: notice.rewards.map((reward) => ({
+          ...reward,
+          name: reward.publicName,
+        })),
+      };
+
   switch (phase.kind) {
     case "battle": {
       const battle = phase.battle;
@@ -299,6 +335,8 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
     }
     case "pveReward":
       return { kind: "pveReward", notice: redactRewardNotice(phase.notice) };
+    case "treasureReward":
+      return { kind: "treasureReward", notice: redactTreasureNotice(phase.notice) };
     // 事件旁白里可能点名了刚抽到的牌，和 history 走同一套裁剪
     case "mapEventNotice":
       return {
@@ -309,8 +347,8 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
         },
       };
     case "equipmentChoice":
-      return phase.choice.resume.kind === "showPveReward"
-        ? {
+      if (phase.choice.resume.kind === "showPveReward") {
+        return {
             kind: "equipmentChoice",
             choice: {
               ...phase.choice,
@@ -319,8 +357,24 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
                 notice: redactRewardNotice(phase.choice.resume.notice),
               },
             },
-          }
-        : phase;
+          };
+      }
+      if (
+        phase.choice.resume.kind === "showTreasureReward" ||
+        phase.choice.resume.kind === "continueTreasureReward"
+      ) {
+        return {
+          kind: "equipmentChoice",
+          choice: {
+            ...phase.choice,
+            resume: {
+              ...phase.choice.resume,
+              notice: redactTreasureNotice(phase.choice.resume.notice),
+            },
+          },
+        };
+      }
+      return phase;
     case "shop":
       return phase.shop.playerId === viewer
         ? phase
@@ -396,6 +450,10 @@ export function currentActor(state: GameState): PlayerId {
       return state.phase.choice.playerId;
     case "mapEventEquipmentChoice":
       return state.phase.choice.playerId;
+    case "mapEventTravelChoice":
+      return state.phase.choice.playerId;
+    case "mapEventHarmonyChoice":
+      return state.phase.choice.playerId;
     case "encounterDecision": {
       const encounter = state.phase.encounter;
       if (encounter.choiceA.status === "pending") return encounter.aPlayerId;
@@ -420,6 +478,8 @@ export function currentActor(state: GameState): PlayerId {
     case "equipmentChoice":
       return state.phase.choice.playerId;
     case "pveReward":
+    case "treasureReward":
+    case "blessingReward":
     case "mapEventNotice":
       return state.phase.notice.playerId;
     case "statGrowthChoice":

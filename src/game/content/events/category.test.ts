@@ -21,8 +21,11 @@ describe("地图事件内容注册表", () => {
       "requisition",
       "twinSlayer",
       "weaponCollector",
+      "eliteHunter",
+      "commerceOutpost",
       "veteranGuidance",
       "guardianInscription",
+      "harmony",
       "casinoRoulette",
     ]);
     expect(MAP_EVENTS.roadsideRespite.category).toBe("recovery");
@@ -39,8 +42,11 @@ describe("地图事件内容注册表", () => {
     expect(MAP_EVENTS.requisition.category).toBe("reward");
     expect(MAP_EVENTS.twinSlayer.category).toBe("reward");
     expect(MAP_EVENTS.weaponCollector.category).toBe("reward");
+    expect(MAP_EVENTS.eliteHunter.category).toBe("reward");
+    expect(MAP_EVENTS.commerceOutpost.category).toBe("reward");
     expect(MAP_EVENTS.veteranGuidance.category).toBe("boon");
     expect(MAP_EVENTS.guardianInscription.category).toBe("boon");
+    expect(MAP_EVENTS.harmony.category).toBe("boon");
     expect(MAP_EVENTS.casinoRoulette.category).toBe("casino");
   });
 
@@ -62,8 +68,11 @@ describe("地图事件内容注册表", () => {
         ["requisition", 0.25],
         ["twinSlayer", 0.5],
         ["weaponCollector", 0.5],
+        ["eliteHunter", 0.5],
+        ["commerceOutpost", 0.5],
         ["veteranGuidance", 0.5],
         ["guardianInscription", 0.5],
+        ["harmony", 0.5],
         ["casinoRoulette", 0.5],
       ]);
     }
@@ -81,26 +90,29 @@ describe("地图事件内容注册表", () => {
     }
   });
 
-  it("一次权重抽取消耗一个随机数并覆盖十七个事件区间", () => {
-    // 取值都落在各自区间的中段：权重总和是 10.5，边界值容易随权重微调而漂移。
+  it("一次权重抽取消耗一个随机数并覆盖二十个事件区间", () => {
+    // 取值都落在各自区间的中段：权重总和是 12，边界值容易随权重微调而漂移。
     const cases = [
-      [0.05, "roadsideRespite"],
-      [0.12, "hotSpring"],
-      [0.19, "fallingRocks"],
-      [0.26, "mire"],
-      [0.33, "impulseBuy"],
-      [0.43, "lostPurse"],
-      [0.52, "travelerGift"],
-      [0.595, "fallenAdventurer"],
-      [0.63, "weaponInStone"],
-      [0.665, "coinRain"],
-      [0.715, "campfire"],
-      [0.75, "requisition"],
-      [0.785, "twinSlayer"],
-      [0.835, "weaponCollector"],
-      [0.88, "veteranGuidance"],
-      [0.93, "guardianInscription"],
-      [0.975, "casinoRoulette"],
+      [0.04, "roadsideRespite"],
+      [0.105, "hotSpring"],
+      [0.17, "fallingRocks"],
+      [0.23, "mire"],
+      [0.29, "impulseBuy"],
+      [0.375, "lostPurse"],
+      [0.46, "travelerGift"],
+      [0.52, "fallenAdventurer"],
+      [0.552, "weaponInStone"],
+      [0.583, "coinRain"],
+      [0.625, "campfire"],
+      [0.657, "requisition"],
+      [0.687, "twinSlayer"],
+      [0.73, "weaponCollector"],
+      [0.77, "eliteHunter"],
+      [0.812, "commerceOutpost"],
+      [0.854, "veteranGuidance"],
+      [0.895, "guardianInscription"],
+      [0.937, "harmony"],
+      [0.98, "casinoRoulette"],
     ] as const;
 
     let calls = 0;

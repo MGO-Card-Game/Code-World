@@ -179,6 +179,10 @@ describe("赐福内容", () => {
     }
 
     expect(choices).toBeGreaterThanOrEqual(1);
+    expect(resolved.phase.kind).toBe("treasureReward");
+    if (resolved.phase.kind !== "treasureReward") throw new Error("应进入宝箱结果弹窗");
+    expect(resolved.phase.notice.rewards.some((reward) => reward.source === "blessing")).toBe(true);
+    resolved = gameReducer(resolved, { type: "acknowledgeTreasureReward" });
     expect(resolved.phase.kind).toBe("turnComplete");
     expect(resolved.history.some((entry) => entry.text.includes("宝物猎人额外获得"))).toBe(true);
   });
@@ -297,7 +301,9 @@ describe("赐福持有与 PvP 覆盖", () => {
 
     const resolved = forceLandingOn(state, "blessing");
 
-    expect(resolved.phase.kind).toBe("turnComplete");
+    expect(resolved.phase.kind).toBe("blessingReward");
+    if (resolved.phase.kind !== "blessingReward") throw new Error("应进入赐福获得弹窗");
+    expect(resolved.phase.notice.blessing).toEqual(resolved.players[playerId].blessings[0]);
     expect(resolved.players[playerId].blessings).toHaveLength(1);
     expect(resolved.message.text).toContain("获得永久赐福");
   });
@@ -311,7 +317,9 @@ describe("赐福持有与 PvP 覆盖", () => {
 
     const resolved = forceLandingOn(state, "blessing");
 
-    expect(resolved.phase.kind).toBe("turnComplete");
+    expect(resolved.phase.kind).toBe("blessingReward");
+    if (resolved.phase.kind !== "blessingReward") throw new Error("应进入赐福获得弹窗");
+    expect(resolved.phase.notice.blessing).toEqual(resolved.players[playerId].blessings[1]);
     expect(resolved.players[playerId].blessings).toHaveLength(2);
     expect(resolved.players[playerId].blessings.map((blessing) => blessing.kind))
       .toContain("giantStrength");

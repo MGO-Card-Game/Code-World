@@ -16,13 +16,16 @@ import { getAttack, getDefense, pvpHpTransferAmount } from "../game/selectors";
 import { bossKeyPrice, equipmentSalvageValue, pvpGoldTransferAmount } from "../game/economy";
 import type {
   BlessingChoiceState,
+  BlessingRewardNoticeState,
   BossGateChoiceState,
   EquipmentChoiceState,
   EncounterChoiceState,
   ScrollTargetChoiceState,
   GameStateView,
   MapEventEquipmentChoiceState,
+  MapEventHarmonyChoiceState,
   MapEventScrollChoiceState,
+  MapEventTravelChoiceState,
   MapEventNoticeState,
   PlayerId,
   PlayerView,
@@ -31,6 +34,8 @@ import type {
   PvpPenaltyState,
   StatGrowthChoiceState,
   StatGrowthOption,
+  TreasureRewardItem,
+  TreasureRewardNoticeState,
 } from "../game/types";
 import { DecisionModal, NoticeEmblem, staggered } from "./DecisionModal";
 import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
@@ -105,10 +110,11 @@ export function BossGatePanel({ state, choice, dispatch, viewerSeat }: {
   );
 }
 
-export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
+export function PveRewardPanel({ state, notice, dispatch, playing, viewerSeat }: {
   state: GameStateView;
   notice: PveRewardNoticeState;
   dispatch: Dispatch;
+  playing: boolean;
   viewerSeat: PlayerId;
 }) {
   const player = state.players[notice.playerId];
@@ -137,8 +143,12 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
       canAct={canAcknowledge}
       waiting={<p className="waiting-notice">{`等待${player.name}确认奖励……`}</p>}
       actions={
-        <button className="primary-button" onClick={() => dispatch({ type: "acknowledgePveReward" })}>
-          {notice.statGrowth ? "收下奖励并加点" : "收下奖励"}
+        <button
+          className="primary-button"
+          disabled={playing}
+          onClick={() => dispatch({ type: "acknowledgePveReward" })}
+        >
+          {playing ? "奖励结算中……" : notice.statGrowth ? "收下奖励并加点" : "收下奖励"}
         </button>
       }
     >
@@ -171,10 +181,11 @@ export function PveRewardPanel({ state, notice, dispatch, viewerSeat }: {
  * 事件的名称与描述来自内容表，逐条旁白来自本次结算——两者都摆出来，玩家才知道
  * 「踩到了什么」和「发生了什么」。改这里之前先看 MapEventNoticeState 的注释。
  */
-export function MapEventPanel({ state, notice, dispatch, viewerSeat }: {
+export function MapEventPanel({ state, notice, dispatch, playing, viewerSeat }: {
   state: GameStateView;
   notice: MapEventNoticeState;
   dispatch: Dispatch;
+  playing: boolean;
   viewerSeat: PlayerId;
 }) {
   const player = state.players[notice.playerId];
@@ -206,8 +217,14 @@ export function MapEventPanel({ state, notice, dispatch, viewerSeat }: {
       canAct={canAcknowledge}
       waiting={<p className="waiting-notice">{`等待${player.name}确认……`}</p>}
       actions={
-        <button className="primary-button" onClick={() => dispatch({ type: "acknowledgeMapEvent" })}>
-          {notice.resume?.kind === "casino"
+        <button
+          className="primary-button"
+          disabled={playing}
+          onClick={() => dispatch({ type: "acknowledgeMapEvent" })}
+        >
+          {playing
+            ? "事件结算中……"
+            : notice.resume?.kind === "casino"
             ? "走进赌场"
             : notice.resume?.kind === "equipmentChoice"
               ? "处理装备"
@@ -215,7 +232,13 @@ export function MapEventPanel({ state, notice, dispatch, viewerSeat }: {
                 ? "选择卷轴"
                 : notice.resume?.kind === "mapEventEquipmentChoice"
                   ? "决定是否交易"
-              : "继续前行"}
+                  : notice.resume?.kind === "mapEventTravelChoice"
+                    ? "决定是否启程"
+                    : notice.resume?.kind === "mapEventHarmonyChoice"
+                      ? "选择调和方向"
+                    : notice.resume?.kind === "resolveTile"
+                      ? "追踪精英"
+                      : "继续前行"}
         </button>
       }
     >
@@ -225,6 +248,107 @@ export function MapEventPanel({ state, notice, dispatch, viewerSeat }: {
             {line.text}
           </motion.p>
         ))}
+      </div>
+    </DecisionModal>
+  );
+}
+
+export function TreasureRewardPanel({ state, notice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  notice: TreasureRewardNoticeState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[notice.playerId];
+  const canAcknowledge = viewerSeat === notice.playerId;
+  const sourceNames = {
+    treasure: "宝箱收获",
+    blessing: "宝物猎人",
+  } as const satisfies Record<TreasureRewardItem["source"], string>;
+
+  return (
+    <DecisionModal
+      backdrop="reward-backdrop"
+      className="pve-reward-modal"
+      emblem={<NoticeEmblem>{notice.empty ? "◇" : "◆"}</NoticeEmblem>}
+      kicker={notice.empty ? "空宝箱" : "宝箱已开启"}
+      title={`${player.name}打开了${notice.tileLabel}`}
+      lead={notice.empty ? "箱子里空空如也，这次没有获得任何物品。" : "箱中的收获已经放入行囊。"}
+      canAct={canAcknowledge}
+      waiting={<p className="waiting-notice">{`等待${player.name}确认开箱结果……`}</p>}
+      actions={
+        <button
+          className="primary-button"
+          disabled={playing}
+          onClick={() => dispatch({ type: "acknowledgeTreasureReward" })}
+        >
+          {playing ? "开箱结算中……" : "收下奖励"}
+        </button>
+      }
+    >
+      {!notice.empty && (
+        <div className="pve-reward-list">
+          {notice.rewards.map((reward, index) => (
+            <motion.div
+              key={`${reward.source}-${index}-${reward.name}`}
+              className={`pve-reward-item source-${reward.source}`}
+              {...staggered(index)}
+            >
+              <span>{sourceNames[reward.source]}</span>
+              <strong>{reward.name}</strong>
+              <small>{
+                reward.resourceType === "scroll"
+                  ? "卷轴"
+                  : reward.resourceType === "equipment"
+                    ? "装备"
+                    : "金币"
+              }</small>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </DecisionModal>
+  );
+}
+
+export function BlessingRewardPanel({ state, notice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  notice: BlessingRewardNoticeState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[notice.playerId];
+  const definition = blessingDefinition(notice.blessing.kind);
+  const canAcknowledge = viewerSeat === notice.playerId;
+
+  return (
+    <DecisionModal
+      backdrop="reward-backdrop"
+      className="blessing-choice-modal"
+      emblem={<NoticeEmblem>✦</NoticeEmblem>}
+      kicker="获得赐福"
+      title={`${player.name}在${notice.tileLabel}获得了${definition.name}`}
+      lead="新的赐福已经生效。"
+      canAct={canAcknowledge}
+      waiting={<p className="waiting-notice">{`等待${player.name}确认新赐福……`}</p>}
+      actions={
+        <button
+          className="primary-button"
+          disabled={playing}
+          onClick={() => dispatch({ type: "acknowledgeBlessingReward" })}
+        >
+          {playing ? "赐福降临中……" : "确认赐福"}
+        </button>
+      }
+    >
+      <div className="blessing-comparison">
+        <div className="offered">
+          <span>新赐福</span>
+          <strong>{definition.name}</strong>
+          <small>{definition.description}</small>
+        </div>
       </div>
     </DecisionModal>
   );
@@ -334,6 +458,114 @@ export function MapEventEquipmentChoicePanel({ state, choice, dispatch, playing,
             <span>保留全部装备</span>
             <strong>拒绝交易</strong>
             <small>不交出装备，也不获得防御提升。</small>
+          </button>
+        </div>
+      }
+    />
+  );
+}
+
+export function MapEventTravelChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: MapEventTravelChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[choice.playerId];
+  const event = mapEventDefinition(choice.eventKind);
+  const target = state.map.tiles[choice.targetTileIndex];
+  const canChoose = viewerSeat === choice.playerId;
+  const canAfford = player.gold >= choice.price;
+
+  return (
+    <DecisionModal
+      backdrop="reward-backdrop"
+      className="equipment-choice-modal"
+      emblem={<NoticeEmblem>¤</NoticeEmblem>}
+      kicker={event.name}
+      title={`${player.name}是否搭乘商队？`}
+      lead={`支付 ${choice.price} 金币，立即移动到「${target.label}」并进入商店。`}
+      canAct={canChoose}
+      waiting={<p className="waiting-notice">{`等待${player.name}决定是否启程……`}</p>}
+      actions={
+        <div className="equipment-choice-options">
+          <button
+            type="button"
+            disabled={playing || !canAfford}
+            onClick={() => dispatch({ type: "chooseMapEventTravel", accept: true })}
+          >
+            <span>支付 {choice.price} 金币</span>
+            <strong>{canAfford ? `前往${target.label}` : "金币不足"}</strong>
+            <small>当前持有 {player.gold} 金币</small>
+          </button>
+          <button
+            type="button"
+            className="discard-equipment"
+            disabled={playing}
+            onClick={() => dispatch({ type: "chooseMapEventTravel", accept: false })}
+          >
+            <span>不支付金币</span>
+            <strong>放弃行程</strong>
+            <small>留在当前位置并结束本次事件。</small>
+          </button>
+        </div>
+      }
+    />
+  );
+}
+
+export function MapEventHarmonyChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: MapEventHarmonyChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const player = state.players[choice.playerId];
+  const event = mapEventDefinition(choice.eventKind);
+  const canChoose = viewerSeat === choice.playerId;
+  const amount = choice.amount;
+
+  return (
+    <DecisionModal
+      backdrop="reward-backdrop"
+      className="equipment-choice-modal"
+      emblem={<NoticeEmblem>⇄</NoticeEmblem>}
+      kicker={event.name}
+      title={`${player.name}要如何调和攻守？`}
+      lead={`当前基础攻击 ${player.baseAttack}，基础防御 ${player.baseDefense}。你可以转换 ${amount} 点属性，也可以维持现状。`}
+      canAct={canChoose}
+      waiting={<p className="waiting-notice">{`等待${player.name}选择调和方向……`}</p>}
+      actions={
+        <div className="equipment-choice-options">
+          <button
+            type="button"
+            disabled={playing || player.baseAttack < amount}
+            onClick={() => dispatch({ type: "chooseMapEventHarmony", option: "attackToDefense" })}
+          >
+            <span>基础攻击 −{amount}</span>
+            <strong>转化为基础防御 +{amount}</strong>
+            <small>{player.baseAttack < amount ? "基础攻击不足" : `${player.baseAttack} → ${player.baseAttack - amount}`}</small>
+          </button>
+          <button
+            type="button"
+            disabled={playing || player.baseDefense < amount}
+            onClick={() => dispatch({ type: "chooseMapEventHarmony", option: "defenseToAttack" })}
+          >
+            <span>基础防御 −{amount}</span>
+            <strong>转化为基础攻击 +{amount}</strong>
+            <small>{player.baseDefense < amount ? "基础防御不足" : `${player.baseDefense} → ${player.baseDefense - amount}`}</small>
+          </button>
+          <button
+            type="button"
+            className="discard-equipment"
+            disabled={playing}
+            onClick={() => dispatch({ type: "chooseMapEventHarmony", option: "decline" })}
+          >
+            <span>不转换属性</span>
+            <strong>放弃调和</strong>
+            <small>保持当前基础攻击与基础防御。</small>
           </button>
         </div>
       }

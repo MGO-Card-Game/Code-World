@@ -21,7 +21,10 @@ export {
   type MapEventEffectDefinition,
   type MapEventResource,
   type PlayerNarrationContext,
+  type PaidTravelNarrationContext,
   type RewardNarrationContext,
+  type StatConversionNarrationContext,
+  type TeleportNarrationContext,
 } from "./definition";
 
 /** 合并顺序也决定同权重事件在随机区间内的顺序；不要无故调整。 */

@@ -16,7 +16,9 @@ import {
 } from "./resources";
 import { addHistory, emit, nextRandom, rollDie } from "./state";
 import { grantGold, spendGold } from "./economy";
-import type { GamePhase, GameState, LogEntry, MapTile, Player } from "./types";
+import { regionForPosition } from "./map";
+import { landDirectlyAt } from "./movement";
+import type { GamePhase, GameState, LogEntry, MapTile, Player, TileType } from "./types";
 
 /**
  * 事件格的结算。
@@ -36,6 +38,18 @@ function resolveAmount(state: GameState, amount: MapEventAmount) {
   let roll = 0;
   for (let die = 0; die < amount.dice; die += 1) roll += rollDie(state, amount.sides);
   return { value: roll * (amount.multiplier ?? 1), roll };
+}
+
+/** 当前区域内沿前进方向最近的指定格；环路允许越过区域起点，但不会返回原地。 */
+function nextTileOfType(state: GameState, player: Player, tileType: TileType) {
+  const region = regionForPosition(state.map, player.position);
+  const size = region.endIndex - region.startIndex + 1;
+  const target = state.map.tiles
+    .filter((tile) => tile.region === region.id && tile.type === tileType)
+    .map((tile) => ({ tile, distance: (tile.id - player.position + size) % size }))
+    .filter(({ distance }) => distance > 0)
+    .sort((left, right) => left.distance - right.distance)[0]?.tile;
+  return { region, target };
 }
 
 /**
@@ -222,6 +236,66 @@ export function applyMapEventEffect(
       addHistory(state, effect.narration({ playerName: player.name }));
       return true;
     }
+    case "teleportToNextTile": {
+      const { region, target } = nextTileOfType(state, player, effect.tileType);
+      if (!target) {
+        addHistory(state, effect.emptyNarration({ playerName: player.name }));
+        return false;
+      }
+
+      const from = player.position;
+      const { targetTile } = landDirectlyAt(state, player, region, target.id);
+      emit(state, {
+        type: "playerMoved",
+        playerId: player.id,
+        from,
+        to: player.position,
+      });
+      addHistory(state, effect.narration({
+        playerName: player.name,
+        tileLabel: targetTile.label,
+      }));
+      return { resolveTile: targetTile.id, checkEncounter: true as const };
+    }
+    case "offerPaidTravelToNextTile": {
+      const { target } = nextTileOfType(state, player, effect.tileType);
+      if (!target) {
+        addHistory(state, effect.emptyNarration({ playerName: player.name }));
+        return false;
+      }
+      if (!source) throw new Error("付费移动事件缺少内容表来源");
+      const price = Math.max(0, Math.floor(effect.price));
+      state.phase = {
+        kind: "mapEventTravelChoice",
+        choice: {
+          playerId: player.id,
+          targetTileIndex: target.id,
+          price,
+          eventKind: source.eventKind,
+          effectIndex: source.effectIndex,
+        },
+      };
+      addHistory(state, effect.narration({
+        playerName: player.name,
+        tileLabel: target.label,
+        price,
+      }));
+      return true;
+    }
+    case "offerBaseStatConversion": {
+      if (!source) throw new Error("属性转换事件缺少内容表来源");
+      state.phase = {
+        kind: "mapEventHarmonyChoice",
+        choice: {
+          playerId: player.id,
+          amount: Math.max(1, Math.floor(effect.amount)),
+          eventKind: source.eventKind,
+          effectIndex: source.effectIndex,
+        },
+      };
+      addHistory(state, effect.narration({ playerName: player.name }));
+      return true;
+    }
     case "grantEquipment": {
       const kind = pickEquipmentKind(
         () => nextRandom(state),
@@ -274,8 +348,15 @@ export function resolveRandomMapEvent(
     区间才对得上"这个事件产生了哪几句"。
   */
   const from = state.lastEvents.length;
+  const revealAfterEventId = state.lastEvents[from - 1]?.id;
+  let tileResolution: { resolveTile: number; checkEncounter: true } | undefined;
   for (const [effectIndex, effect] of definition.effects.entries()) {
-    if (applyMapEventEffect(state, player, effect, { eventKind: kind, effectIndex })) break;
+    const result = applyMapEventEffect(state, player, effect, { eventKind: kind, effectIndex });
+    if (typeof result === "object") {
+      tileResolution = result;
+      break;
+    }
+    if (result) break;
   }
   const lines: LogEntry[] = [];
   for (const event of state.lastEvents.slice(from)) {
@@ -284,30 +365,43 @@ export function resolveRandomMapEvent(
   }
   // 效果可能已经把阶段切去赌场或装备取舍，先讲完事件，确认后再把它交还回去
   const taken = currentPhase(state);
-  const resume = taken.kind === "casino"
-    || taken.kind === "equipmentChoice"
-    || taken.kind === "mapEventScrollChoice"
-    || taken.kind === "mapEventEquipmentChoice"
-    ? taken
-    : undefined;
+  const resume = tileResolution
+    ? {
+        kind: "resolveTile" as const,
+        tileIndex: tileResolution.resolveTile,
+        checkEncounter: true as const,
+      }
+    : taken.kind === "casino"
+      || taken.kind === "equipmentChoice"
+      || taken.kind === "mapEventScrollChoice"
+      || taken.kind === "mapEventEquipmentChoice"
+      || taken.kind === "mapEventTravelChoice"
+      || taken.kind === "mapEventHarmonyChoice"
+      ? taken
+      : undefined;
   /*
     掉线的人不会有人去读这块通知，直接把阶段交给它原本要去的地方。留着的话，整局会
     卡在一个没人关得掉的弹层上，而掉线兜底的每条分支都得多认一种阶段。
   */
-  if (state.unavailablePlayerIds.includes(player.id)) {
+  if (state.unavailablePlayerIds.includes(player.id) && resume?.kind !== "resolveTile") {
     state.phase = resume ?? { kind: "turnComplete" };
     return;
   }
   state.phase = {
     kind: "mapEventNotice",
-    notice: { playerId: player.id, kind, lines, resume },
+    notice: { playerId: player.id, kind, lines, resume, revealAfterEventId },
   };
 }
 
 /** 关掉事件通知，把阶段交还给事件效果原本要去的地方。 */
 export function acknowledgeMapEvent(state: GameState) {
   if (state.phase.kind !== "mapEventNotice") return false;
-  state.phase = state.phase.notice.resume ?? { kind: "turnComplete" };
+  const resume = state.phase.notice.resume;
+  if (resume?.kind === "resolveTile") {
+    state.phase = { kind: "turnComplete" };
+    return { resolveTile: resume.tileIndex, checkEncounter: resume.checkEncounter };
+  }
+  state.phase = resume ?? { kind: "turnComplete" };
   return true;
 }
 
@@ -364,6 +458,92 @@ export function chooseMapEventEquipment(state: GameState, instanceId?: string) {
   addHistory(state, effect.acceptedNarration({
     playerName: player.name,
     equipmentName: EQUIPMENT[removed.kind].name,
+    amount,
+  }));
+  state.phase = { kind: "turnComplete" };
+  return true;
+}
+
+/** 接受或拒绝地图事件发起的付费移动；接受后把目标格交回统一落点结算。 */
+export function chooseMapEventTravel(state: GameState, accept: boolean) {
+  if (state.phase.kind !== "mapEventTravelChoice") return false;
+  const { choice } = state.phase;
+  const player = state.players[choice.playerId];
+  const effect = mapEventDefinition(choice.eventKind).effects[choice.effectIndex];
+  if (effect?.type !== "offerPaidTravelToNextTile") return false;
+  const target = state.map.tiles[choice.targetTileIndex];
+  const region = regionForPosition(state.map, player.position);
+  if (!target || target.region !== region.id || target.type !== effect.tileType) return false;
+  const price = Math.max(0, Math.floor(effect.price));
+
+  if (!accept) {
+    addHistory(state, effect.declinedNarration({
+      playerName: player.name,
+      tileLabel: target.label,
+      price,
+    }));
+    state.phase = { kind: "turnComplete" };
+    return true;
+  }
+  if (!spendGold(state, player, price, "event")) return false;
+
+  const from = player.position;
+  const { targetTile } = landDirectlyAt(state, player, region, target.id);
+  emit(state, { type: "playerMoved", playerId: player.id, from, to: player.position });
+  addHistory(state, effect.acceptedNarration({
+    playerName: player.name,
+    tileLabel: targetTile.label,
+    price,
+  }));
+  state.phase = { kind: "turnComplete" };
+  return { resolveTile: targetTile.id };
+}
+
+/** 完成或放弃基础攻防转换；两项变更作为同一个动作原子结算。 */
+export function chooseMapEventHarmony(
+  state: GameState,
+  option: "attackToDefense" | "defenseToAttack" | "decline",
+) {
+  if (state.phase.kind !== "mapEventHarmonyChoice") return false;
+  const { choice } = state.phase;
+  const player = state.players[choice.playerId];
+  const effect = mapEventDefinition(choice.eventKind).effects[choice.effectIndex];
+  if (effect?.type !== "offerBaseStatConversion") return false;
+
+  if (option === "decline") {
+    addHistory(state, effect.declinedNarration({ playerName: player.name }));
+    state.phase = { kind: "turnComplete" };
+    return true;
+  }
+  const amount = Math.max(1, Math.floor(effect.amount));
+  const fromStat = option === "attackToDefense" ? "attack" : "defense";
+  const toStat = fromStat === "attack" ? "defense" : "attack";
+  const fromKey = fromStat === "attack" ? "baseAttack" : "baseDefense";
+  const toKey = toStat === "attack" ? "baseAttack" : "baseDefense";
+  if (player[fromKey] < amount) return false;
+
+  const fromBefore = player[fromKey];
+  const toBefore = player[toKey];
+  player[fromKey] -= amount;
+  player[toKey] += amount;
+  emit(state, {
+    type: "baseStatChanged",
+    playerId: player.id,
+    stat: fromStat,
+    from: fromBefore,
+    to: player[fromKey],
+  });
+  emit(state, {
+    type: "baseStatChanged",
+    playerId: player.id,
+    stat: toStat,
+    from: toBefore,
+    to: player[toKey],
+  });
+  addHistory(state, effect.convertedNarration({
+    playerName: player.name,
+    fromStat,
+    toStat,
     amount,
   }));
   state.phase = { kind: "turnComplete" };

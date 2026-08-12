@@ -207,6 +207,7 @@ export function grantEquipment(
         playerId: player.id,
         offered: item,
         source: "reward",
+        revealAfterEventId: state.lastEvents.at(-1)?.id,
         resume,
       },
     };

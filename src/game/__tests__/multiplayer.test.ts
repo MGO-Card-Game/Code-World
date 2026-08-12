@@ -108,6 +108,47 @@ describe("动作授权 canAct", () => {
     expect(JSON.stringify(opponentView.phase)).not.toContain("力量卷轴");
   });
 
+  it("宝箱结果只能由开箱玩家确认，卷轴牌名对旁观者保密", () => {
+    const state = createInitialGame(20260812);
+    state.phase = {
+      kind: "treasureReward",
+      notice: {
+        playerId: "player2",
+        tileLabel: "旧木宝箱",
+        empty: false,
+        rewards: [{
+          source: "treasure",
+          resourceType: "scroll",
+          name: "力量卷轴",
+          publicName: "一张卷轴",
+        }],
+      },
+    };
+
+    expect(canAct(state, { type: "acknowledgeTreasureReward" }, "player2")).toBe(true);
+    expect(canAct(state, { type: "acknowledgeTreasureReward" }, "player1")).toBe(false);
+    expect(viewFor(state, "player2").phase).toEqual(state.phase);
+    const opponentView = viewFor(state, "player1");
+    if (opponentView.phase.kind !== "treasureReward") throw new Error("应保留宝箱结果阶段");
+    expect(opponentView.phase.notice.rewards[0].name).toBe("一张卷轴");
+    expect(JSON.stringify(opponentView.phase)).not.toContain("力量卷轴");
+  });
+
+  it("新赐福只能由获得它的玩家确认", () => {
+    const state = createInitialGame(20260812);
+    state.phase = {
+      kind: "blessingReward",
+      notice: {
+        playerId: "player2",
+        tileLabel: "远古祭坛",
+        blessing: { instanceId: "blessing-1", kind: "giantStrength" },
+      },
+    };
+
+    expect(canAct(state, { type: "acknowledgeBlessingReward" }, "player2")).toBe(true);
+    expect(canAct(state, { type: "acknowledgeBlessingReward" }, "player1")).toBe(false);
+  });
+
   it("只能提交自己那一侧的卷轴选择", () => {
     const state = withBattle();
 
@@ -397,6 +438,12 @@ describe("暗牌裁剪 viewFor", () => {
           break;
         case "pveReward":
           state = gameReducer(state, { type: "acknowledgePveReward" });
+          break;
+        case "treasureReward":
+          state = gameReducer(state, { type: "acknowledgeTreasureReward" });
+          break;
+        case "blessingReward":
+          state = gameReducer(state, { type: "acknowledgeBlessingReward" });
           break;
         case "statGrowthChoice":
           state = gameReducer(state, { type: "chooseStatGrowth", option: "attack" });

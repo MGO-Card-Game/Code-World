@@ -6,14 +6,25 @@ import {
   settleUnavailablePvpPenalty,
   settleWaivedPvpPenalty,
 } from "./pvpPenalty";
-import { acknowledgePveReward, chooseEquipment, chooseStatGrowth } from "./rewards";
+import {
+  acknowledgeBlessingReward,
+  acknowledgePveReward,
+  acknowledgeTreasureReward,
+  chooseEquipment,
+  chooseStatGrowth,
+} from "./rewards";
 import { leaveShop } from "./shop";
 import { addHistory, cloneGameState } from "./state";
 import { resolveTile } from "./tiles";
 import { advanceCompletedTurn } from "./turns";
 import { settleActionResult } from "./actionResult";
 import { chooseBossChallenge } from "./mapActions";
-import { acknowledgeMapEvent, chooseMapEventEquipment } from "./mapEvents";
+import {
+  acknowledgeMapEvent,
+  chooseMapEventEquipment,
+  chooseMapEventHarmony,
+  chooseMapEventTravel,
+} from "./mapEvents";
 import type { GameState, Player } from "./types";
 
 /**
@@ -63,6 +74,16 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
     case "mapEventEquipmentChoice":
       if (next.phase.choice.playerId !== playerId) return state;
       chooseMapEventEquipment(next);
+      advanceCompletedTurn(next);
+      return next;
+    case "mapEventTravelChoice":
+      if (next.phase.choice.playerId !== playerId) return state;
+      chooseMapEventTravel(next, false);
+      advanceCompletedTurn(next);
+      return next;
+    case "mapEventHarmonyChoice":
+      if (next.phase.choice.playerId !== playerId) return state;
+      chooseMapEventHarmony(next, "decline");
       advanceCompletedTurn(next);
       return next;
     case "encounterChoice":
@@ -174,8 +195,20 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
             chooseStatGrowth(next, "maxHp");
           }
         }
+        if (
+          phaseAfterChoice.kind === "treasureReward" &&
+          phaseAfterChoice.notice.playerId === playerId
+        ) {
+          acknowledgeTreasureReward(next);
+        }
       }
       const phaseAfterEquipmentFallback = next.phase as GameState["phase"];
+      if (
+        phaseAfterEquipmentFallback.kind === "equipmentChoice" &&
+        phaseAfterEquipmentFallback.choice.playerId === playerId
+      ) {
+        return handleDisconnectTimeout(next, playerId);
+      }
       if (
         phaseAfterEquipmentFallback.kind === "shop" &&
         phaseAfterEquipmentFallback.shop.playerId === playerId
@@ -201,6 +234,16 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       }
       if (next.activePlayerId === playerId) advanceCompletedTurn(next);
       return next;
+    case "treasureReward":
+      if (next.phase.notice.playerId !== playerId) return state;
+      acknowledgeTreasureReward(next);
+      if (next.activePlayerId === playerId) advanceCompletedTurn(next);
+      return next;
+    case "blessingReward":
+      if (next.phase.notice.playerId !== playerId) return state;
+      acknowledgeBlessingReward(next);
+      if (next.activePlayerId === playerId) advanceCompletedTurn(next);
+      return next;
     /*
       事件通知只是"把话讲完"，掉线的人没什么可决定的，直接替他关掉。关掉后可能落进
       赌场或装备取舍，那两处各自的兜底不在这条分支里——递归回本函数交给它们处理，
@@ -208,7 +251,16 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
     */
     case "mapEventNotice":
       if (next.phase.notice.playerId !== playerId) return state;
-      acknowledgeMapEvent(next);
+      {
+        const result = acknowledgeMapEvent(next);
+        if (typeof result === "object") {
+          resolveTile(
+            next,
+            next.map.tiles[result.resolveTile],
+            result.checkEncounter ?? false,
+          );
+        }
+      }
       if ((next.phase as GameState["phase"]).kind === "turnComplete") {
         if (next.activePlayerId === playerId) advanceCompletedTurn(next);
         return next;

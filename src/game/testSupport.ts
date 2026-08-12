@@ -126,6 +126,10 @@ export function advanceAutomatically(state: GameState): GameState {
       });
     case "mapEventEquipmentChoice":
       return gameReducer(state, { type: "chooseMapEventEquipment" });
+    case "mapEventTravelChoice":
+      return gameReducer(state, { type: "chooseMapEventTravel", accept: false });
+    case "mapEventHarmonyChoice":
+      return gameReducer(state, { type: "chooseMapEventHarmony", option: "decline" });
     case "encounterDecision":
       return gameReducer(state, {
         type: "chooseEncounterIntent",
@@ -187,6 +191,10 @@ export function advanceAutomatically(state: GameState): GameState {
       return gameReducer(state, { type: "chooseEquipment" });
     case "pveReward":
       return gameReducer(state, { type: "acknowledgePveReward" });
+    case "treasureReward":
+      return gameReducer(state, { type: "acknowledgeTreasureReward" });
+    case "blessingReward":
+      return gameReducer(state, { type: "acknowledgeBlessingReward" });
     case "mapEventNotice":
       return gameReducer(state, { type: "acknowledgeMapEvent" });
     // 一律点攻击，好让整局的生命上限不变量只跟护符有关

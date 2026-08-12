@@ -93,6 +93,7 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
       openTreasure(state, player, tile);
       return;
     case "blessing": {
+      const revealAfterEventId = state.lastEvents.at(-1)?.id;
       if (!hasFreeBlessingSlot(player)) {
         const offered = drawRandomBlessing(
           state,
@@ -120,7 +121,17 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
         return;
       }
       const blessing = grantRandomBlessing(state, player);
-      state.phase = { kind: "turnComplete" };
+      state.phase = blessing
+        ? {
+            kind: "blessingReward",
+            notice: {
+              playerId: player.id,
+              tileLabel: tile.label,
+              blessing,
+              revealAfterEventId,
+            },
+          }
+        : { kind: "turnComplete" };
       addHistory(
         state,
         blessing
@@ -165,5 +176,5 @@ export function resolveTile(state: GameState, tile: MapTile, checkEncounter = tr
 /** 兑现下游模块交回来的那一次格子结算；动作是否合法由调用方自己判断。 */
 export function settleTileDebt(state: GameState, result: ActionResult) {
   if (result === true || result === false) return;
-  resolveTile(state, state.map.tiles[result.resolveTile], false);
+  resolveTile(state, state.map.tiles[result.resolveTile], result.checkEncounter ?? false);
 }

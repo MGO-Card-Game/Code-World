@@ -31,8 +31,11 @@ const EVENT_NARRATIONS = {
   requisition: "交出一张卷轴",
   twinSlayer: "双子杀手",
   weaponCollector: "武器收藏家",
+  eliteHunter: "精英猎手",
+  commerceOutpost: "商会驿站",
   veteranGuidance: "得到武者指点",
   guardianInscription: "参悟守护碑铭",
+  harmony: "调和之力",
   casinoRoulette: "走进路边的赌场",
 } as const;
 
@@ -191,6 +194,16 @@ describe("地图事件结算", () => {
           expect(player.baseDefense).toBe(2);
           expect(state.message.text).toContain("没有可以交给武器收藏家的装备");
           break;
+        case "eliteHunter":
+          expect(state.map.tiles[player.position].type).toBe("elite");
+          expect(phaseAfterNotice(state).kind).toBe("battle");
+          continue;
+        case "commerceOutpost":
+          expect(phaseAfterNotice(state).kind).toBe("mapEventTravelChoice");
+          continue;
+        case "harmony":
+          expect(phaseAfterNotice(state).kind).toBe("mapEventHarmonyChoice");
+          continue;
         case "fallenAdventurer":
           expect(eventsOf(state, "equipmentGranted")).toHaveLength(1);
           break;
@@ -391,11 +404,19 @@ describe("地图事件结算", () => {
     const notice = state.phase.notice;
     expect(notice.playerId).toBe(state.activePlayerId);
     expect(notice.kind).toBe(kind);
+    const revealBarrier = state.lastEvents.find(
+      (event) => event.id === notice.revealAfterEventId,
+    );
+    expect(revealBarrier?.type).toBe("narration");
     // 弹层里的每一句都真的在这次结算里发生过，顺序也和发生顺序一致
     expect(notice.lines.length).toBeGreaterThan(0);
     const narrated = eventsOf(state, "narration").map((event) => event.text);
     const texts = notice.lines.map((line) => line.text);
     expect(texts).toEqual(narrated.slice(-texts.length));
+    const firstResultNarration = state.lastEvents.find(
+      (event) => event.type === "narration" && event.text === texts[0],
+    );
+    expect(notice.revealAfterEventId).toBeLessThan(firstResultNarration!.id);
     // 只收事件自己产生的旁白，走到这一格的那句移动不算
     expect(texts).not.toContain(narrated[0]);
   });
@@ -617,6 +638,195 @@ describe("地图事件结算", () => {
     expect(eventsOf(declined, "baseStatChanged")).toHaveLength(0);
     expect(declined.message.text).toContain("谢绝了武器收藏家的交易");
     expect(declined.phase.kind).toBe("turnComplete");
+  });
+
+  it("精英猎手沿当前区域前进方向传送到最近的精英格，并在确认后结算落点", () => {
+    let found: GameState | undefined;
+    for (let seed = 1; seed <= 2000 && !found; seed += 1) {
+      const resolved = landOnEvent(seed);
+      if (identify(resolved) === "eliteHunter") found = resolved;
+    }
+    if (!found || found.phase.kind !== "mapEventNotice") {
+      throw new Error("2000 个种子内应抽到精英猎手并停在事件通知");
+    }
+
+    const movements = eventsOf(found, "playerMoved");
+    expect(movements).toHaveLength(2);
+    const teleport = movements[1];
+    const region = found.map.regions.find(
+      (candidate) => teleport.from >= candidate.startIndex && teleport.from <= candidate.endIndex,
+    )!;
+    const size = region.endIndex - region.startIndex + 1;
+    const nearest = found.map.tiles
+      .filter((tile) => tile.region === region.id && tile.type === "elite")
+      .map((tile) => ({ tile, distance: (tile.id - teleport.from + size) % size }))
+      .filter(({ distance }) => distance > 0)
+      .sort((left, right) => left.distance - right.distance)[0]!.tile;
+
+    expect(teleport.to).toBe(nearest.id);
+    expect(found.players[found.activePlayerId].position).toBe(nearest.id);
+    expect(found.phase.notice.resume).toEqual({
+      kind: "resolveTile",
+      tileIndex: nearest.id,
+      checkEncounter: true,
+    });
+    const resolved = gameReducer(found, { type: "acknowledgeMapEvent" });
+    expect(resolved.phase.kind).toBe("battle");
+    if (resolved.phase.kind === "battle") {
+      expect(resolved.phase.battle.kind).toBe("pve");
+      expect(resolved.phase.battle.tileIndex).toBe(nearest.id);
+    }
+  });
+
+  it("商会驿站可支付 100 金币前往当前区域最近的下一个商店并直接进店", () => {
+    let found: GameState | undefined;
+    for (let seed = 1; seed <= 2000 && !found; seed += 1) {
+      const state = createInitialGame(seed);
+      state.players[state.activePlayerId].gold = 250;
+      const resolved = landOnEventFrom(state);
+      if (identify(resolved) === "commerceOutpost") found = resolved;
+    }
+    if (!found || found.phase.kind !== "mapEventNotice") {
+      throw new Error("2000 个种子内应抽到商会驿站并停在事件通知");
+    }
+
+    const owner = found.phase.notice.playerId;
+    const player = found.players[owner];
+    const from = player.position;
+    const region = found.map.regions.find(
+      (candidate) => from >= candidate.startIndex && from <= candidate.endIndex,
+    )!;
+    const size = region.endIndex - region.startIndex + 1;
+    const nearest = found.map.tiles
+      .filter((tile) => tile.region === region.id && tile.type === "shop")
+      .map((tile) => ({ tile, distance: (tile.id - from + size) % size }))
+      .filter(({ distance }) => distance > 0)
+      .sort((left, right) => left.distance - right.distance)[0]!.tile;
+
+    expect(found.phase.notice.resume).toMatchObject({
+      kind: "mapEventTravelChoice",
+      choice: {
+        playerId: owner,
+        targetTileIndex: nearest.id,
+        price: ECONOMY.commerceOutpostTravel,
+        eventKind: "commerceOutpost",
+      },
+    });
+    const choosing = gameReducer(found, { type: "acknowledgeMapEvent" });
+    expect(choosing.phase.kind).toBe("mapEventTravelChoice");
+    expect(canAct(choosing, { type: "chooseMapEventTravel", accept: true }, owner)).toBe(true);
+    const other = choosing.turnOrder.find((id) => id !== owner)!;
+    expect(canAct(choosing, { type: "chooseMapEventTravel", accept: true }, other)).toBe(false);
+    choosing.players[other].position = nearest.id;
+
+    const goldBefore = choosing.players[owner].gold;
+    const entered = gameReducer(choosing, { type: "chooseMapEventTravel", accept: true });
+    expect(entered.players[owner].gold).toBe(goldBefore - ECONOMY.commerceOutpostTravel);
+    expect(entered.players[owner].position).toBe(nearest.id);
+    expect(eventsOf(entered, "goldChanged")[0]).toMatchObject({ reason: "event" });
+    expect(eventsOf(entered, "playerMoved")[0]).toMatchObject({ from, to: nearest.id });
+    expect(entered.phase.kind).toBe("shop");
+    if (entered.phase.kind === "shop") expect(entered.phase.shop.tileIndex).toBe(nearest.id);
+  });
+
+  it("商会驿站可以拒绝，金币和位置均保持不变", () => {
+    const state = createInitialGame(20260812);
+    const player = state.players.player1;
+    const target = state.map.tiles.find(
+      (tile) => tile.region === "foothill" && tile.type === "shop",
+    )!;
+    player.gold = 250;
+    state.phase = {
+      kind: "mapEventTravelChoice",
+      choice: {
+        playerId: player.id,
+        targetTileIndex: target.id,
+        price: ECONOMY.commerceOutpostTravel,
+        eventKind: "commerceOutpost",
+        effectIndex: 0,
+      },
+    };
+    const positionBefore = player.position;
+
+    const declined = gameReducer(state, { type: "chooseMapEventTravel", accept: false });
+    expect(declined.players[player.id].gold).toBe(250);
+    expect(declined.players[player.id].position).toBe(positionBefore);
+    expect(declined.phase.kind).toBe("turnComplete");
+    expect(declined.message.text).toContain("谢绝了商会驿站");
+  });
+
+  it("调和可将 1 点基础攻击转为防御，也可反向转换", () => {
+    const makeChoice = () => {
+      const state = createInitialGame(20260812);
+      state.phase = {
+        kind: "mapEventHarmonyChoice" as const,
+        choice: {
+          playerId: "player1",
+          amount: 1,
+          eventKind: "harmony" as const,
+          effectIndex: 0,
+        },
+      };
+      return state;
+    };
+
+    const attackState = makeChoice();
+    const attackBefore = attackState.players.player1.baseAttack;
+    const defenseBefore = attackState.players.player1.baseDefense;
+    expect(canAct(
+      attackState,
+      { type: "chooseMapEventHarmony", option: "attackToDefense" },
+      "player1",
+    )).toBe(true);
+    expect(canAct(
+      attackState,
+      { type: "chooseMapEventHarmony", option: "attackToDefense" },
+      "player2",
+    )).toBe(false);
+    const attackToDefense = gameReducer(attackState, {
+      type: "chooseMapEventHarmony",
+      option: "attackToDefense",
+    });
+    expect(attackToDefense.players.player1.baseAttack).toBe(attackBefore - 1);
+    expect(attackToDefense.players.player1.baseDefense).toBe(defenseBefore + 1);
+    expect(eventsOf(attackToDefense, "baseStatChanged").map((event) => event.stat))
+      .toEqual(["attack", "defense"]);
+    expect(attackToDefense.phase.kind).toBe("turnComplete");
+
+    const defenseState = makeChoice();
+    const defenseToAttack = gameReducer(defenseState, {
+      type: "chooseMapEventHarmony",
+      option: "defenseToAttack",
+    });
+    expect(defenseToAttack.players.player1.baseAttack).toBe(attackBefore + 1);
+    expect(defenseToAttack.players.player1.baseDefense).toBe(defenseBefore - 1);
+    expect(eventsOf(defenseToAttack, "baseStatChanged").map((event) => event.stat))
+      .toEqual(["defense", "attack"]);
+  });
+
+  it("调和可以放弃，基础攻防保持不变", () => {
+    const state = createInitialGame(20260812);
+    const player = state.players.player1;
+    state.phase = {
+      kind: "mapEventHarmonyChoice",
+      choice: {
+        playerId: player.id,
+        amount: 1,
+        eventKind: "harmony",
+        effectIndex: 0,
+      },
+    };
+    const before = { attack: player.baseAttack, defense: player.baseDefense };
+
+    const declined = gameReducer(state, {
+      type: "chooseMapEventHarmony",
+      option: "decline",
+    });
+    expect(declined.players[player.id].baseAttack).toBe(before.attack);
+    expect(declined.players[player.id].baseDefense).toBe(before.defense);
+    expect(eventsOf(declined, "baseStatChanged")).toHaveLength(0);
+    expect(declined.phase.kind).toBe("turnComplete");
+    expect(declined.message.text).toContain("放弃了本次调和");
   });
 });
 

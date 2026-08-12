@@ -27,4 +27,20 @@ export const BOON_EVENTS = defineMapEvents("boon", {
         `${playerName}参悟守护碑铭，基础防御永久增加 ${amount} 点。`,
     }],
   },
+
+  harmony: {
+    name: "调和",
+    description: "你可以将 1 点基础攻击转化为基础防御，或将 1 点基础防御转化为基础攻击。",
+    regions: { foothill: 0.5, mountainside: 0.5, summit: 0.5 },
+    effects: [{
+      type: "offerBaseStatConversion",
+      amount: 1,
+      narration: ({ playerName }) =>
+        `调和之力在${playerName}体内流转，等待其重新分配攻守。`,
+      convertedNarration: ({ playerName, fromStat, toStat, amount }) =>
+        `${playerName}完成调和，将 ${amount} 点${fromStat === "attack" ? "基础攻击" : "基础防御"}转化为${toStat === "attack" ? "基础攻击" : "基础防御"}。`,
+      declinedNarration: ({ playerName }) =>
+        `${playerName}维持原有攻守，放弃了本次调和。`,
+    }],
+  },
 });

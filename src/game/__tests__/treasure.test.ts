@@ -69,7 +69,10 @@ describe("宝箱", () => {
       expect(player.gold).toBe(goldBefore);
       // 空箱不写进已开列表：第一次踩空不该把 standard 那一档手感烧掉
       expect(player.stageProgress.foothill.openedTreasureTileIds).toEqual(opened);
-      expect(state.phase.kind).toBe("turnComplete");
+      expect(state.phase.kind).toBe("treasureReward");
+      if (state.phase.kind !== "treasureReward") throw new Error("应进入宝箱结果弹窗");
+      expect(state.phase.notice.empty).toBe(true);
+      expect(state.phase.notice.rewards).toEqual([]);
     }
 
     expect(sawEmpty, "40 次里一次空箱都没有，空箱档可能没生效").toBe(true);

@@ -7,11 +7,19 @@ import { buyShopItem } from "./economy";
 import { acknowledgeCasinoResult, leaveCasino, spinCasino } from "./casino";
 import { buyShopOffer, leaveShop } from "./shop";
 import { cancelTrade, confirmTrade, submitTradeOffer } from "./trading";
-import { acknowledgePveReward, chooseEquipment, chooseStatGrowth } from "./rewards";
+import {
+  acknowledgeBlessingReward,
+  acknowledgePveReward,
+  acknowledgeTreasureReward,
+  chooseEquipment,
+  chooseStatGrowth,
+} from "./rewards";
 import {
   acknowledgeMapEvent,
   chooseMapEventEquipment,
+  chooseMapEventHarmony,
   chooseMapEventScroll,
+  chooseMapEventTravel,
 } from "./mapEvents";
 import { chooseEncounterIntent, chooseEncounterOpponent } from "./encounters";
 import {
@@ -100,12 +108,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return chooseBlessing(next, action.replace, action.replaceInstanceId) ? next : state;
     case "acknowledgePveReward":
       return acknowledgePveReward(next) ? next : state;
+    case "acknowledgeTreasureReward":
+      return acknowledgeTreasureReward(next) ? next : state;
+    case "acknowledgeBlessingReward":
+      return acknowledgeBlessingReward(next) ? next : state;
     case "acknowledgeMapEvent":
-      return acknowledgeMapEvent(next) ? next : state;
+      return settleActionResult(next, state, acknowledgeMapEvent(next));
     case "chooseMapEventScroll":
       return chooseMapEventScroll(next, action.instanceId) ? next : state;
     case "chooseMapEventEquipment":
       return chooseMapEventEquipment(next, action.instanceId) ? next : state;
+    case "chooseMapEventTravel":
+      return settleActionResult(next, state, chooseMapEventTravel(next, action.accept));
+    case "chooseMapEventHarmony":
+      return chooseMapEventHarmony(next, action.option) ? next : state;
     case "buyShopItem":
       return buyShopItem(next, action.item) ? next : state;
     case "buyShopOffer":

@@ -136,6 +136,55 @@ describe("动作被拒时原样返回 state", () => {
     })).toBe(state);
   });
 
+  it("商会驿站不能在金币不足或目标格失效时强制启程", () => {
+    const state = createInitialGame(20260812);
+    const player = state.players.player1;
+    const target = state.map.tiles.find(
+      (tile) => tile.region === "foothill" && tile.type === "shop",
+    )!;
+    player.gold = 99;
+    state.phase = {
+      kind: "mapEventTravelChoice",
+      choice: {
+        playerId: player.id,
+        targetTileIndex: target.id,
+        price: 100,
+        eventKind: "commerceOutpost",
+        effectIndex: 0,
+      },
+    };
+
+    expect(gameReducer(state, { type: "chooseMapEventTravel", accept: true })).toBe(state);
+    player.gold = 100;
+    state.phase.choice.targetTileIndex = state.map.tiles.find(
+      (tile) => tile.region === "foothill" && tile.type !== "shop",
+    )!.id;
+    expect(gameReducer(state, { type: "chooseMapEventTravel", accept: true })).toBe(state);
+  });
+
+  it("调和不能转换不足 1 点的来源属性", () => {
+    const state = createInitialGame(20260812);
+    state.players.player1.baseAttack = 0;
+    state.phase = {
+      kind: "mapEventHarmonyChoice",
+      choice: {
+        playerId: "player1",
+        amount: 1,
+        eventKind: "harmony",
+        effectIndex: 0,
+      },
+    };
+
+    expect(gameReducer(state, {
+      type: "chooseMapEventHarmony",
+      option: "attackToDefense",
+    })).toBe(state);
+    expect(gameReducer(state, {
+      type: "chooseMapEventHarmony",
+      option: "decline",
+    })).not.toBe(state);
+  });
+
   it("被接受的动作一定返回新对象", () => {
     const state = createInitialGame(20260805);
     expect(gameReducer(state, { type: "rollMovement" })).not.toBe(state);

@@ -60,6 +60,18 @@ export function actionGuidance(
         action: "交出一件装备或拒绝交易",
         actorIds: [phase.choice.playerId],
       };
+    case "mapEventTravelChoice":
+      return {
+        label: "商会驿站",
+        action: "支付路费前往商店或放弃行程",
+        actorIds: [phase.choice.playerId],
+      };
+    case "mapEventHarmonyChoice":
+      return {
+        label: "调和",
+        action: "转换 1 点基础攻防或放弃调和",
+        actorIds: [phase.choice.playerId],
+      };
     case "encounterDecision": {
       const encounter = phase.encounter;
       return {
@@ -144,6 +156,18 @@ export function actionGuidance(
       return {
         label: "战利品结算",
         action: "确认本次战斗奖励",
+        actorIds: [phase.notice.playerId],
+      };
+    case "treasureReward":
+      return {
+        label: "宝箱收获",
+        action: "确认本次开箱结果",
+        actorIds: [phase.notice.playerId],
+      };
+    case "blessingReward":
+      return {
+        label: "赐福获得",
+        action: "确认新赐福",
         actorIds: [phase.notice.playerId],
       };
     case "mapEventNotice":

@@ -6,7 +6,13 @@ import { ECONOMY, grantGold } from "./economy";
 import { grantEquipment, grantScroll, rewardSecret, type Reward } from "./resources";
 import { grantTreasureEquipmentReward } from "./rewards";
 import { addHistory, nextRandom, rollDie } from "./state";
-import type { EquipmentChoiceState, GameState, MapTile, Player } from "./types";
+import type {
+  EquipmentChoiceState,
+  GameState,
+  MapTile,
+  Player,
+  TreasureRewardNoticeState,
+} from "./types";
 
 /**
  * 开宝箱。
@@ -40,13 +46,21 @@ export const TREASURE_OUTCOME_WEIGHTS: readonly (readonly [TreasureOutcome, numb
 
 export function openTreasure(state: GameState, player: Player, tile: MapTile) {
   const progress = player.stageProgress[tile.region];
+  const notice: TreasureRewardNoticeState = {
+    playerId: player.id,
+    tileLabel: tile.label,
+    empty: false,
+    rewards: [],
+    revealAfterEventId: state.lastEvents.at(-1)?.id,
+  };
   // 空箱不算「开出过东西」，第一次踩空不该把 standard 那一次手感烧掉
   const firstHaul = !progress.openedTreasureTileIds.includes(tile.id);
   const outcome = pickWeighted(TREASURE_OUTCOME_WEIGHTS, () => nextRandom(state));
 
   if (outcome === "empty") {
-    state.phase = { kind: "turnComplete" };
+    notice.empty = true;
     addHistory(state, `${player.name}翻遍「${tile.label}」，这一趟什么都没剩下。`);
+    state.phase = { kind: "treasureReward", notice };
     return;
   }
 
@@ -58,6 +72,14 @@ export function openTreasure(state: GameState, player: Player, tile: MapTile) {
   const gold = outcome === "gold" || outcome === "combo"
     ? grantGold(state, player, ECONOMY.treasureGold, "treasure")
     : 0;
+  if (gold > 0) {
+    notice.rewards.push({
+      source: "treasure",
+      resourceType: "gold",
+      name: `${gold} 金币`,
+      publicName: `${gold} 金币`,
+    });
+  }
   // combo 的物品部分和纯物品档走同一条路：卷轴、装备各半
   const item = outcome === "combo"
     ? (rollDie(state, 2) === 1 ? "scroll" : "equipment")
@@ -65,8 +87,8 @@ export function openTreasure(state: GameState, player: Player, tile: MapTile) {
 
   const bonusEquipment = bonusTreasureEquipment(player);
   const resume: EquipmentChoiceState["resume"] = bonusEquipment > 0
-    ? { kind: "grantTreasureEquipment", remaining: bonusEquipment, tier }
-    : { kind: "turnComplete" };
+    ? { kind: "continueTreasureReward", remaining: bonusEquipment, tier, notice }
+    : { kind: "showTreasureReward", notice };
 
   let reward: Reward | undefined;
   if (item === "scroll") {
@@ -79,13 +101,24 @@ export function openTreasure(state: GameState, player: Player, tile: MapTile) {
       resume,
     );
   }
+  if (reward) {
+    notice.rewards.push({
+      source: "treasure",
+      resourceType: reward.resourceType,
+      name: reward.name,
+      publicName: reward.publicName,
+    });
+  }
 
   announceHaul(state, player, tile, gold, reward);
 
   // 装备槽满时 grantEquipment 已经把阶段切成 equipmentChoice，后续由 resume 接手
   if (!reward?.pendingEquipmentChoice) {
-    if (bonusEquipment > 0) grantTreasureEquipmentReward(state, player, bonusEquipment, tier);
-    else state.phase = { kind: "turnComplete" };
+    if (bonusEquipment > 0) {
+      grantTreasureEquipmentReward(state, player, bonusEquipment, tier, notice);
+    } else {
+      state.phase = { kind: "treasureReward", notice };
+    }
   }
 }
 

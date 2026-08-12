@@ -134,4 +134,38 @@ export const REWARD_EVENTS = defineMapEvents("reward", {
         `${playerName}没有可以交给武器收藏家的装备。`,
     }],
   },
+
+  eliteHunter: {
+    name: "精英猎手",
+    description: "传送到最近的下一个精英格。",
+    // 保证立刻遭遇精英战，收益与风险都高于普通事件，使用半权重。
+    regions: { foothill: 0.5, mountainside: 0.5, summit: 0.5 },
+    effects: [{
+      type: "teleportToNextTile",
+      tileType: "elite",
+      narration: ({ playerName, tileLabel }) =>
+        `精英猎手为${playerName}指出猎物踪迹，将其传送至「${tileLabel}」。`,
+      emptyNarration: ({ playerName }) =>
+        `精英猎手没有为${playerName}找到可追踪的猎物。`,
+    }],
+  },
+
+  commerceOutpost: {
+    name: "商会驿站",
+    description: `你可以花费 ${ECONOMY.commerceOutpostTravel} 金币，移动到当前区域最近的下一个商店格。`,
+    regions: { foothill: 0.5, mountainside: 0.5, summit: 0.5 },
+    effects: [{
+      type: "offerPaidTravelToNextTile",
+      tileType: "shop",
+      price: ECONOMY.commerceOutpostTravel,
+      narration: ({ playerName, tileLabel, price }) =>
+        `商会驿站邀请${playerName}支付 ${price} 金币，乘坐商队前往「${tileLabel}」。`,
+      acceptedNarration: ({ playerName, tileLabel, price }) =>
+        `${playerName}向商会驿站支付 ${price} 金币，随商队抵达「${tileLabel}」。`,
+      declinedNarration: ({ playerName }) =>
+        `${playerName}谢绝了商会驿站的行程。`,
+      emptyNarration: ({ playerName }) =>
+        `商会驿站暂时无法为${playerName}找到可前往的商店。`,
+    }],
+  },
 });

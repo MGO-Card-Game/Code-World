@@ -96,4 +96,43 @@ describe("行动区阶段提示", () => {
       actorIds: ["player2"],
     });
   });
+
+  it("商会驿站阶段提示付费前往商店或放弃", () => {
+    const state = createInitialGame(6);
+    state.phase = {
+      kind: "mapEventTravelChoice",
+      choice: {
+        playerId: "player2",
+        targetTileIndex: 8,
+        price: 100,
+        eventKind: "commerceOutpost",
+        effectIndex: 0,
+      },
+    };
+
+    expect(actionGuidance(state, 6)).toMatchObject({
+      label: "商会驿站",
+      action: "支付路费前往商店或放弃行程",
+      actorIds: ["player2"],
+    });
+  });
+
+  it("调和阶段提示转换攻防或放弃", () => {
+    const state = createInitialGame(7);
+    state.phase = {
+      kind: "mapEventHarmonyChoice",
+      choice: {
+        playerId: "player2",
+        amount: 1,
+        eventKind: "harmony",
+        effectIndex: 0,
+      },
+    };
+
+    expect(actionGuidance(state, 6)).toMatchObject({
+      label: "调和",
+      action: "转换 1 点基础攻防或放弃调和",
+      actorIds: ["player2"],
+    });
+  });
 });

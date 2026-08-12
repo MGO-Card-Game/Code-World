@@ -337,6 +337,8 @@ export interface PveRewardNoticeState {
   enemyName: string;
   elite: boolean;
   rewards: PveRewardItem[];
+  /** 播完这个事件即可揭示奖励弹窗；后续奖励动画和旁白由弹窗承接。 */
+  revealAfterEventId?: number;
   /**
    * 确认奖励后还要接一次自主加点。
    *
@@ -356,6 +358,8 @@ export interface PveRewardNoticeState {
 export interface MapEventNoticeState {
   playerId: PlayerId;
   kind: MapEventKind;
+  /** 播完移动等前置演出即可揭示事件弹窗，不必等待事件结果旁白播放完。 */
+  revealAfterEventId?: number;
   /** 逐条旁白，顺序即发生顺序；带 secret 的按观看者裁剪，规则同 history。 */
   lines: LogEntry[];
   /**
@@ -368,7 +372,34 @@ export interface MapEventNoticeState {
     | { kind: "casino"; casino: CasinoState }
     | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
     | { kind: "mapEventScrollChoice"; choice: MapEventScrollChoiceState }
-    | { kind: "mapEventEquipmentChoice"; choice: MapEventEquipmentChoiceState };
+    | { kind: "mapEventEquipmentChoice"; choice: MapEventEquipmentChoiceState }
+    | { kind: "mapEventTravelChoice"; choice: MapEventTravelChoiceState }
+    | { kind: "mapEventHarmonyChoice"; choice: MapEventHarmonyChoiceState }
+    | { kind: "resolveTile"; tileIndex: number; checkEncounter: true };
+}
+
+export interface TreasureRewardItem {
+  source: "treasure" | "blessing";
+  resourceType: "scroll" | "equipment" | "gold";
+  name: string;
+  publicName: string;
+}
+
+/** 宝箱结果无论为空或有奖励都必须确认，避免资源变化只在历史记录里一闪而过。 */
+export interface TreasureRewardNoticeState {
+  playerId: PlayerId;
+  tileLabel: string;
+  empty: boolean;
+  rewards: TreasureRewardItem[];
+  revealAfterEventId?: number;
+}
+
+/** 赐福槽未满时，展示本次真正收入槽位的新赐福。 */
+export interface BlessingRewardNoticeState {
+  playerId: PlayerId;
+  tileLabel: string;
+  blessing: OwnedBlessing;
+  revealAfterEventId?: number;
 }
 
 /** 地图事件要求玩家从自己的暗牌中选择一张卷轴时使用。 */
@@ -385,6 +416,25 @@ export interface MapEventScrollChoiceState {
 export interface MapEventEquipmentChoiceState {
   playerId: PlayerId;
   candidateIds: string[];
+  eventKind: MapEventKind;
+  effectIndex: number;
+}
+
+/** 地图事件提供的可选付费移动；目标在事件触发时锁定，避免确认前后地图语义漂移。 */
+export interface MapEventTravelChoiceState {
+  playerId: PlayerId;
+  targetTileIndex: number;
+  price: number;
+  eventKind: MapEventKind;
+  effectIndex: number;
+}
+
+export type MapEventHarmonyOption = "attackToDefense" | "defenseToAttack" | "decline";
+
+/** “调和”一类可选属性转换事件；数值在事件触发时锁定。 */
+export interface MapEventHarmonyChoiceState {
+  playerId: PlayerId;
+  amount: number;
   eventKind: MapEventKind;
   effectIndex: number;
 }
@@ -460,11 +510,20 @@ export interface EquipmentChoiceState {
   playerId: PlayerId;
   offered: OwnedEquipment;
   source: "reward" | "transfer";
+  /** 播完获得这件装备之前的演出后即可揭示取舍弹窗。 */
+  revealAfterEventId?: number;
   resume:
     | { kind: "turnComplete" }
     | { kind: "resolveTile"; tileIndex: number }
     // 档位随 remaining 一起过河：装备槽满会把发奖打断一轮，回来时不能落回默认档
     | { kind: "grantTreasureEquipment"; remaining: number; tier: RewardRarityTier }
+    | {
+        kind: "continueTreasureReward";
+        remaining: number;
+        tier: RewardRarityTier;
+        notice: TreasureRewardNoticeState;
+      }
+    | { kind: "showTreasureReward"; notice: TreasureRewardNoticeState }
     | { kind: "showPveReward"; notice: PveRewardNoticeState }
     | { kind: "shop"; shop: ShopState }
     | { kind: "casino"; casino: CasinoState };
@@ -484,9 +543,13 @@ export type GamePhase =
   | { kind: "pvpPenalty"; penalty: PvpPenaltyState }
   | { kind: "equipmentChoice"; choice: EquipmentChoiceState }
   | { kind: "pveReward"; notice: PveRewardNoticeState }
+  | { kind: "treasureReward"; notice: TreasureRewardNoticeState }
+  | { kind: "blessingReward"; notice: BlessingRewardNoticeState }
   | { kind: "mapEventNotice"; notice: MapEventNoticeState }
   | { kind: "mapEventScrollChoice"; choice: MapEventScrollChoiceState }
   | { kind: "mapEventEquipmentChoice"; choice: MapEventEquipmentChoiceState }
+  | { kind: "mapEventTravelChoice"; choice: MapEventTravelChoiceState }
+  | { kind: "mapEventHarmonyChoice"; choice: MapEventHarmonyChoiceState }
   | { kind: "statGrowthChoice"; choice: StatGrowthChoiceState }
   | { kind: "shop"; shop: ShopState }
   | { kind: "casino"; casino: CasinoState }
@@ -752,10 +815,14 @@ export type GameAction =
   | { type: "chooseBossChallenge"; challenge: boolean }
   | { type: "chooseBlessing"; replace: boolean; replaceInstanceId?: string }
   | { type: "acknowledgePveReward" }
+  | { type: "acknowledgeTreasureReward" }
+  | { type: "acknowledgeBlessingReward" }
   | { type: "acknowledgeMapEvent" }
   | { type: "chooseMapEventScroll"; instanceId: string }
   /** 省略 instanceId 表示拒绝收藏家的可选交易。 */
   | { type: "chooseMapEventEquipment"; instanceId?: string }
+  | { type: "chooseMapEventTravel"; accept: boolean }
+  | { type: "chooseMapEventHarmony"; option: MapEventHarmonyOption }
   | { type: "buyShopItem"; item: "scroll" | "healing" }
   | { type: "buyShopOffer"; offerId: number }
   | { type: "leaveShop" }
@@ -797,7 +864,7 @@ export type GameAction =
  * engine，于是这里把「接下来做什么」交成数据，由 engine 自己去解释——
  * 和 EquipmentChoiceState.resume 是同一个办法。
  */
-export type ActionResult = boolean | { resolveTile: number };
+export type ActionResult = boolean | { resolveTile: number; checkEncounter?: boolean };
 
 /**
  * 裁剪后的卷轴：对手只看得到牌背。

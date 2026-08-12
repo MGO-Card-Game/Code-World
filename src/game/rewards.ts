@@ -15,6 +15,7 @@ import type {
   GameState,
   Player,
   StatGrowthOption,
+  TreasureRewardNoticeState,
 } from "./types";
 
 /**
@@ -41,9 +42,12 @@ export function grantTreasureEquipmentReward(
   player: Player,
   remaining: number,
   tier: RewardRarityTier,
+  notice?: TreasureRewardNoticeState,
 ) {
   if (remaining <= 0) {
-    state.phase = { kind: "turnComplete" };
+    state.phase = notice
+      ? { kind: "treasureReward", notice }
+      : { kind: "turnComplete" };
     return;
   }
   const reward = grantEquipment(
@@ -53,13 +57,27 @@ export function grantTreasureEquipmentReward(
       () => nextRandom(state),
       { rarityWeights: REWARD_RARITY_TIERS[tier] },
     ),
-    remaining > 1
-      ? { kind: "grantTreasureEquipment", remaining: remaining - 1, tier }
-      : { kind: "turnComplete" },
+    notice
+      ? remaining > 1
+        ? { kind: "continueTreasureReward", remaining: remaining - 1, tier, notice }
+        : { kind: "showTreasureReward", notice }
+      : remaining > 1
+        ? { kind: "grantTreasureEquipment", remaining: remaining - 1, tier }
+        : { kind: "turnComplete" },
   );
+  notice?.rewards.push({
+    source: "blessing",
+    resourceType: "equipment",
+    name: reward.name,
+    publicName: reward.publicName,
+  });
   if (!reward.pendingEquipmentChoice) {
-    if (remaining > 1) grantTreasureEquipmentReward(state, player, remaining - 1, tier);
-    else state.phase = { kind: "turnComplete" };
+    if (remaining > 1) grantTreasureEquipmentReward(state, player, remaining - 1, tier, notice);
+    else {
+      state.phase = notice
+        ? { kind: "treasureReward", notice }
+        : { kind: "turnComplete" };
+    }
   }
   addHistory(state, `${player.name}因宝物猎人额外获得${reward.name}。`);
 }
@@ -82,6 +100,18 @@ function resumeAfterEquipmentChoice(
         resume.remaining,
         resume.tier,
       );
+      return true;
+    case "continueTreasureReward":
+      grantTreasureEquipmentReward(
+        state,
+        state.players[playerId],
+        resume.remaining,
+        resume.tier,
+        resume.notice,
+      );
+      return true;
+    case "showTreasureReward":
+      state.phase = { kind: "treasureReward", notice: resume.notice };
       return true;
     case "showPveReward":
       state.phase = { kind: "pveReward", notice: resume.notice };
@@ -158,6 +188,18 @@ export function acknowledgePveReward(state: GameState) {
     kind: "statGrowthChoice",
     choice: { playerId: notice.playerId, stageId },
   };
+  return true;
+}
+
+export function acknowledgeTreasureReward(state: GameState) {
+  if (state.phase.kind !== "treasureReward") return false;
+  state.phase = { kind: "turnComplete" };
+  return true;
+}
+
+export function acknowledgeBlessingReward(state: GameState) {
+  if (state.phase.kind !== "blessingReward") return false;
+  state.phase = { kind: "turnComplete" };
   return true;
 }
 

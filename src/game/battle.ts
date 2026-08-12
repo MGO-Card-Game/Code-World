@@ -381,6 +381,7 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         addHistory(state, `${player.name}击败${enemyName}，进入${following.name}！`);
         // 落点就是下一阶段营地，回血走营地那条规则，不在首领奖励里另开一份
         restAtStageCamp(state, player, following);
+        const revealAfterEventId = state.lastEvents.at(-1)?.id;
 
         const bossGold = grantGold(state, player, ECONOMY.bossGold, "pveReward");
         const scrollReward = grantScroll(state, player);
@@ -424,6 +425,7 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
             elite: false,
             rewards,
             statGrowth: true,
+            revealAfterEventId,
           },
           equipmentReward.pendingEquipmentChoice,
         );
@@ -450,6 +452,7 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
           addHistory(state, `${player.name}已满足${region.name}的首领挑战条件！`);
         }
       }
+      const revealAfterEventId = state.lastEvents.at(-1)?.id;
       const reward = grantRandomResourceReward(
         state,
         player,
@@ -519,6 +522,7 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
           enemyName,
           elite: eliteEnemy,
           rewards,
+          revealAfterEventId,
         },
         reward.pendingEquipmentChoice,
       );

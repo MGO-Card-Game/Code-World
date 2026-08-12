@@ -67,7 +67,7 @@ describe("宝箱", () => {
 
       sawEmpty = true;
       expect(player.gold).toBe(goldBefore);
-      // 空箱不写进已开列表：第一次踩空不该把 standard 那一档手感烧掉
+      // 空箱不写进已开列表：第一次踩空不该把 highQuality 那一档手感烧掉
       expect(player.stageProgress.foothill.openedTreasureTileIds).toEqual(opened);
       expect(state.phase.kind).toBe("treasureReward");
       if (state.phase.kind !== "treasureReward") throw new Error("应进入宝箱结果弹窗");
@@ -78,7 +78,7 @@ describe("宝箱", () => {
     expect(sawEmpty, "40 次里一次空箱都没有，空箱档可能没生效").toBe(true);
   });
 
-  it("首次走 standard、重开走 meager，两张权重表拉得开", () => {
+  it("首次走 highQuality、重开走 standard，两张权重表拉得开", () => {
     const firstHaul: string[] = [];
     const reopen: string[] = [];
 
@@ -108,12 +108,12 @@ describe("宝箱", () => {
     expect(firstHaul.length, "首次样本太少，统计断言无意义").toBeGreaterThan(100);
     expect(reopen.length, "重开样本太少，统计断言无意义").toBeGreaterThan(1000);
 
-    // standard 的 N 是 50%、meager 是 85%——差距只有在两张表真的分开时才拉得出来
-    expect(shareOf("N", reopen)).toBeGreaterThan(0.75);
-    expect(shareOf("N", firstHaul)).toBeLessThan(0.68);
+    // highQuality 的 N 是 20%、standard 是 50%，首次开箱明显更偏向高品质。
+    expect(shareOf("N", reopen)).toBeGreaterThan(0.4);
+    expect(shareOf("N", firstHaul)).toBeLessThan(0.35);
 
-    // meager 的 PR 权重是 0：反复刷同一个箱子够不着 PR，而首次够得着
-    expect(reopen).not.toContain("PR");
+    // 两档都保留 5% PR，重复开启不会锁死顶级奖励。
+    expect(reopen).toContain("PR");
     expect(firstHaul).toContain("PR");
   });
 
@@ -127,7 +127,7 @@ describe("宝箱", () => {
       const tile = foothillTreasure(state);
       const opened = () => player.stageProgress.foothill.openedTreasureTileIds.includes(tile.id);
 
-      // 先把「首次」用掉，之后每一次都该是 meager
+      // 先把「首次」用掉，之后每一次都该是 standard
       for (let attempt = 0; attempt < 30 && !opened(); attempt += 1) {
         openOnce(state, player, tile);
       }
@@ -139,13 +139,13 @@ describe("宝箱", () => {
 
     /*
       持有宝物猎人时每次非空开箱至少产出一件装备，样本量远超没有赐福的情况。
-      额外那件曾经写死走默认档 standard，于是「重开拿不到 PR」对这批玩家不成立；
-      档位透传之后，这里必须和主奖励一样干净。
+      额外那件必须继续接收宝箱档位，避免以后调整首次/重开规则时与主奖励分叉。
     */
     expect(reopen.length).toBeGreaterThan(1000);
-    expect(reopen).not.toContain("PR");
+    expect(reopen).toContain("PR");
     const nShare = reopen.filter((rarity) => rarity === "N").length / reopen.length;
-    expect(nShare).toBeGreaterThan(0.75);
+    expect(nShare).toBeGreaterThan(0.4);
+    expect(nShare).toBeLessThan(0.6);
   });
 
   it("开出金币时给的是 treasureGold 那一档", () => {

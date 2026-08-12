@@ -73,9 +73,12 @@ describe("game engine", () => {
     }
   });
 
-  it("普通怪基础装备走 basic 档 80/15/4/1，以 N 为主、PR 只是爆冷", () => {
-    expect(REWARD_RARITY_TIERS.basic)
-      .toEqual({ N: 80, R: 15, SR: 4, PR: 1 });
+  it.each([
+    ["普通怪", "slime", undefined],
+    ["词条怪", "slime", "honed"],
+  ] as const)("%s 的基础装备奖励走 meager 档", (_label, enemyId, enemyAffix) => {
+    expect(REWARD_RARITY_TIERS.meager)
+      .toEqual({ N: 85, R: 10, SR: 5, PR: 0 });
     const counts: Record<string, number> = {};
 
     for (let seed = 1; seed <= 400; seed += 1) {
@@ -83,7 +86,13 @@ describe("game engine", () => {
       state.players.player1.baseAttack = 99;
       state.phase = {
         kind: "battle",
-        battle: makeBattle({ kind: "pve", aPlayerId: "player1", enemyId: "slime", hpB: 1 }),
+        battle: makeBattle({
+          kind: "pve",
+          aPlayerId: "player1",
+          enemyId,
+          enemyAffix,
+          hpB: 1,
+        }),
       };
 
       state = resolveRound(state);
@@ -96,13 +105,43 @@ describe("game engine", () => {
 
     const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
     expect(total).toBeGreaterThan(50);
-    // N 的权重是 80%，样本足够大时必须压倒性占多数
-    expect(counts.N / total).toBeGreaterThan(0.65);
-    // PR 权重只有 1%，可以出但不该成片出现——这是「爆冷」和「常规产出」的分界
-    expect((counts.PR ?? 0) / total).toBeLessThan(0.05);
+    expect(counts.N / total).toBeGreaterThan(0.7);
+    expect(counts.PR ?? 0).toBe(0);
   });
 
-  it("精英胜利在基础奖励外必定追加一张卷轴，并等待玩家确认", () => {
+  it("精英怪的基础装备奖励走 standard 档", () => {
+    expect(REWARD_RARITY_TIERS.standard)
+      .toEqual({ N: 50, R: 30, SR: 15, PR: 5 });
+    const counts: Record<string, number> = {};
+
+    for (let seed = 1; seed <= 400; seed += 1) {
+      let state = createInitialGame(seed);
+      state.players.player1.baseAttack = 99;
+      state.phase = {
+        kind: "battle",
+        battle: makeBattle({
+          kind: "pve",
+          aPlayerId: "player1",
+          enemyId: "razorbackAlpha",
+          hpB: 1,
+        }),
+      };
+
+      state = resolveRound(state);
+      const equipment = state.players.player1.equipment[0];
+      if (equipment) {
+        const rarity = EQUIPMENT[equipment.kind].rarity;
+        counts[rarity] = (counts[rarity] ?? 0) + 1;
+      }
+    }
+
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+    expect(total).toBeGreaterThan(50);
+    expect(counts.N / total).toBeLessThan(0.7);
+    expect(counts.PR ?? 0).toBeGreaterThan(0);
+  });
+
+  it("精英胜利固定获得一件装备和一张卷轴，并等待玩家确认", () => {
     let state = createInitialGame(20260807);
     const player = state.players.player1;
     player.baseAttack = 99;
@@ -123,11 +162,12 @@ describe("game engine", () => {
     expect(state.phase.notice.elite).toBe(true);
     expect(state.phase.notice.rewards.map((reward) => reward.source))
       .toEqual(["battle", "battle", "elite", "elite"]);
+    expect(state.phase.notice.rewards[0].resourceType).toBe("equipment");
     expect(state.phase.notice.rewards[2].resourceType).toBe("scroll");
     expect(state.phase.notice.rewards.filter((reward) => reward.resourceType === "gold"))
       .toHaveLength(2);
-    expect(state.players[player.id].scrolls)
-      .toHaveLength(1 + Number(state.phase.notice.rewards[0].resourceType === "scroll"));
+    expect(state.players[player.id].equipment).toHaveLength(1);
+    expect(state.players[player.id].scrolls).toHaveLength(1);
 
     state = gameReducer(state, { type: "acknowledgePveReward" });
     expect(state.phase.kind).toBe("turnComplete");

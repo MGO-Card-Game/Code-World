@@ -66,7 +66,7 @@ export function grantScroll(
   };
 }
 
-/** 宝箱与非 Boss 战斗共用的资源奖励：卷轴、装备各 50%。 */
+/** 普通/词条怪的资源奖励：卷轴、装备各 50%。 */
 export function grantRandomResourceReward(
   state: GameState,
   player: Player,

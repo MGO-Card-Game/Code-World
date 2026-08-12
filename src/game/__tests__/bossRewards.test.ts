@@ -108,13 +108,13 @@ describe("阶段首领奖励", () => {
     expect(acknowledged.phase.kind).toBe("statGrowthChoice");
   });
 
-  it("装备保底：山脚首领必出 R 及以上，山腰首领必出 SR 及以上", () => {
+  it("装备保底：山脚和山腰首领都必出 SR 及以上", () => {
     const atLeast = (rarity: string, floor: string) =>
       CARD_RARITY_ORDER.indexOf(rarity as never) >= CARD_RARITY_ORDER.indexOf(floor as never);
 
     // 保底是权重清零，不是抽完再兜底，所以要用足够多的种子把票位扫开
     for (let seed = 20260800; seed < 20260880; seed += 1) {
-      for (const [regionIndex, floor] of [[0, "R"], [1, "SR"]] as const) {
+      for (const [regionIndex, floor] of [[0, "SR"], [1, "SR"]] as const) {
         const { state } = afterStageBossVictory(seed, regionIndex);
         const [granted] = state.players.player1.equipment;
         const rarity = EQUIPMENT[granted.kind].rarity;

@@ -453,19 +453,22 @@ export function finishBattle(state: GameState, battle: BattleState, winnerSide: 
         }
       }
       const revealAfterEventId = state.lastEvents.at(-1)?.id;
-      const reward = grantRandomResourceReward(
-        state,
-        player,
-        undefined,
-        {
-          rarityWeights: eliteEnemy
-            ? REWARD_RARITY_TIERS.premium
-            : affixedEnemy
-              ? REWARD_RARITY_TIERS.standard
-              : REWARD_RARITY_TIERS.basic,
-        },
-      );
       const eliteReward = eliteEnemy ? grantScroll(state, player) : undefined;
+      // 精英固定给卷轴和装备；装备放在最后发，槽位满时才能安全接入替换阶段。
+      const reward = eliteEnemy
+        ? grantEquipment(
+          state,
+          player,
+          pickEquipmentKind(() => nextRandom(state), {
+            rarityWeights: REWARD_RARITY_TIERS.standard,
+          }),
+        )
+        : grantRandomResourceReward(
+          state,
+          player,
+          undefined,
+          { rarityWeights: REWARD_RARITY_TIERS.meager },
+        );
       const battleGold = grantGold(state, player, ECONOMY.pveGold, "pveReward");
       const eliteGold = eliteEnemy
         ? grantGold(state, player, ECONOMY.eliteBonusGold, "pveReward")

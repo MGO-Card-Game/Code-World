@@ -47,7 +47,7 @@ export const MAP_REGIONS: MapRegion[] = [
   {
     id: "foothill", name: "山脚荒径", startIndex: 0, endIndex: 31,
     gateIndex: 0, entryIndex: 1, bossEnemyId: "banditChief",
-    bossEquipmentFloor: "R",
+    bossEquipmentFloor: "SR",
     requirements: [{ type: "laps", target: 2, label: "绕场 2 圈" }],
   },
   {

@@ -16,8 +16,8 @@ export type RarityWeights = Readonly<Record<CardRarity, number>>;
  * 空档不参加抽取，它的权重会被剩下的档位按比例分掉（见 pickByRarity）。
  *
  * 前四档是一条由低到高的梯子：
- * - meager   唯一 PR 权重为 0 的一档，留给可以反复刷的来源——那里出顶级装备
- *            不该是概率低，而该是结构上拿不到
+ * - meager   唯一 PR 权重为 0 的一档，留给普通怪、词条怪这类基础战斗产出——
+ *            那里出顶级装备不该是概率低，而该是结构上拿不到
  * - basic    起保留 1% 的 PR 作为爆冷
  * - standard 通用卡池，不指定档位时的默认值
  * - premium  提高 SR / PR 的出现率

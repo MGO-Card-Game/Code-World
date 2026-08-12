@@ -33,9 +33,9 @@ import type {
  * 宝物猎人的额外装备。
  *
  * tier 必须由开箱那一侧传进来：额外装备和主奖励是同一次开箱的产出，档位要一致。
- * 让它落回默认档的话，重开宝箱的主奖励走 meager（拿不到 PR）而这一件走 standard
- * （PR 5%），持有宝物猎人的玩家就能靠反复刷同一个箱子拿到 PR——meager 那一档的
- * 全部意义就没了。
+ * 让它落回默认档的话，首次宝箱的主奖励走 highQuality，而这一件会误走 standard
+ * ，使首次开箱的额外奖励意外降档。重开目前虽与默认档同为 standard，仍继续透传，
+ * 确保以后改档时主奖励与额外奖励不会分叉。
  */
 export function grantTreasureEquipmentReward(
   state: GameState,

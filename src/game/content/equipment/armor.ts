@@ -165,9 +165,12 @@ export const ARMOR = defineEquipment("armor", {
 
   undyingKingPlate: {
     name: "不灭王铠",
-    description: "防御骰上限 +3；本场战斗第一次受到致命伤害时，保留一半最大生命（向上取整）",
+    description: "防御骰上限 +3；防御+1；本场战斗第一次受到致命伤害时，保留一半最大生命（向上取整）",
     rarity: "PR",
-    modifiers: [{ type: "dieSides", die: "defense", value: 3 }],
+    modifiers: [
+      { type: "dieSides", die: "defense", value: 3 },
+      { type: "statBonus", stat: "defense", value: 1 }
+    ],
     effects: {
       /*
         「致命」按这一下打完会不会归零算，所以判 incoming >= ownHp 而不是判血量高低。

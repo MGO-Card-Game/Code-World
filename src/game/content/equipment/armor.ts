@@ -67,6 +67,13 @@ export const ARMOR = defineEquipment("armor", {
     modifiers: [{ type: "statBonus", stat: "defense", value: 1 }],
   },
 
+  ironRimShield: {
+    name: "包铁圆盾",
+    description: "防御永久 +1",
+    rarity: "N",
+    modifiers: [{ type: "statBonus", stat: "defense", value: 1 }],
+  },
+
   borderLeather: {
     name: "边境皮甲",
     description: "防御骰上限 +1（D6 → D7）",
@@ -160,6 +167,16 @@ export const ARMOR = defineEquipment("armor", {
     modifiers: [
       { type: "dieSides", die: "defense", value: 2 },
       { type: "dieSides", die: "movement", value: -1 },
+    ],
+  },
+
+  towerShield: {
+    name: "塔楼重盾",
+    description: "防御骰上限 +2，但先攻骰上限 -1",
+    rarity: "R",
+    modifiers: [
+      { type: "dieSides", die: "defense", value: 2 },
+      { type: "dieSides", die: "initiative", value: -1 },
     ],
   },
 

@@ -73,6 +73,16 @@ export const WEAPONS = defineEquipment("weapon", {
     modifiers: [{ type: "statBonus", stat: "attack", value: 1 }],
   },
 
+  militiaSabre: {
+    name: "民兵短剑",
+    description: "攻击骰上限 +1；先攻骰上限 +1",
+    rarity: "N",
+    modifiers: [
+      { type: "dieSides", die: "attack", value: 1 },
+      { type: "dieSides", die: "initiative", value: 1 }
+    ],
+  },
+
   oldKnightSword: {
     name: "旧骑士长剑",
     description: "攻击骰上限 +1；攻击骰掷出最高面时，额外造成 1 点伤害",
@@ -168,6 +178,16 @@ export const WEAPONS = defineEquipment("weapon", {
     modifiers: [
       { type: "dieSides", die: "attack", value: 2 },
       { type: "dieSides", die: "defense", value: -1 },
+    ],
+  },
+
+  formationBreakerAxe: {
+    name: "破阵长柄斧",
+    description: "攻击骰上限 +2，但先攻骰上限 -1",
+    rarity: "R",
+    modifiers: [
+      { type: "dieSides", die: "attack", value: 2 },
+      { type: "dieSides", die: "initiative", value: -1 },
     ],
   },
 

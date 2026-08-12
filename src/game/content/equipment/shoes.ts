@@ -14,6 +14,16 @@ export const SHOES = defineEquipment("shoes", {
     modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
   },
 
+  oldLeatherBoots: {
+    name: "旧皮行靴",
+    description: "地图移动骰和先攻骰上限各 +1",
+    rarity: "N",
+    modifiers: [
+      { type: "dieSides", die: "movement", value: 1 },
+      { type: "dieSides", die: "initiative", value: 1 },
+    ],
+  },
+
   windboundWraps: {
     name: "疾风绑腿",
     description: "移动骰上限 +1；生命上限 +2",
@@ -92,6 +102,13 @@ export const SHOES = defineEquipment("shoes", {
         addBattleLog("逃亡者短靴借势一闪，本次防御骰上限 +1。");
       },
     },
+  },
+
+  postRoadBoots: {
+    name: "驿路长靴",
+    description: "地图移动骰上限 +2",
+    rarity: "R",
+    modifiers: [{ type: "dieSides", die: "movement", value: 2 }],
   },
 
   lynxBoots: {

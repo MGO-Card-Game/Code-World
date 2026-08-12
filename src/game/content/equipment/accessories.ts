@@ -126,6 +126,26 @@ export const ACCESSORIES = defineEquipment("accessory", {
     ],
   },
 
+  brassCompass: {
+    name: "黄铜罗盘",
+    description: "地图移动骰和攻击骰上限 +1",
+    rarity: "N",
+    modifiers: [
+      { type: "dieSides", die: "movement", value: 1 },
+      { type: "dieSides", die: "attack", value: 1 },
+    ],
+  },
+
+  engravedArmlet: {
+    name: "刻纹臂环",
+    description: "攻击骰和防御骰上限各 +1",
+    rarity: "R",
+    modifiers: [
+      { type: "dieSides", die: "attack", value: 1 },
+      { type: "dieSides", die: "defense", value: 1 },
+    ],
+  },
+
   bloodOathRing: {
     name: "血誓指环",
     description: "战斗生命值低于一半时，攻击骰和防御骰上限 +1",

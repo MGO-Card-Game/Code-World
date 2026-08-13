@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { EQUIPMENT } from "../game/content/equipment";
-import { SCROLLS } from "../game/content/scrolls";
+import { EQUIPMENT, equipmentKeywords } from "../game/content/equipment";
+import { SCROLLS, scrollKeywords } from "../game/content/scrolls";
 import type {
   CombatSide,
   EncounterDecisionState,
@@ -11,7 +11,7 @@ import type {
   TradeOfferState,
 } from "../game/types";
 import { DecisionModal } from "./DecisionModal";
-import { visibleScrolls, type Dispatch } from "./shared";
+import { CardBlurb, visibleScrolls, type Dispatch } from "./shared";
 
 function participantSide(
   value: Pick<EncounterDecisionState, "aPlayerId" | "bPlayerId">,
@@ -131,7 +131,12 @@ export function TradeOfferPanel({ state, trade, dispatch, viewerSeat }: {
                       onChange={() => setScrollIds((values) => toggle(values, item.instanceId))}
                     />
                     <strong>{SCROLLS[item.kind].name}</strong>
-                    <small>{SCROLLS[item.kind].description}</small>
+                    <small>
+                      <CardBlurb
+                        keywords={scrollKeywords(SCROLLS[item.kind])}
+                        description={SCROLLS[item.kind].description}
+                      />
+                    </small>
                   </label>
                 ))}
               </div>
@@ -148,7 +153,12 @@ export function TradeOfferPanel({ state, trade, dispatch, viewerSeat }: {
                       onChange={() => setEquipmentIds((values) => toggle(values, item.instanceId))}
                     />
                     <strong>{EQUIPMENT[item.kind].name}</strong>
-                    <small>{EQUIPMENT[item.kind].description}</small>
+                    <small>
+                      <CardBlurb
+                        keywords={equipmentKeywords(EQUIPMENT[item.kind])}
+                        description={EQUIPMENT[item.kind].description}
+                      />
+                    </small>
                   </label>
                 ))}
               </div>

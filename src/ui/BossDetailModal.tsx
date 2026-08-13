@@ -6,7 +6,7 @@ import {
   enemyStats,
 } from "../game/selectors";
 import type { MapRegion } from "../game/types";
-import { ModalBackdrop, SPRING } from "./shared";
+import { KeywordRules, ModalBackdrop, SPRING } from "./shared";
 
 /** 从阶段地图中央打开的首领情报；只展示公开规则，不受解锁状态限制。 */
 export function BossDetailModal({ region, onClose }: {
@@ -44,8 +44,9 @@ export function BossDetailModal({ region, onClose }: {
         </div>
 
         <div className="boss-detail-dice">
-          <span>攻击骰 <strong>{attackDice > 1 ? `${attackDice}×` : ""}D${attackSides}</strong></span>
-          <span>防御骰 <strong>{defenseDice > 1 ? `${defenseDice}×` : ""}D${defenseSides}</strong></span>
+          {/* D{sides}，不是 D${sides}——JSX 文本里那个 $ 会原样印出来，变成「D$6」 */}
+          <span>攻击骰 <strong>{attackDice > 1 ? `${attackDice}×` : ""}D{attackSides}</strong></span>
+          <span>防御骰 <strong>{defenseDice > 1 ? `${defenseDice}×` : ""}D{defenseSides}</strong></span>
         </div>
 
         <section className="boss-detail-section">
@@ -53,7 +54,11 @@ export function BossDetailModal({ region, onClose }: {
           {definition.abilities?.length ? definition.abilities.map((ability) => (
             <div className="boss-ability" key={ability.name}>
               <strong>{ability.name}</strong>
-              <p>{ability.description}</p>
+              {/* 说明和关键字规则同占第二列，否则规则会掉到下一行的名字栏里 */}
+              <div>
+                <p>{ability.description}</p>
+                <KeywordRules keywords={ability.keywords ?? []} />
+              </div>
             </div>
           )) : <p className="boss-detail-empty">无特殊能力</p>}
         </section>

@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { railMetrics, railSelectionGap } from "../anim/handRail";
-import { EQUIPMENT, type EquipmentKind } from "../game/content/equipment";
+import { EQUIPMENT, equipmentKeywords, type EquipmentKind } from "../game/content/equipment";
 import { blessingDefinition } from "../game/content/blessings";
 import { blessingCapacity } from "../game/blessings";
 import {
@@ -9,12 +9,15 @@ import {
   SCROLL_CATEGORY_SIGILS,
   scrollCategory,
   scrollDefinition,
+  scrollKeywords,
   type ScrollDefinition,
 } from "../game/content/scrolls";
 import { regionForPosition } from "../game/map";
 import { getDieSidesBonus } from "../game/selectors";
 import type { GameMap, PlayerView } from "../game/types";
 import {
+  blurbText,
+  CardBlurb,
   ModalBackdrop,
   revealedScrolls,
   SPRING,
@@ -218,7 +221,12 @@ export function ResourceModal({
                   {SCROLL_CATEGORY_NAMES[scrollCategory(configuringDefinition)]}
                 </span>
                 <strong>{configuringDefinition.name}</strong>
-                <small>{configuringDefinition.description}</small>
+                <small>
+                  <CardBlurb
+                    keywords={scrollKeywords(configuringDefinition)}
+                    description={configuringDefinition.description}
+                  />
+                </small>
                 {mapUse.reason && (
                   <em className="scroll-action-reason">{mapUse.reason}</em>
                 )}
@@ -368,7 +376,7 @@ export function ResourceModal({
                     layout
                     type="button"
                     aria-pressed={isSelected}
-                    aria-label={`${definition.name}：${definition.description}`}
+                    aria-label={`${definition.name}：${blurbText(scrollKeywords(definition), definition.description)}`}
                     className={`hand-card scroll-${scroll.kind} card-${category} ${isSelected ? "selected" : ""} ${isMovementScroll(definition) ? "movement-configurable" : ""}`}
                     style={{ marginLeft, zIndex: isSelected ? 60 : index }}
                     onClick={() => setSelectedId(isSelected ? null : scroll.instanceId)}
@@ -390,7 +398,12 @@ export function ResourceModal({
                       {SCROLL_CATEGORY_SIGILS[category]}
                     </span>
                     <span className="hand-card-name">{definition.name}</span>
-                    <span className="hand-card-effect">{definition.description}</span>
+                    <span className="hand-card-effect">
+                      <CardBlurb
+                        keywords={scrollKeywords(definition)}
+                        description={definition.description}
+                      />
+                    </span>
                   </motion.button>
                 );
               })}
@@ -420,7 +433,12 @@ export function ResourceModal({
               aria-label={`查看${EQUIPMENT[item.kind].name}详情`}
             >
               {EQUIPMENT[item.kind].rarity} · {EQUIPMENT[item.kind].name}
-              <i>{EQUIPMENT[item.kind].description}</i>
+              <i>
+                <CardBlurb
+                  keywords={equipmentKeywords(EQUIPMENT[item.kind])}
+                  description={EQUIPMENT[item.kind].description}
+                />
+              </i>
             </button>
           ))}
         </div>

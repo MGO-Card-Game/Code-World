@@ -166,6 +166,25 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .card-rarity.rarity-r { color: #69b9e8; box-shadow: 0 0 8px #4aaee833; }
 .card-rarity.rarity-sr { color: #d8a8ff; box-shadow: 0 0 9px #ad6fe755; }
 .card-rarity.rarity-pr { color: #ffcf6b; box-shadow: 0 0 12px #ffab3c77; }
+
+/*
+  关键字标签。内联嵌在描述文字前面，跟着文字一起换行——手牌只有 96px 宽，
+  独立一行的标签栏会吃掉一张卡八分之一的高度，而「移形换影」那种带三个词的卡
+  要占三行。内联之后它只占自己那点宽度，卡上有几个词都不会把版式撑坏。
+
+  三种色调对应三种含义，扫牌时先看见的应该是"这张要付什么"：
+  收益（铜金）／代价（暗红）／使用限制（压暗的灰）。
+*/
+.keyword-tag { display: inline-block; margin: 0 4px 1px 0; padding: 0 4px; border: 1px solid currentColor; border-radius: 2px; color: #b9a06e; background: #b9a06e14; font: 700 8px/1.65 "Noto Sans SC", sans-serif; letter-spacing: .04em; white-space: nowrap; vertical-align: 1px; }
+.keyword-tag.keyword-selfCost { color: #cc8570; background: #cc857014; }
+.keyword-tag.keyword-battleOnly, .keyword-tag.keyword-eliteOnly { color: #9a8f7d; background: #9a8f7d12; }
+
+/* 详情弹层有 720px，规则原文直接摊开，不必靠 title 悬停 */
+.keyword-rules { margin: 11px 0 0; padding: 10px 0 0; border-top: 1px solid #ffffff0f; display: grid; gap: 6px; list-style: none; }
+.keyword-rules li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.keyword-rules em { color: #9e917d; font-size: 10px; font-style: normal; line-height: 1.6; }
+.keyword-rules .keyword-tag, .equipment-detail-effect .keyword-tag, .boss-ability .keyword-tag { margin: 0; padding: 1px 5px; font-size: 10px; }
+
 /* 圆圈标的是卡牌类型（攻／守／通／疗），所以配色跟着类型走，不参与卡牌自身的配色 */
 .hand-card-sigil { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font: 700 10px "Noto Serif SC", serif; border: 1px solid currentColor; opacity: .85; }
 .hand-card-sigil.type-attack { color: #f0a47d; background: #f0a47d14; }

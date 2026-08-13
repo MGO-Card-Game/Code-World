@@ -2,8 +2,10 @@ import {
   EQUIPMENT,
   EQUIPMENT_CATEGORY_NAMES,
   equipmentCategory,
+  equipmentKeywords,
 } from "../game/content/equipment";
-import { SCROLLS } from "../game/content/scrolls";
+import type { KeywordKind } from "../game/content/keywords";
+import { SCROLLS, scrollKeywords } from "../game/content/scrolls";
 import { STAT_GROWTH } from "../game/growth";
 import type {
   GameStateView,
@@ -12,10 +14,23 @@ import type {
   ShopState,
 } from "../game/types";
 import { DecisionModal } from "./DecisionModal";
-import { type Dispatch } from "./shared";
+import { CardBlurb, type Dispatch } from "./shared";
 import { ShopInventorySummary } from "./ShopInventorySummary";
 
-function offerPresentation(offer: ShopOffer) {
+/**
+ * 货架上一件商品的展示信息。
+ *
+ * keywords 必须跟着 description 一起带出来：牌面关键字承担了描述里删掉的那半条
+ * 规则（比如「无视防御」），只搬 description 的话，商店里读到的就是残缺的卡。
+ * 暗牌卷轴与永久成长没有关键字，给空数组。
+ */
+function offerPresentation(offer: ShopOffer): {
+  tag: string;
+  name: string;
+  description: string;
+  keywords: readonly KeywordKind[];
+  rarity?: string;
+} {
   switch (offer.stock.type) {
     case "scroll": {
       const definition = offer.stock.kind ? SCROLLS[offer.stock.kind] : undefined;
@@ -24,12 +39,14 @@ function offerPresentation(offer: ShopOffer) {
             tag: "明牌卷轴",
             name: definition.name,
             description: definition.description,
+            keywords: scrollKeywords(definition),
             rarity: definition.rarity,
           }
         : {
             tag: "卷轴",
             name: "一张卷轴",
             description: "牌面仅对正在选购的玩家可见。",
+            keywords: [],
           };
     }
     case "equipment": {
@@ -38,6 +55,7 @@ function offerPresentation(offer: ShopOffer) {
         tag: EQUIPMENT_CATEGORY_NAMES[equipmentCategory(offer.stock.kind)],
         name: definition.name,
         description: definition.description,
+        keywords: equipmentKeywords(definition),
         rarity: definition.rarity,
       };
     }
@@ -47,6 +65,7 @@ function offerPresentation(offer: ShopOffer) {
         tag: "永久成长",
         name: definition.name,
         description: definition.description,
+        keywords: [],
       };
     }
   }
@@ -103,7 +122,12 @@ export function ShopTileModal({ state, shop, viewerSeat, dispatch }: {
                   </em>
                 )}
                 <strong>{presentation.name}</strong>
-                <small>{presentation.description}</small>
+                <small>
+                  <CardBlurb
+                    keywords={presentation.keywords}
+                    description={presentation.description}
+                  />
+                </small>
                 <b>{offer.sold ? "已售罄" : `${offer.price} 金币`}</b>
                 {!offer.sold && canBuy && !affordable && <i>金币不足</i>}
               </button>

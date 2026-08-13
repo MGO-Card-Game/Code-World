@@ -13,7 +13,7 @@ export const BOSS_ENEMIES = defineEnemies("boss", {
     abilities: [
       {
         name: "重斧",
-        description: "攻击骰掷出最高面时，额外造成 2 点无视防御的伤害",
+        description: "攻击骰掷出最高面时，额外造成 2 点伤害",
         keywords: ["ignoreDefense"],
       },
       {
@@ -82,7 +82,7 @@ export const BOSS_ENEMIES = defineEnemies("boss", {
       },
       {
         name: "真·巨龙打击",
-        description: "生命低于 40 点时，攻击再 +2；每次攻击掷骰前对玩家造成 10 点伤害，减去其当前防御",
+        description: "生命低于 40 点时，攻击再 +2；每次攻击对玩家造成 10 点伤害，减去其当前防御",
         keywords: ["directDamage"],
       },
     ],

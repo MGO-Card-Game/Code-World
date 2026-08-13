@@ -69,7 +69,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     */
     abilities: [{
       name: "毒牙",
-      description: "攻击骰掷出最高面时，额外造成 1 点无视防御的伤害",
+      description: "攻击骰掷出最高面时，额外造成 1 点伤害",
       keywords: ["ignoreDefense"],
     }],
     effects: {

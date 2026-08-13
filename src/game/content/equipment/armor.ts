@@ -4,7 +4,7 @@ import { defineEquipment } from "./definition";
 export const ARMOR = defineEquipment("armor", {
   bloodthirstyBattleplate: {
     name: "嗜血战甲",
-    description: "防御骰上限 +1；若本次攻击骰点数高于对手防御骰点数，额外造成 1D2 点无视防御的伤害",
+    description: "防御骰上限 +1；若本次攻击骰点数高于对手防御骰点数，额外造成 1D2 点伤害",
     rarity: "SR",
     modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
     keywords: ["ignoreDefense"],

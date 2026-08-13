@@ -21,7 +21,7 @@ export const COMBAT_SWING_SCROLLS = {
 
   dragonStrike: {
     name: "巨龙打击",
-    description: "掷骰前造成 10 点伤害，减去其当前防御",
+    description: "造成 10 点伤害，减去其当前防御",
     rarity: "SR",
     timings: ["beforeAttackRoll", "beforeDefenseRoll"],
     effects: [{ type: "directDamage", amount: 10 }],
@@ -29,7 +29,7 @@ export const COMBAT_SWING_SCROLLS = {
 
   heavyStrike: {
     name: "痛击",
-    description: "掷骰前造成 6 点伤害，减去其当前防御",
+    description: "造成 6 点伤害，减去其当前防御",
     rarity: "R",
     timings: ["beforeAttackRoll"],
     effects: [{ type: "directDamage", amount: 6 }],
@@ -89,7 +89,7 @@ export const COMBAT_SWING_SCROLLS = {
   */
   scavengersSatchelGuard: {
     name: "拾荒者背袋",
-    description: "本场战斗限定 · 本次防御 +2",
+    description: "本次防御 +2",
     rarity: "N",
     timings: ["beforeDefenseRoll"],
     keywords: ["battleOnly"],
@@ -103,7 +103,7 @@ export const COMBAT_SWING_SCROLLS = {
   */
   decapitationOrder: {
     name: "斩首命令",
-    description: "精英与首领限定 · 本次攻击额外造成 3 点无视防御的伤害",
+    description: "本次攻击额外造成 3 点伤害",
     rarity: "R",
     timings: ["beforeAttackRoll"],
     usableAgainst: targetsEliteOrBoss,

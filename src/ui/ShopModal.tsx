@@ -5,10 +5,11 @@ import {
   SCROLL_CATEGORY_SIGILS,
   SCROLLS,
   scrollCategory,
+  scrollKeywords,
 } from "../game/content/scrolls";
 import { canUseShop, ECONOMY } from "../game/economy";
 import type { GameStateView, OwnedScroll, PlayerId } from "../game/types";
-import { ModalBackdrop, SPRING, type Dispatch, visibleScrolls } from "./shared";
+import { CardBlurb, ModalBackdrop, SPRING, type Dispatch, visibleScrolls } from "./shared";
 import { ShopInventorySummary } from "./ShopInventorySummary";
 
 export function ShopModal({ state, viewerSeat, dispatch, onClose }: {
@@ -100,7 +101,12 @@ export function ShopModal({ state, viewerSeat, dispatch, onClose }: {
                 <span className="shop-reward-kicker">获得卷轴</span>
                 <h3 id="shop-reward-title">{revealedDefinition.name}</h3>
                 <span className="shop-reward-category">{SCROLL_CATEGORY_NAMES[revealedCategory]}</span>
-                <p>{revealedDefinition.description}</p>
+                <p>
+                  <CardBlurb
+                    keywords={scrollKeywords(revealedDefinition)}
+                    description={revealedDefinition.description}
+                  />
+                </p>
                 <button
                   type="button"
                   className="primary-button"

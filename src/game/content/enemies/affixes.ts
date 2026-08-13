@@ -77,7 +77,7 @@ export const ELITE_AFFIXES = {
 
   venomous: {
     name: "淬毒的",
-    description: "攻击时额外造成 1 点无视防御的伤害",
+    description: "攻击时额外造成 1 点伤害",
     rarity: "R",
     keywords: ["ignoreDefense"],
     modifiers: [],

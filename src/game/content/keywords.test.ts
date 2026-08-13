@@ -151,13 +151,27 @@ const SOURCE_RULES: readonly {
   { needle: "loseHp(", pattern: /loseHp\(/, keyword: "selfCost", only: equipmentUnits },
 ];
 
-/** 「印了这个词，卡面就得把它说清楚」。 */
-const WORDING_RULES: Partial<Record<KeywordKind, string>> = {
-  ignoreDefense: "无视防御",
+/**
+ * 「印了这个词，卡面还得补上关键字说不了的那半句」。
+ *
+ * 判据是**带不带这张卡自己的数**：「减去其当前防御」和「损失 N 点生命」里有
+ * 具体数值和条件，关键字只能表达那类规则的共性部分，替代不了。反过来，能被
+ * 关键字整句吃掉的短语一律从描述里删掉，见 BANNED_WORDINGS。
+ */
+const REQUIRED_WORDING: Partial<Record<KeywordKind, string>> = {
   directDamage: "减去其当前防御",
-  battleOnly: "本场战斗限定 · ",
-  eliteOnly: "精英与首领限定 · ",
   selfCost: "损失",
+};
+
+/**
+ * 「印了这个词，卡面就别再重复它」——只在带这个词的卡上禁，不是全局禁。
+ *
+ * 和 BANNED_WORDINGS 的分工看这句话在别处还有没有正当用途：「无视防御」哪儿都不该
+ * 再出现，所以全局禁；「掷骰前」只是和标签撞了，将来别的机制未必不能用这个词。
+ * 界面上标签就贴在描述前面，巨龙打击会读成「掷骰前伤害 掷骰前造成 10 点伤害」。
+ */
+const REDUNDANT_WORDING: Partial<Record<KeywordKind, string>> = {
+  directDamage: "掷骰前",
 };
 
 /**
@@ -168,6 +182,16 @@ const WORDING_RULES: Partial<Record<KeywordKind, string>> = {
  * minimumRoll。
  */
 const BANNED_WORDINGS: readonly { pattern: RegExp; reason: string }[] = [
+  /*
+    这三句已经由关键字标签承担，描述里不许再出现。
+
+    界面上标签就贴在描述前面，留着的话两者会并排说同一件事——96px 宽的手牌本来
+    就没有那个位置。「无视防御」此前还是四张卡写、七张卡不写，收进标签之后
+    这件事在结构上就不会再发生。
+  */
+  { pattern: /无视防御/, reason: "由「无视防御」标签承担，不要写进描述" },
+  { pattern: /本场战斗限定/, reason: "由「本场战斗限定」标签承担" },
+  { pattern: /精英与首领限定/, reason: "由「精英与首领限定」标签承担" },
   { pattern: /最大生命/, reason: "统一写「生命上限」" },
   { pattern: /最低点数为/, reason: "统一写「每颗X骰最低视为 N」" },
   { pattern: /每个(攻击|防御|移动|先攻)?骰/, reason: "骰子的量词统一用「颗」" },
@@ -327,13 +351,23 @@ describe("推导出来的关键字不要手写", () => {
 });
 
 describe("牌面措辞", () => {
-  for (const [keyword, required] of Object.entries(WORDING_RULES) as [KeywordKind, string][]) {
+  for (const [keyword, required] of Object.entries(REQUIRED_WORDING) as [KeywordKind, string][]) {
     it(`印了「${KEYWORDS[keyword].label}」的卡面都写了「${required}」`, () => {
       const silent = allBlurbs
         .filter((blurb) => blurb.declared.includes(keyword))
         .filter((blurb) => !blurb.description.includes(required))
         .map((blurb) => `${blurb.label}：${blurb.description}`);
       expect(silent, `这些卡面没把 ${keyword} 说出来`).toEqual([]);
+    });
+  }
+
+  for (const [keyword, redundant] of Object.entries(REDUNDANT_WORDING) as [KeywordKind, string][]) {
+    it(`印了「${KEYWORDS[keyword].label}」的卡面不再重复「${redundant}」`, () => {
+      const doubled = allBlurbs
+        .filter((blurb) => blurb.declared.includes(keyword))
+        .filter((blurb) => blurb.description.includes(redundant))
+        .map((blurb) => `${blurb.label}：${blurb.description}`);
+      expect(doubled, `标签已经说了「${redundant}」，描述里不用再写一遍`).toEqual([]);
     });
   }
 

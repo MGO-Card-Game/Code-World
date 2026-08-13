@@ -18,6 +18,7 @@ import {
   SCROLL_CATEGORY_SIGILS,
   SCROLLS,
   scrollCategory,
+  scrollKeywords,
 } from "../game/content/scrolls";
 import { getBattleParticipants, getSidePlayer } from "../game/engine";
 import type {
@@ -29,6 +30,8 @@ import type {
   ScrollTiming,
 } from "../game/types";
 import {
+  blurbText,
+  CardBlurb,
   HealthBar,
   ModalBackdrop,
   playableFromView,
@@ -98,7 +101,7 @@ function BattleHand({ player, timing, battle, label, selectedIds, onToggle, disa
                   type="button"
                   disabled={disabled}
                   aria-pressed={selected}
-                  aria-label={`${SCROLLS[scroll.kind].name}：${SCROLLS[scroll.kind].description}`}
+                  aria-label={`${SCROLLS[scroll.kind].name}：${blurbText(scrollKeywords(SCROLLS[scroll.kind]), SCROLLS[scroll.kind].description)}`}
                   className={`battle-card scroll-${scroll.kind} card-${category} ${selected ? "selected" : ""}`}
                   style={{ marginLeft: index === 0 ? 0 : spacing, zIndex }}
                   onClick={() => onToggle(scroll.instanceId)}
@@ -129,7 +132,12 @@ function BattleHand({ player, timing, battle, label, selectedIds, onToggle, disa
                     {SCROLL_CATEGORY_SIGILS[category]}
                   </span>
                   <span className="battle-card-name">{SCROLLS[scroll.kind].name}</span>
-                  <span className="battle-card-effect">{SCROLLS[scroll.kind].description}</span>
+                  <span className="battle-card-effect">
+                    <CardBlurb
+                      keywords={scrollKeywords(SCROLLS[scroll.kind])}
+                      description={SCROLLS[scroll.kind].description}
+                    />
+                  </span>
                   <span className="battle-card-select-hint">
                     {selected ? "已加入本轮" : "点击选择"}
                   </span>
@@ -393,7 +401,12 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
               <div className={`elite-affix rarity-${enemyAffix.rarity.toLowerCase()}`}>
                 <span>{enemyAffix.rarity} · 怪物词条</span>
                 <b>{enemyAffix.name}</b>
-                <small>{enemyAffix.description}</small>
+                <small>
+                  <CardBlurb
+                    keywords={enemyAffix.keywords ?? []}
+                    description={enemyAffix.description}
+                  />
+                </small>
               </div>
             )}
             <AnimatePresence>

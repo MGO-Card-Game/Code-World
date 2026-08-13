@@ -5,7 +5,7 @@ import { targetsEliteOrBoss } from "../../enemyClassification";
 export const WEAPONS = defineEquipment("weapon", {
   blackIronGreatsword: {
     name: "黑铁巨剑",
-    description: "攻击时投 2 次并取较低值；额外造成 3 点无视防御的伤害",
+    description: "攻击时投 2 次并取较低值；额外造成 3 点伤害",
     rarity: "R",
     modifiers: [],
     keywords: ["ignoreDefense"],
@@ -55,7 +55,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
   shadowlessSword: {
     name: "无影剑",
-    description: "攻击骰上限 -2；若本次攻击骰点数高于对手防御骰点数，额外造成 4 点无视防御的伤害",
+    description: "攻击骰上限 -2；若本次攻击骰点数高于对手防御骰点数，额外造成 4 点伤害",
     rarity: "SR",
     modifiers: [{ type: "dieSides", die: "attack", value: -2 }],
     keywords: ["ignoreDefense"],
@@ -87,7 +87,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
   oldKnightSword: {
     name: "旧骑士长剑",
-    description: "攻击骰上限 +1；攻击骰掷出最高面时，额外造成 1 点无视防御的伤害",
+    description: "攻击骰上限 +1；攻击骰掷出最高面时，额外造成 1 点伤害",
     rarity: "N",
     modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
     keywords: ["ignoreDefense"],
@@ -220,7 +220,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
   coldIronSpear: {
     name: "寒铁长枪",
-    description: "攻击骰上限 +1；对精英敌人和首领额外造成 3 点无视防御的伤害",
+    description: "攻击骰上限 +1；对精英敌人和首领额外造成 3 点伤害",
     rarity: "R",
     modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
     keywords: ["ignoreDefense"],

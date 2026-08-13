@@ -57,7 +57,7 @@ export const DICE_BOOST_SCROLLS = {
   */
   throneBreakerStrike: {
     name: "王座破坏者",
-    description: "本场战斗限定 · 本次攻击额外投 2 个骰子，结果求和",
+    description: "本次攻击额外投 2 个骰子，结果求和",
     rarity: "PR",
     timings: ["beforeAttackRoll"],
     keywords: ["battleOnly"],
@@ -77,7 +77,7 @@ export const DICE_BOOST_SCROLLS = {
   */
   crackedDieFaceLock: {
     name: "裂纹骰面",
-    description: "本场战斗限定 · 本次攻或防的第一颗骰直接定为 4",
+    description: "本次攻或防的第一颗骰直接定为 4",
     rarity: "N",
     timings: ["beforeAttackRoll", "beforeDefenseRoll"],
     keywords: ["battleOnly"],
@@ -87,7 +87,7 @@ export const DICE_BOOST_SCROLLS = {
 
   fateCrownDecree: {
     name: "命运王冠",
-    description: "本场战斗限定 · 本次攻或防的第一颗骰直接视为最高面",
+    description: "本次攻或防的第一颗骰直接视为最高面",
     rarity: "PR",
     timings: ["beforeAttackRoll", "beforeDefenseRoll"],
     keywords: ["battleOnly"],

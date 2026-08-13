@@ -3,8 +3,9 @@ import {
   EQUIPMENT,
   EQUIPMENT_CATEGORY_NAMES,
   equipmentCategory,
+  equipmentKeywords,
 } from "../game/content/equipment";
-import { SCROLLS } from "../game/content/scrolls";
+import { SCROLLS, scrollKeywords } from "../game/content/scrolls";
 import { blessingDefinition } from "../game/content/blessings";
 import { mapEventDefinition, type MapEventCategory } from "../game/content/events";
 import { blessingCapacity } from "../game/blessings";
@@ -38,7 +39,7 @@ import type {
   TreasureRewardNoticeState,
 } from "../game/types";
 import { DecisionModal, NoticeEmblem, staggered } from "./DecisionModal";
-import { ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
+import { CardBlurb, ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
 
 /**
  * 战斗之后的规则弹层：赐福覆盖、相遇战代价、装备槽已满、终局。
@@ -394,7 +395,12 @@ export function MapEventScrollChoicePanel({ state, choice, dispatch, playing, vi
               >
                 <span>复制</span>
                 <strong>{definition.name}</strong>
-                <small>{definition.description}</small>
+                <small>
+                  <CardBlurb
+                    keywords={scrollKeywords(definition)}
+                    description={definition.description}
+                  />
+                </small>
               </button>
             );
           })}
@@ -445,7 +451,12 @@ export function MapEventEquipmentChoicePanel({ state, choice, dispatch, playing,
               >
                 <span>交出 · {EQUIPMENT_CATEGORY_NAMES[category]}</span>
                 <strong>{definition.name}</strong>
-                <small>{definition.description}</small>
+                <small>
+                  <CardBlurb
+                    keywords={equipmentKeywords(definition)}
+                    description={definition.description}
+                  />
+                </small>
               </button>
             );
           })}
@@ -710,7 +721,7 @@ export function ScrollTargetChoicePanel({ state, choice, dispatch, playing, view
       className="encounter-choice-modal"
       kicker={definition.name}
       title={`${player.name}选择目标`}
-      lead={definition.description}
+      lead={<CardBlurb keywords={scrollKeywords(definition)} description={definition.description} />}
       canAct={canChoose}
       waiting={<p className="waiting-notice">{`等待${player.name}选择目标……`}</p>}
       actions={
@@ -822,7 +833,12 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
               >
                 <span>替换</span>
                 <strong>{EQUIPMENT[item.kind].name}</strong>
-                <small>{EQUIPMENT[item.kind].description}</small>
+                <small>
+                  <CardBlurb
+                    keywords={equipmentKeywords(EQUIPMENT[item.kind])}
+                    description={EQUIPMENT[item.kind].description}
+                  />
+                </small>
                 <em className="salvage-value">
                   折算 +{equipmentSalvageValue(player, item.kind)} 金币
                 </em>
@@ -846,7 +862,12 @@ export function EquipmentChoicePanel({ state, choice, dispatch, playing, viewerS
       <div className="offered-equipment">
         <span>{definition.rarity} · {EQUIPMENT_CATEGORY_NAMES[category]}</span>
         <strong>{definition.name}</strong>
-        <p>{definition.description}</p>
+        <p>
+          <CardBlurb
+            keywords={equipmentKeywords(definition)}
+            description={definition.description}
+          />
+        </p>
       </div>
     </DecisionModal>
   );

@@ -35,7 +35,7 @@ export const ELITE_ENEMIES = defineEnemies("elite", {
     regions: { foothill: 1, mountainside: 1 },
     abilities: [{
       name: "蚀骨咒",
-      description: "攻击骰掷出最高面时，额外造成 2 点无视防御的伤害",
+      description: "攻击骰掷出最高面时，额外造成 2 点伤害",
       keywords: ["ignoreDefense"],
     }],
     effects: {
@@ -110,7 +110,7 @@ export const ELITE_ENEMIES = defineEnemies("elite", {
     regions: { summit: 2 },
     abilities: [{
       name: "雷坠",
-      description: "攻击骰掷出最高面时，额外造成 2 点无视防御的伤害",
+      description: "攻击骰掷出最高面时，额外造成 2 点伤害",
       keywords: ["ignoreDefense"],
     }],
     effects: {

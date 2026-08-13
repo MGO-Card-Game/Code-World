@@ -10,6 +10,7 @@ import {
   progress,
   queueLength,
   remainingMs,
+  seenEvents,
 } from "./eventQueue";
 import { createInitialGame, gameReducer } from "../game/engine";
 import { advanceAutomatically } from "../game/testSupport";
@@ -67,6 +68,40 @@ describe("事件播放队列", () => {
     expect(queueLength(queue)).toBe(3);
     queue = advance(queue, NARRATION * 2);
     expect(currentEvent(queue)?.id).toBe(3);
+  });
+
+  it("seen 留住播完的事件，跨批次累积", () => {
+    /*
+      界面回溯事件流时用的是 seen，不是逐动作的 state.lastEvents——后者每接受一个动作
+      就清空重填，联机时别人的下一个动作能在动画播到一半时把它换掉。seen 跟动画同寿。
+    */
+    let queue = enqueue(createEventQueue(), [narration(1), moved(2)]);
+    queue = advance(queue, NARRATION + MOVED);
+    expect(isPlaying(queue)).toBe(false);
+    expect(seenEvents(queue).map((event) => event.id)).toEqual([1, 2]);
+
+    queue = enqueue(queue, [narration(3)]);
+    expect(seenEvents(queue).map((event) => event.id)).toEqual([1, 2, 3]);
+
+    // 跳过演出同样不该丢掉窗口，否则末击的骰点会变成空格子
+    expect(seenEvents(drain(queue)).map((event) => event.id)).toEqual([1, 2, 3]);
+  });
+
+  it("seen 是有上限的滚动窗口", () => {
+    const many = Array.from({ length: 260 }, (_, index) => narration(index + 1));
+    const queue = enqueue(createEventQueue(), many);
+
+    const seen = seenEvents(queue);
+    expect(seen).toHaveLength(200);
+    expect(seen.at(-1)?.id).toBe(260);
+  });
+
+  it("重开一局会把 seen 一并换成新对局的事件", () => {
+    let queue = enqueue(createEventQueue(), [narration(10), narration(11)]);
+    // id 倒退即视为新对局
+    queue = enqueue(queue, [narration(1)]);
+
+    expect(seenEvents(queue).map((event) => event.id)).toEqual([1]);
   });
 
   it("时长不足时只累加进度，不切换事件", () => {

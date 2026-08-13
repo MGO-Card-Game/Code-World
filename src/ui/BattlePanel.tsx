@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   activeDamage,
   activeHealing,
+  battleTimeline,
   battleWithDamage,
   isBattleEnding,
   visualAttacker,
@@ -205,7 +206,8 @@ export function useLingeringBattle(
   }
   if (!remembered.current) return null;
   if (!isBattleEnding(playback.event, playback.pending)) return null;
-  return battleWithDamage(remembered.current, state.lastEvents);
+  // 同样走队列窗口：致命一击之后再来一份广播的话，state.lastEvents 就没有那条伤害了
+  return battleWithDamage(remembered.current, battleTimeline(playback.seen));
 }
 
 export function BattlePanel({ state, battle, live, dispatch, playback, viewerSeat }: {
@@ -270,9 +272,14 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
     抄写模型有个致命窗口：那一帧被跳过（跳过演出）、被合批吃掉（两次广播落进同一次
     渲染）或者弹层重挂时，这一轮的骰子就永久空着。派生之后没有窗口——错过动画只意味着
     直接显示终值。按住与清空的时机跟以前完全一致，都由 pending 决定，见 visualRoll。
+
+    事件源取播放队列见过的那份，不是 state.lastEvents：后者每接受一个动作就被清空重填，
+    联机时任何人的下一个动作都会在动画播到一半时把骰点冲成空格——血照掉、字照飘，
+    唯独骰子没了。队列的窗口和动画同寿，再切到当前这一场（battleTimeline）就不会串场。
   */
-  const attackRoll = visualRoll("attack", state.lastEvents, playback.pending);
-  const defenseRoll = visualRoll("defense", state.lastEvents, playback.pending);
+  const timeline = battleTimeline(playback.seen);
+  const attackRoll = visualRoll("attack", timeline, playback.pending);
+  const defenseRoll = visualRoll("defense", timeline, playback.pending);
 
   const nameOf = (side: CombatSide) => (side === "a" ? a.name : b.name);
   const hpMaxB = "maxHp" in b ? b.maxHp : 1;

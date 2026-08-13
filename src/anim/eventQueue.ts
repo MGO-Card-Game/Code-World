@@ -46,11 +46,26 @@ export interface QueuedEvent {
   duration: number;
 }
 
+/**
+ * seen 保留的最大条数。一场战斗的事件量在几十条这个量级，200 足够覆盖当前这一场，
+ * 又不会让窗口无限长下去。
+ */
+const SEEN_LIMIT = 200;
+
 export interface EventQueueState {
   current: QueuedEvent | null;
   /** 当前事件已播放的毫秒数 */
   elapsed: number;
   pending: QueuedEvent[];
+  /**
+   * 队列见过的事件的滚动窗口：已播完的、正在播的、还没播的都在里面。
+   *
+   * 界面要回溯“刚刚播了什么”时必须用它，不能用 `state.lastEvents`——那是**逐动作**的
+   * 窗口，引擎每接受一个动作就清空重填（engine.ts），联机时服务器又是每个动作广播一次。
+   * 于是任何人的下一个动作都能在动画播到一半时把它换掉，靠它派生的东西（战斗骰点）
+   * 会当场消失，而队列还在不紧不慢地播着前一批。队列自己看过的事件才和动画同寿。
+   */
+  seen: GameEvent[];
   /**
    * 已入队事件 id 的水位线。
    * 引擎的事件 id 全局单调递增，因此同一批事件被重复喂进来时可以直接按 id 过滤，
@@ -60,7 +75,7 @@ export interface EventQueueState {
 }
 
 export function createEventQueue(): EventQueueState {
-  return { current: null, elapsed: 0, pending: [], watermark: 0 };
+  return { current: null, elapsed: 0, pending: [], seen: [], watermark: 0 };
 }
 
 function toQueued(event: GameEvent, speed: number): QueuedEvent {
@@ -95,6 +110,7 @@ export function enqueue(
       current: null,
       elapsed: 0,
       pending: events.map((event) => toQueued(event, speed)),
+      seen: events.slice(-SEEN_LIMIT),
       watermark: highest,
     });
   }
@@ -104,6 +120,7 @@ export function enqueue(
   return promote({
     ...state,
     pending: [...state.pending, ...fresh.map((event) => toQueued(event, speed))],
+    seen: [...state.seen, ...fresh].slice(-SEEN_LIMIT),
     watermark: highest,
   });
 }
@@ -127,7 +144,10 @@ export function advance(state: EventQueueState, deltaMs: number): EventQueueStat
   return next;
 }
 
-/** 跳过动画，立刻清空队列（界面上的“跳过”按钮） */
+/**
+ * 跳过动画，立刻清空队列（界面上的“跳过”按钮）。
+ * seen 要留着：跳过之后界面仍然要显示末击的骰点，清掉就变成空格子了。
+ */
 export function drain(state: EventQueueState): EventQueueState {
   if (!state.current && state.pending.length === 0) return state;
   return { ...state, current: null, elapsed: 0, pending: [] };
@@ -166,4 +186,14 @@ export function queueLength(state: EventQueueState) {
  */
 export function pendingEvents(state: EventQueueState): GameEvent[] {
   return state.pending.map((queued) => queued.event);
+}
+
+/**
+ * 队列见过的事件窗口。
+ *
+ * 需要「按事件流回溯当下该显示什么」的地方一律用它配 pendingEvents，
+ * 两者的分界就是“播到了没有”。见 EventQueueState.seen 与 visualState.visualRoll。
+ */
+export function seenEvents(state: EventQueueState): readonly GameEvent[] {
+  return state.seen;
 }

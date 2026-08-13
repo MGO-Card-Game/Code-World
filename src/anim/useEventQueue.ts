@@ -11,6 +11,7 @@ import {
   progress,
   queueLength,
   remainingMs,
+  seenEvents,
 } from "./eventQueue";
 
 /**
@@ -79,6 +80,11 @@ export function useEventQueue(events: readonly GameEvent[], speed = 1) {
     event: currentEvent(synced),
     /** 还没播到的事件。用于把对应数值按住在动画起点，见 visualState.ts */
     pending: pendingEvents(synced),
+    /**
+     * 队列见过的事件（含已播完的）。需要回溯事件流的地方用它，
+     * 不要用 `state.lastEvents`——那份会被下一个动作的广播冲掉，见 eventQueue.seen
+     */
+    seen: seenEvents(synced),
     /** 队列非空。用于在动画播放期间锁住操作按钮 */
     playing: isPlaying(synced),
     /** 当前事件的播放进度 0～1 */

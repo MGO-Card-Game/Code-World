@@ -104,6 +104,21 @@ export function visualAttacker(battle: BattleState, pending: readonly GameEvent[
   return heldRoundAdvance(pending)?.fromAttacker ?? battle.attacker;
 }
 
+/**
+ * 把队列的事件窗口收敛到当前这一场战斗。
+ *
+ * 队列的 seen 是跨动作的滚动窗口，里面可能还留着上一场战斗的骰点：最后一轮不会有
+ * battleRoundAdvanced（finishBattle 提前返回），visualRoll 的清空条件对它不成立，
+ * 那条骰点就会一直留在窗口里，等下一场战斗开打、自己的骰还没投出来时先亮出来。
+ * 从最近一条 battleStarted 切一刀，跨场泄漏就不可能发生。
+ */
+export function battleTimeline(seen: readonly GameEvent[]): readonly GameEvent[] {
+  for (let index = seen.length - 1; index >= 0; index -= 1) {
+    if (seen[index].type === "battleStarted") return seen.slice(index);
+  }
+  return seen;
+}
+
 type RollEvent = Extract<GameEvent, { type: "attackRolled" | "defenseRolled" }>;
 
 function isRollEvent(event: GameEvent): event is RollEvent {
@@ -114,7 +129,11 @@ function isRollEvent(event: GameEvent): event is RollEvent {
  * 此刻该显示的攻防骰点。
  *
  * 骰点只存在于事件里——引擎的 BattleState 不记上一次投骰，所以这里要从
- * 「最近一批事件 + 还没播到的事件」算出当下该显示什么。
+ * 「队列见过的事件 + 还没播到的事件」算出当下该显示什么。
+ *
+ * `events` 必须来自播放队列（battleTimeline(playback.seen)），**不能**是
+ * `state.lastEvents`：后者是逐动作的窗口，联机时别人的下一个动作就能在动画播到一半时
+ * 把它换掉，骰子会当场消失而血照掉——两者的寿命不一样，见 eventQueue.seen。
  *
  * 关键是**不要**让界面在事件恰好成为"当前"的那一帧把骰点抄进局部 state：抄的那一帧
  * 一旦错过（按了跳过演出、两次广播被合进同一次渲染、弹层重新挂载），那一轮的骰子就

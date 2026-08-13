@@ -18,6 +18,14 @@ import {
 const TOKEN_KEY = "dicebound.playerToken";
 const NAME_KEY = "dicebound.playerName";
 
+/**
+ * 在途动作的兜底解锁时长。
+ *
+ * 正常情况下 roomState 或 error 一到就解锁，这个定时器不会走到。它防的是那种
+ * 既没回包、也没触发 onclose 的半死连接——宁可放行一次重复提交，也不能把玩家卡死。
+ */
+const ACTION_TIMEOUT_MS = 5000;
+
 function createPlayerToken() {
   if (typeof globalThis.crypto?.randomUUID === "function") {
     return globalThis.crypto.randomUUID();
@@ -75,6 +83,9 @@ export class NetClient {
   private lastJoin: { roomCode: string; playerName: string } | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private manualClose = false;
+  /** 已发出、还没等到服务器回应的动作，见 dispatch */
+  private inFlightAction: string | null = null;
+  private inFlightTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private handlers: NetHandlers) {}
 
@@ -111,6 +122,12 @@ export class NetClient {
       if (!message) return;
       switch (message.type) {
         case "roomState":
+          /*
+            roomState 不带 requestId，认不出是哪个动作的回音，因此任何一份广播都解锁。
+            别人的动作抢先解锁最坏也只是放行一次重复提交，退回到加锁之前的行为；
+            反过来要求严格配对的话，一次错过就是永久卡死。
+          */
+          this.clearInFlight();
           this.lastJoin = {
             roomCode: message.room.code,
             playerName: this.lastJoin?.playerName ?? "",
@@ -118,9 +135,11 @@ export class NetClient {
           this.handlers.onRoom(message.room);
           return;
         case "error":
+          this.clearInFlight();
           this.handlers.onError(message.message);
           return;
         case "roomClosed":
+          this.clearInFlight();
           this.lastJoin = null;
           this.handlers.onClosed(message.reason);
           return;
@@ -128,6 +147,7 @@ export class NetClient {
     };
 
     socket.onclose = () => {
+      this.clearInFlight();
       this.handlers.onStatus("offline");
       if (!this.manualClose && this.lastJoin) this.scheduleReconnect();
     };
@@ -182,8 +202,35 @@ export class NetClient {
     });
   }
 
+  /**
+   * 提交一个动作。已经有动作在途时直接丢弃这一次。
+   *
+   * 服务器是权威的，界面在广播回来之前不会有任何变化——从点下到收到广播这一个 RTT 里，
+   * 按钮还亮着、阶段也还是原样，玩家多点的那几下会变成一模一样的第二个动作发出去。
+   * 它未必会被服务器拒掉：战斗结算完 resetChoices 会把同一侧的 choice 重新置为 pending，
+   * 于是「这一轮的重复提交」被当成「下一轮的提交」接受，玩家下一轮的选牌权就被无声弃掉，
+   * 界面上还会因为多出来的那次广播把战斗骰点冲掉（见 anim/eventQueue 的 seen）。
+   *
+   * 本地热座没有这个窗口（setState 同步生效），所以这条锁只在联机时起作用。
+   */
   dispatch(action: GameAction) {
-    this.send({ type: "action", requestId: this.nextRequestId(), action });
+    if (this.inFlightAction) return;
+    const requestId = this.nextRequestId();
+    if (!this.send({ type: "action", requestId, action })) return;
+    this.inFlightAction = requestId;
+    this.inFlightTimer = setTimeout(() => this.clearInFlight(), ACTION_TIMEOUT_MS);
+  }
+
+  /*
+    解锁点要盖住所有"服务器不会再就这个动作说话了"的情形：广播（被接受）、
+    error（被拒）、房间解散，以及连接断开。漏掉任何一个，锁都会一直挂着。
+  */
+  private clearInFlight() {
+    this.inFlightAction = null;
+    if (this.inFlightTimer) {
+      clearTimeout(this.inFlightTimer);
+      this.inFlightTimer = null;
+    }
   }
 
   startGame() {
@@ -198,6 +245,7 @@ export class NetClient {
   disconnect() {
     this.manualClose = true;
     this.lastJoin = null;
+    this.clearInFlight();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;

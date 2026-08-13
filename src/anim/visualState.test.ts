@@ -7,8 +7,10 @@ import {
   isPlaying,
   pendingEvents,
   remainingMs,
+  seenEvents,
 } from "./eventQueue";
 import {
+  battleTimeline,
   battleWithDamage,
   isBattleEnding,
   isRevealed,
@@ -361,9 +363,76 @@ describe("显示数值回拉", () => {
     expect(visualRoll("defense", events, pendingEvents(queue))).toBeUndefined();
   });
 
-  it("这一批没有投骰事件时不显示骰点", () => {
-    // 战斗中的提交动作不产出任何事件，上一轮的骰点不该被它带回来
+  it("窗口里没有投骰事件时不显示骰点", () => {
     expect(visualRoll("attack", [], [])).toBeUndefined();
+  });
+
+  it("联机时后一个动作的广播不会把正在播的骰点冲掉", () => {
+    /*
+      复现「点快了骰子消失但依然结算」：
+
+      战斗结算完 resetChoices 会把同一侧的 choice 重新置为 pending，所以 RTT 里多点的
+      那一下会被服务器当成**下一轮**的提交接受。它不产出任何事件，但照样广播一份新状态，
+      于是 state.lastEvents 变成空数组——骰点若以它为源就当场消失，而队列还在播上一批，
+      血照掉、伤害数字照飘。骰点必须跟队列同寿，不跟广播同寿。
+    */
+    let state = createInitialGame(1234);
+    state.players.player1.baseDefense = 99;
+    state.players.player2.baseDefense = 99; // 伤害恒为 0，这一轮必定不终结战斗
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pvp", aPlayerId: "player1", bPlayerId: "player2" }),
+    };
+
+    state = resolveRound(state);
+    if (state.phase.kind !== "battle") throw new Error("战斗提前结束，请换个种子");
+    let queue = enqueue(createEventQueue(), state.lastEvents);
+
+    // 播到 attackRolled 亮出来、交接还没播到的那一刻
+    while (queue.current?.event.type !== "attackRolled") {
+      queue = advance(queue, remainingMs(queue)!);
+    }
+    const shown = visualRoll("attack", battleTimeline(seenEvents(queue)), pendingEvents(queue));
+    expect(shown).toBeDefined();
+
+    // 此时对手（新一轮的攻击方 b）多点的那一下落地：状态变了，却没有任何事件
+    const after = gameReducer(state, { type: "submitScrollChoice", side: "b" });
+    expect(after).not.toBe(state);
+    expect(after.lastEvents).toEqual([]);
+
+    queue = enqueue(queue, after.lastEvents);
+    expect(
+      visualRoll("attack", battleTimeline(seenEvents(queue)), pendingEvents(queue)),
+    ).toEqual(shown);
+  });
+
+  it("上一场战斗的骰点不会漏进新一场", () => {
+    /*
+      末轮没有 battleRoundAdvanced（finishBattle 提前返回），visualRoll 的清空条件对它
+      不成立，那条骰点会一直留在队列窗口里。battleTimeline 从最近一条 battleStarted
+      切一刀，新战斗开打、自己的骰还没投出来时才不会先亮出上一场的数字。
+    */
+    const rolled: GameEvent = {
+      id: 1,
+      type: "attackRolled",
+      side: "a",
+      die: 6,
+      dice: [6],
+      sides: 6,
+      base: 3,
+      flatBonus: 0,
+      total: 9,
+    };
+    const started: GameEvent = {
+      id: 2,
+      type: "battleStarted",
+      battleKind: "pve",
+      aPlayerId: "player1",
+      enemyId: "slime",
+    };
+
+    expect(visualRoll("attack", battleTimeline([rolled]), [])).toEqual(rolled);
+    expect(visualRoll("attack", battleTimeline([rolled, started]), [])).toBeUndefined();
   });
 
   it("决出胜负的那一批事件里，骰点和 phase 离开 battle 是同时发生的", () => {

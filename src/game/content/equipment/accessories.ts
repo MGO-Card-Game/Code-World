@@ -84,7 +84,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
 
   frayedBracers: {
     name: "破损护腕",
-    description: "攻击和防御骰上限各 +1；每使用一张卷轴，损失 1 点生命",
+    description: "攻击骰上限 +1；防御骰上限 +1；每使用一张卷轴，损失 1 点生命",
     rarity: "N",
     modifiers: [
       { type: "dieSides", die: "attack", value: 1 },
@@ -122,7 +122,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
 
   huntersPointer: {
     name: "猎人的指针",
-    description: "地图移动骰和攻击骰上限 +1",
+    description: "地图移动骰上限 +1；攻击骰上限 +1",
     rarity: "N",
     modifiers: [
       { type: "dieSides", die: "movement", value: 1 },
@@ -132,7 +132,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
 
   brassCompass: {
     name: "黄铜罗盘",
-    description: "地图移动骰和攻击骰上限 +1",
+    description: "地图移动骰上限 +1；攻击骰上限 +1",
     rarity: "N",
     modifiers: [
       { type: "dieSides", die: "movement", value: 1 },
@@ -142,7 +142,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
 
   engravedArmlet: {
     name: "刻纹臂环",
-    description: "攻击骰和防御骰上限各 +1",
+    description: "攻击骰上限 +1；防御骰上限 +1",
     rarity: "R",
     modifiers: [
       { type: "dieSides", die: "attack", value: 1 },
@@ -152,7 +152,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
 
   bloodOathRing: {
     name: "血誓指环",
-    description: "战斗生命值低于一半时，攻击骰和防御骰上限 +1",
+    description: "战斗生命值低于一半时，攻击骰上限 +1；防御骰上限 +1",
     rarity: "R",
     modifiers: [],
     effects: {
@@ -166,7 +166,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
 
   warDrumEarring: {
     name: "战鼓耳坠",
-    description: "攻击与防御骰上限各 +1；任一骰掷出 1 时，下一次相反类型的骰子总值 +3",
+    description: "攻击骰上限 +1；防御骰上限 +1；任一骰掷出 1 时，下一次相反类型的骰点总值 +3",
     rarity: "SR",
     modifiers: [
       { type: "dieSides", die: "attack", value: 1 },
@@ -219,7 +219,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
 
   blackSunShard: {
     name: "黑日碎片",
-    description: "攻击、防御和地图移动骰上限各 +1；每使用一张卷轴，损失 1 点生命",
+    description: "攻击骰上限 +1；防御骰上限 +1；地图移动骰上限 +1；每使用一张卷轴，损失 1 点生命",
     rarity: "SR",
     modifiers: [
       { type: "dieSides", die: "attack", value: 1 },

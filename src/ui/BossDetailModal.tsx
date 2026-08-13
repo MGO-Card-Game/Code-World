@@ -6,7 +6,7 @@ import {
   enemyStats,
 } from "../game/selectors";
 import type { MapRegion } from "../game/types";
-import { KeywordRules, ModalBackdrop, SPRING } from "./shared";
+import { KeywordRules, ModalBackdrop, RuleText, SPRING } from "./shared";
 
 /** 从阶段地图中央打开的首领情报；只展示公开规则，不受解锁状态限制。 */
 export function BossDetailModal({ region, onClose }: {
@@ -56,7 +56,7 @@ export function BossDetailModal({ region, onClose }: {
               <strong>{ability.name}</strong>
               {/* 说明和关键字规则同占第二列，否则规则会掉到下一行的名字栏里 */}
               <div>
-                <p>{ability.description}</p>
+                <p><RuleText text={ability.description} /></p>
                 <KeywordRules keywords={ability.keywords ?? []} />
               </div>
             </div>

@@ -20,6 +20,7 @@ import {
   CardBlurb,
   ModalBackdrop,
   revealedScrolls,
+  RuleText,
   SPRING,
   visibleScrolls,
   type Playback,
@@ -453,7 +454,7 @@ export function ResourceModal({
             return (
               <span className="chip blessing" key={blessing.instanceId}>
                 {definition.name}
-                <i>{definition.description}</i>
+                <i><RuleText text={definition.description} /></i>
               </span>
             );
           })}

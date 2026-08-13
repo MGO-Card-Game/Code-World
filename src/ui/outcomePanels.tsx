@@ -39,7 +39,14 @@ import type {
   TreasureRewardNoticeState,
 } from "../game/types";
 import { DecisionModal, NoticeEmblem, staggered } from "./DecisionModal";
-import { CardBlurb, ModalBackdrop, SPRING, visibleScrolls, type Dispatch } from "./shared";
+import {
+  CardBlurb,
+  ModalBackdrop,
+  RuleText,
+  SPRING,
+  visibleScrolls,
+  type Dispatch,
+} from "./shared";
 
 /**
  * 战斗之后的规则弹层：赐福覆盖、相遇战代价、装备槽已满、终局。
@@ -214,7 +221,7 @@ export function MapEventPanel({ state, notice, dispatch, playing, viewerSeat }: 
       emblem={<NoticeEmblem>{emblems[definition.category]}</NoticeEmblem>}
       kicker={categoryNames[definition.category]}
       title={definition.name}
-      lead={definition.description}
+      lead={<RuleText text={definition.description} />}
       canAct={canAcknowledge}
       waiting={<p className="waiting-notice">{`等待${player.name}确认……`}</p>}
       actions={
@@ -348,7 +355,7 @@ export function BlessingRewardPanel({ state, notice, dispatch, playing, viewerSe
         <div className="offered">
           <span>新赐福</span>
           <strong>{definition.name}</strong>
-          <small>{definition.description}</small>
+          <small><RuleText text={definition.description} /></small>
         </div>
       </div>
     </DecisionModal>
@@ -691,14 +698,14 @@ export function BlessingChoicePanel({ state, choice, dispatch, playing, viewerSe
             <div key={current.instanceId}>
               <span>已有赐福</span>
               <strong>{definition.name}</strong>
-              <small>{definition.description}</small>
+              <small><RuleText text={definition.description} /></small>
             </div>
           );
         })}
         <div className="offered">
           <span>{choice.source === "pvp" ? "败方赐福" : "新赐福"}</span>
           <strong>{offeredDefinition.name}</strong>
-          <small>{offeredDefinition.description}</small>
+          <small><RuleText text={offeredDefinition.description} /></small>
         </div>
       </div>
     </DecisionModal>
@@ -907,7 +914,7 @@ export function StatGrowthPanel({ state, choice, dispatch, playing, viewerSeat }
               onClick={() => dispatch({ type: "chooseStatGrowth", option })}
             >
               <strong>{STAT_GROWTH[option].name}</strong>
-              <small>{STAT_GROWTH[option].description}</small>
+              <small><RuleText text={STAT_GROWTH[option].description} /></small>
               <em>{current[option]}</em>
             </button>
           ))}

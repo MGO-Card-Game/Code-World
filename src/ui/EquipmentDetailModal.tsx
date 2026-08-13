@@ -5,7 +5,7 @@ import {
   equipmentKeywords,
   type EquipmentKind,
 } from "../game/content/equipment";
-import { KeywordRules, ModalBackdrop, SPRING } from "./shared";
+import { KeywordRules, ModalBackdrop, RuleText, SPRING } from "./shared";
 
 /** 从玩家面板或资源列表点开的一张装备详情卡。 */
 export function EquipmentDetailModal({ kind, onClose }: {
@@ -37,7 +37,7 @@ export function EquipmentDetailModal({ kind, onClose }: {
         <h2 id="equipment-detail-title">{definition.name}</h2>
         <div className="equipment-detail-effect">
           <span>装备效果</span>
-          <p>{definition.description}</p>
+          <p><RuleText text={definition.description} /></p>
           {/* 这里有 720px，关键字直接把规则原文摊开，不必靠 title 悬停 */}
           <KeywordRules keywords={equipmentKeywords(definition)} />
         </div>

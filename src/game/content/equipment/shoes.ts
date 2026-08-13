@@ -16,7 +16,7 @@ export const SHOES = defineEquipment("shoes", {
 
   oldLeatherBoots: {
     name: "旧皮行靴",
-    description: "地图移动骰和先攻骰上限各 +1",
+    description: "地图移动骰上限 +1；先攻骰上限 +1",
     rarity: "N",
     modifiers: [
       { type: "dieSides", die: "movement", value: 1 },

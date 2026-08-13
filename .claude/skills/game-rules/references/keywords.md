@@ -1,14 +1,25 @@
 # 卡面关键字与措辞
 
-## 词表在代码里
+## 两类词表在代码里
 
-`src/game/content/keywords.ts`。要知道有哪些词、每个词什么意思，读那个文件——这里不抄一份，抄了就是第二个会过期的地方。
+特殊机制关键字在 `src/game/content/keywords.ts`，通用规则术语在
+`src/game/content/ruleTerms.ts`。要知道有哪些词、每个词什么意思，读这两个文件——
+这里不抄一份，抄了就是第二个会过期的地方。
 
-每条三列：
+- **特殊机制关键字**：`无视防御`、`自损`、`代替移动`，在描述前印成标签
+- **通用规则术语**：`攻击骰上限`、`移动骰`、`骰点总值`、`生命上限`，留在原句中用点状下划线标识
+
+基础数值不要收成 `attackDieSidesUp` 这类静态关键字。`ruleTermsForModifiers()` 会把
+`dieSides`、`diceCount`、`maxHp` 映射到参数化的术语概念，测试再核对卡面有没有使用
+对应标准词。这样攻击／防御／移动／先攻共用一种规则，而不是复制四套关键字。
+
+`keywords.ts` 每条三列：
 
 - `label` 牌面印的字
 - `rule` 玩家点开详情读到的规则，也是标签的悬停文本
 - `engine` 它在引擎里落在哪，给内容作者看，不进界面
+
+`ruleTerms.ts` 每条四列：`label`、`aliases`（只兼容自然语序，不是新概念）、`rule`、`group`（决定正文里的着色分组）。
 
 ## 收一个新词的判据
 
@@ -63,13 +74,17 @@
 
 ## 校验
 
-`src/game/content/keywords.test.ts`（数据层）和 `src/ui/keywordSurfaces.test.ts`（界面层）。
+`src/game/content/keywords.test.ts`、`src/game/content/ruleTerms.test.ts`（数据层）和
+`src/ui/keywordSurfaces.test.ts`（界面层）。
 
 数据层这几条最容易撞上：
 
 - **「用了 X 却没声明 Y」**：它读的是钩子的**源码字符串**（`Function.prototype.toString`），因为 `bonusDamage` 这类词只在函数体里出现。加了 `modifiers.bonusDamage += n` 就必须声明 `ignoreDefense`，反向也查。
 - **「装备发的牌都印着本场战斗限定」**：从装备源码里挖 `grantBattleScroll("X")`，逐张断言 `battleOnly` + `drawable: false`。忘了 `drawable: false`，宝箱和战斗奖励会把战斗限定牌当普通卷轴发出去，变成永久卡。
 - **措辞黑名单**：上面那张表的「别写」列。
+- **modifier 对术语**：装备、赐福和怪物词条的 `dieSides` / `diceCount` / `maxHp`
+  必须在卡面出现对应通用术语。多种骰子各写完整，例如
+  `攻击骰上限 +1；防御骰上限 +1`，不要压成 `攻击和防御骰上限各 +1`。
 
 界面层两条查的是**渲染点有没有漏**。描述里那句已经删了，只渲染 `description` 的地方玩家读到的就是残缺的卡：
 
@@ -84,6 +99,7 @@
 
 - **紧凑处**（手牌 96px、战斗卡 118px、商店货架、交易清单、奖励选项）用 `CardBlurb`，标签内联嵌在描述前面，规则靠悬停
 - **详情弹层**（装备详情、首领情报，720px）用 `KeywordRules`，标签下面摊开规则原文
+- **只有通用术语、没有特殊关键字的说明**（赐福、事件、成长）用 `RuleText`
 - **读屏与 title** 用 `blurbText`，把标签念进 `aria-label`
 
-三条都在 `src/ui/shared.tsx`。
+四条都在 `src/ui/shared.tsx`。

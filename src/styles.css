@@ -156,7 +156,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .hand-empty { color: #6e6559; font-size: 11px; margin: 0; }
 /* 支点压到卡面下方，旋转就会自然摊成扇形 */
 /* 不再扇形：支点落在底边，选中时的放大只往上长，卡的下沿始终对齐 */
-.hand-card { position: relative; flex: 0 0 auto; width: 96px; height: 128px; padding: 10px 9px; display: flex; flex-direction: column; gap: 5px; border: 1px solid #5b4e40; border-radius: 5px; background: linear-gradient(165deg, #2e2620, #1a1613); box-shadow: inset 0 1px #ffffff12, 0 8px 22px #0008; transform-origin: 50% 100%; color: #d8c8b2; text-align: left; cursor: pointer; }
+.hand-card { position: relative; flex: 0 0 auto; width: 96px; height: 128px; padding: 10px 9px; display: flex; flex-direction: column; gap: 5px; overflow: hidden; border: 1px solid #5b4e40; border-radius: 5px; background: linear-gradient(165deg, #2e2620, #1a1613); box-shadow: inset 0 1px #ffffff12, 0 8px 22px #0008; transform-origin: 50% 100%; color: #d8c8b2; text-align: left; cursor: pointer; }
 .hand-card:hover { border-color: #a08a63; }
 .hand-card:focus-visible { outline: 2px solid #edc46e; outline-offset: 2px; }
 .hand-card.selected { border-color: #edc46e; box-shadow: inset 0 1px #ffffff1f, 0 0 0 1px #edc46e55, 0 14px 30px #000a; }
@@ -185,6 +185,14 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .keyword-rules em { color: #9e917d; font-size: 10px; font-style: normal; line-height: 1.6; }
 .keyword-rules .keyword-tag, .equipment-detail-effect .keyword-tag, .boss-ability .keyword-tag { margin: 0; padding: 1px 5px; font-size: 10px; }
 
+/*
+  通用规则术语留在正文原位，不和特殊关键字争夺标签位。点状下划线表示这里有统一
+  定义；颜色只做轻微分组，保证 96px 手牌上的整句话仍然能顺畅阅读。
+*/
+.rule-term { color: #d2bf98; text-decoration: underline dotted #b9a06e99; text-decoration-thickness: 1px; text-underline-offset: 2px; cursor: help; }
+.rule-term.rule-term-result { color: #c5b6d8; text-decoration-color: #9d83bd99; }
+.rule-term.rule-term-stat { color: #b5cda9; text-decoration-color: #86a97899; }
+
 /* 圆圈标的是卡牌类型（攻／守／通／疗），所以配色跟着类型走，不参与卡牌自身的配色 */
 .hand-card-sigil { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font: 700 10px "Noto Serif SC", serif; border: 1px solid currentColor; opacity: .85; }
 .hand-card-sigil.type-attack { color: #f0a47d; background: #f0a47d14; }
@@ -193,7 +201,11 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .hand-card-sigil.type-healing { color: #8dd9a5; background: #8dd9a514; }
 /* 没有专属配色的卷轴走这个默认色；卡片是 button，不写就会掉回 UA 的黑字 */
 .hand-card-name { color: #e7d5ba; font: 700 12px "Noto Serif SC", serif; line-height: 1.2; }
-.hand-card-effect { font-size: 10px; color: #b0a18e; line-height: 1.45; margin-top: auto; }
+/*
+  小卡只负责扫读，完整说明在选中后的操作区与 aria-label。min-height: 0 允许 flex
+  子项真正缩进固定卡高，line-clamp 再保证最后一行以省略号结束而不是硬切半行。
+*/
+.hand-card-effect { min-height: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; font-size: 10px; color: #b0a18e; line-height: 1.45; margin-top: auto; }
 .hand-card.scroll-might { border-color: #8b4a36; background: linear-gradient(165deg, #35221b, #1c1512); }
 .hand-card.scroll-might .hand-card-name { color: #f0a47d; }
 .hand-card.scroll-guard { border-color: #35647a; background: linear-gradient(165deg, #1a2b34, #131a1d); }
@@ -523,7 +535,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
 .battle-card-sigil.type-universal { color: #e3c787; background: #e3c78714; }
 .battle-card-sigil.type-healing { color: #8dd9a5; background: #8dd9a514; }
 .battle-card-name { position: relative; z-index: 1; color: #e7d5ba; font: 700 13px "Noto Serif SC", serif; line-height: 1.2; padding-right: 19px; }
-.battle-card-effect { position: relative; z-index: 1; flex: 1; color: #ad9e89; font-size: 9px; line-height: 1.45; }
+.battle-card-effect { position: relative; z-index: 1; flex: 1; min-height: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; color: #ad9e89; font-size: 9px; line-height: 1.45; }
 .battle-card-select-hint { position: relative; z-index: 1; padding-top: 6px; border-top: 1px solid #ffffff0c; color: #6e6458; font-size: 8px; letter-spacing: .08em; }
 .battle-card.scroll-might { border-color: #8b4a36; background: linear-gradient(165deg, #35221b, #1c1512); }
 .battle-card.scroll-might .battle-card-name { color: #f0a47d; }
@@ -861,6 +873,7 @@ button.chip.equipment:focus-visible { outline: 2px solid #d2a85c; outline-offset
   .battle-hand { min-height: 209px; }
   .battle-hand-cards { justify-content: flex-start; overflow-x: auto; overflow-y: hidden; padding: 29px 10px 12px; }
   .battle-card { width: 104px; height: 142px; margin-left: 8px !important; }
+  .battle-card-effect { -webkit-line-clamp: 4; }
   .battle-card:first-child { margin-left: 0 !important; }
   .battle-decision-bar { flex-direction: column; align-items: stretch; gap: 7px; padding: 10px; text-align: center; }
   .battle-button { width: 100%; min-width: 0; }

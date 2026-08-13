@@ -1,7 +1,13 @@
 import { motion } from "framer-motion";
+import type { ReactNode } from "react";
 import type { useEventQueue } from "../anim/useEventQueue";
 import { isRevealed } from "../anim/visualState";
 import { keywordDefinition, type KeywordKind } from "../game/content/keywords";
+import {
+  findRuleTerms,
+  ruleTermDefinition,
+  type RuleTermMatch,
+} from "../game/content/ruleTerms";
 import { scrollDefinition } from "../game/content/scrolls";
 import { isHiddenScroll } from "../game/multiplayer";
 import { equipmentBlocksScrollTiming, scrollUsableAgainst } from "../game/selectors";
@@ -78,8 +84,42 @@ export function CardBlurb({ keywords, description }: {
           {keywordDefinition(kind).label}
         </span>
       ))}
-      {description}
+      <RuleText text={description} />
     </>
+  );
+}
+
+/**
+ * 保留原句，只把其中的基础规则词变成可识别、可查定义的正文术语。
+ *
+ * 它与 CardBlurb 分开导出：赐福、怪物能力等内容没有特殊关键字，但照样会使用
+ * 「生命上限」「防御骰上限」这些通用词。详情页也可以只接这一层。
+ */
+export function RuleText({ text }: { text: string }) {
+  const matches = findRuleTerms(text);
+  if (matches.length === 0) return text;
+
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  for (const match of matches) {
+    if (match.start > cursor) parts.push(text.slice(cursor, match.start));
+    parts.push(<RuleTerm key={`${match.start}-${match.kind}`} match={match} />);
+    cursor = match.end;
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <>{parts}</>;
+}
+
+function RuleTerm({ match }: { match: RuleTermMatch }) {
+  const definition = ruleTermDefinition(match.kind);
+  return (
+    <span
+      className={`rule-term rule-term-${definition.group}`}
+      title={definition.rule}
+      aria-label={`${match.text}：${definition.rule}`}
+    >
+      {match.text}
+    </span>
   );
 }
 

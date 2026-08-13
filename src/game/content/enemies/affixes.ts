@@ -1,4 +1,5 @@
 import type { EnemyEffects, StatModifier } from "../../effects/battleHooks";
+import type { KeywordKind } from "../keywords";
 import type { CardRarity } from "../rarity";
 
 /**
@@ -13,6 +14,8 @@ export interface EliteAffixDefinition {
   name: string;
   description: string;
   rarity: CardRarity;
+  /** 牌面关键字，判据同 EnemyAbility.keywords。 */
+  keywords?: readonly KeywordKind[];
   modifiers: readonly StatModifier[];
   effects?: EnemyEffects;
 }
@@ -67,7 +70,7 @@ export const ELITE_AFFIXES = {
 
   vigorous: {
     name: "生命旺盛的",
-    description: "最大生命 +5",
+    description: "生命上限 +5",
     rarity: "N",
     modifiers: [{ type: "maxHp", value: 5 }],
   },
@@ -76,6 +79,7 @@ export const ELITE_AFFIXES = {
     name: "淬毒的",
     description: "攻击时额外造成 1 点无视防御的伤害",
     rarity: "R",
+    keywords: ["ignoreDefense"],
     modifiers: [],
     effects: {
       /*

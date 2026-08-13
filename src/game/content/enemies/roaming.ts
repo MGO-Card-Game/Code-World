@@ -63,6 +63,15 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     attack: 3,
     defense: 1,
     regions: { mountainside: 1, summit: 1 },
+    /*
+      这条能力此前只在战报里出现过，卡面上一个字都没有——同样的效果在蚀骨咒和
+      雷坠身上都是印出来的能力，没有理由到这只怪身上就变成暗规则。
+    */
+    abilities: [{
+      name: "毒牙",
+      description: "攻击骰掷出最高面时，额外造成 1 点无视防御的伤害",
+      keywords: ["ignoreDefense"],
+    }],
     effects: {
       afterRoll({ dieKind, roll, modifiers, addBattleLog }) {
         if (dieKind !== "attack") return;
@@ -103,7 +112,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     regions: { summit: 1 },
     abilities: [{
       name: "崩解",
-      description: "完成第 3 次攻击后，生命降为 0。",
+      description: "完成第 3 次攻击后，生命降为 0",
     }],
     effects: {
       afterAttack({ attacksPerformed, ownHp, loseHp }) {
@@ -123,7 +132,8 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     regions: { foothill: 1, mountainside: 1, summit: 1 },
     abilities: [{
       name: "凝胶质",
-      description: "受到的每一次伤害至多为 3 点。",
+      description: "受到的每一次伤害至多为 3 点",
+      keywords: ["damageCap"],
     }],
     effects: {
       /*
@@ -153,7 +163,7 @@ export const ROAMING_ENEMIES = defineEnemies("roaming", {
     regions: { mountainside: 1, summit: 1 },
     abilities: [{
       name: "激怒",
-      description: "玩家本场每使用一张卷轴，它的攻击 +1。",
+      description: "玩家本场每使用一张卷轴，它的攻击 +1",
     }],
     effects: {
       /*

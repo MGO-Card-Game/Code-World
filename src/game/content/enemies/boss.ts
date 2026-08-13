@@ -13,11 +13,12 @@ export const BOSS_ENEMIES = defineEnemies("boss", {
     abilities: [
       {
         name: "重斧",
-        description: "攻击骰中出现最高点时，额外造成 2 点无视防御的伤害。",
+        description: "攻击骰掷出最高面时，额外造成 2 点无视防御的伤害",
+        keywords: ["ignoreDefense"],
       },
       {
         name: "动作如潮",
-        description: "本场战斗中的第一次攻击结算两次：重新投骰、重新判定伤害。",
+        description: "本场战斗中的第一次攻击结算两次：重新投骰、重新判定伤害",
       },
     ],
     effects: {
@@ -48,8 +49,8 @@ export const BOSS_ENEMIES = defineEnemies("boss", {
     attack: 8,
     defense: 5,
     abilities: [
-      { name: "霜锋之牙", description: "生命高于 20 点时，攻击 +2。" },
-      { name: "霜冻之铠", description: "每当对玩家造成伤害，玩家下一次攻击 -2。" },
+      { name: "霜锋之牙", description: "生命高于 20 点时，攻击 +2" },
+      { name: "霜冻之铠", description: "每当对玩家造成伤害，玩家下一次攻击 -2" },
     ],
     effects: {
       beforeRoll({ dieKind, ownHp, ownMaxHp, modifiers, addBattleLog }) {
@@ -74,14 +75,15 @@ export const BOSS_ENEMIES = defineEnemies("boss", {
     attack: 8,
     defense: 6,
     abilities: [
-      { name: "龙鳞", description: "防御骰上限 +2（D6 提升为 D8）。" },
+      { name: "龙鳞", description: "防御骰上限 +2" },
       {
         name: "暴怒",
-        description: "生命低于 70 点时，攻击 +2、攻击骰变为 D8、防御 -2，防御骰恢复为 D6。",
+        description: "生命低于 70 点时，攻击 +2、攻击骰改为 D8、防御 -2，防御骰恢复为 D6",
       },
       {
         name: "真·巨龙打击",
-        description: "生命低于 40 点时，攻击再 +2；每次攻击掷骰前对玩家造成 10 点可被防御值减免的伤害。",
+        description: "生命低于 40 点时，攻击再 +2；每次攻击掷骰前对玩家造成 10 点伤害，减去其当前防御",
+        keywords: ["directDamage"],
       },
     ],
     modifiers: [{ type: "dieSides", die: "defense", value: 2 }],

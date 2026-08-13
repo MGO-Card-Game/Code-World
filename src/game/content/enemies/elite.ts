@@ -15,7 +15,7 @@ export const ELITE_ENEMIES = defineEnemies("elite", {
     regions: { foothill: 2 },
     abilities: [{
       name: "扑杀",
-      description: "自身生命全满时，攻击 +2。",
+      description: "自身生命全满时，攻击 +2",
     }],
     effects: {
       beforeRoll({ dieKind, ownHp, ownMaxHp, modifiers, addBattleLog }) {
@@ -35,7 +35,8 @@ export const ELITE_ENEMIES = defineEnemies("elite", {
     regions: { foothill: 1, mountainside: 1 },
     abilities: [{
       name: "蚀骨咒",
-      description: "攻击骰掷出最高面时，额外造成 2 点无视防御的伤害。",
+      description: "攻击骰掷出最高面时，额外造成 2 点无视防御的伤害",
+      keywords: ["ignoreDefense"],
     }],
     effects: {
       afterRoll({ dieKind, roll, modifiers, addBattleLog }) {
@@ -55,7 +56,7 @@ export const ELITE_ENEMIES = defineEnemies("elite", {
     regions: { mountainside: 2 },
     abilities: [{
       name: "巨力",
-      description: "攻击骰上限 +2（D6 提升为 D8）。",
+      description: "攻击骰上限 +2",
     }],
     modifiers: [{ type: "dieSides", die: "attack", value: 2 }],
     initiative: { type: "range", min: 1, max: 4 },
@@ -69,7 +70,7 @@ export const ELITE_ENEMIES = defineEnemies("elite", {
     regions: { mountainside: 1, summit: 1 },
     abilities: [{
       name: "霜幕",
-      description: "自身生命低于一半时，防御 +2。",
+      description: "自身生命低于一半时，防御 +2",
     }],
     effects: {
       beforeRoll({ dieKind, ownHp, ownMaxHp, modifiers, addBattleLog }) {
@@ -89,7 +90,7 @@ export const ELITE_ENEMIES = defineEnemies("elite", {
     regions: { summit: 2 },
     abilities: [{
       name: "负伤狂怒",
-      description: "自身生命低于一半时，攻击 +2。",
+      description: "自身生命低于一半时，攻击 +2",
     }],
     effects: {
       beforeRoll({ dieKind, ownHp, ownMaxHp, modifiers, addBattleLog }) {
@@ -109,7 +110,8 @@ export const ELITE_ENEMIES = defineEnemies("elite", {
     regions: { summit: 2 },
     abilities: [{
       name: "雷坠",
-      description: "攻击骰掷出最高面时，额外造成 2 点无视防御的伤害。",
+      description: "攻击骰掷出最高面时，额外造成 2 点无视防御的伤害",
+      keywords: ["ignoreDefense"],
     }],
     effects: {
       afterRoll({ dieKind, roll, modifiers, addBattleLog }) {
@@ -129,7 +131,8 @@ export const ELITE_ENEMIES = defineEnemies("elite", {
     regions: { summit: 1 },
     abilities: [{
       name: "黑曜躯壳",
-      description: "受到的每一次伤害至多为 5 点。",
+      description: "受到的每一次伤害至多为 5 点",
+      keywords: ["damageCap"],
     }],
     effects: {
       beforeDamage({ incoming, capDamage, addBattleLog }) {

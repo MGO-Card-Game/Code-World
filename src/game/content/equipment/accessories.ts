@@ -40,7 +40,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
 
   charm: {
     name: "生命护符",
-    description: "生命上限 +4，获得时恢复 4",
+    description: "生命上限 +4，获得时恢复 4 点生命",
     rarity: "R",
     modifiers: [{ type: "maxHp", value: 4 }],
   },
@@ -87,6 +87,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
       { type: "dieSides", die: "attack", value: 1 },
       { type: "dieSides", die: "defense", value: 1 },
     ],
+    keywords: ["selfCost"],
     effects: {
       /*
         黑日碎片的 N 档前身：少了移动骰那一条，代价一模一样。两张同时穿得起
@@ -222,6 +223,7 @@ export const ACCESSORIES = defineEquipment("accessory", {
       { type: "dieSides", die: "defense", value: 1 },
       { type: "dieSides", die: "movement", value: 1 },
     ],
+    keywords: ["selfCost"],
     effects: {
       /*
         newCard.md 把它归在「高收益、高代价」那一档，代价就得真能疼到人：

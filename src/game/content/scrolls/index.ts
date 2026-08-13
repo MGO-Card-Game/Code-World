@@ -10,6 +10,7 @@ export {
   SCROLL_CATEGORY_NAMES,
   SCROLL_CATEGORY_SIGILS,
   scrollCategory,
+  scrollKeywords,
 } from "./definition";
 export type { ScrollCategory, ScrollDefinition, ScrollRarity } from "./definition";
 

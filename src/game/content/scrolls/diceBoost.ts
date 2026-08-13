@@ -12,7 +12,7 @@ export const DICE_BOOST_SCROLLS = {
 
   fate: {
     name: "D20",
-    description: "本次攻击或防御骰由 D6 变为 D20",
+    description: "本次攻击或防御骰改为 D20",
     rarity: "SR",
     timings: ["beforeAttackRoll", "beforeDefenseRoll"],
     effects: [{ type: "dieSides", sides: 20 }],
@@ -60,6 +60,7 @@ export const DICE_BOOST_SCROLLS = {
     description: "本场战斗限定 · 本次攻击额外投 2 个骰子，结果求和",
     rarity: "PR",
     timings: ["beforeAttackRoll"],
+    keywords: ["battleOnly"],
     effects: [{ type: "extraDice", count: 2 }],
     drawable: false,
   },
@@ -79,6 +80,7 @@ export const DICE_BOOST_SCROLLS = {
     description: "本场战斗限定 · 本次攻或防的第一颗骰直接定为 4",
     rarity: "N",
     timings: ["beforeAttackRoll", "beforeDefenseRoll"],
+    keywords: ["battleOnly"],
     effects: [{ type: "fixedRoll", count: 1, value: 4 }],
     drawable: false,
   },
@@ -88,6 +90,7 @@ export const DICE_BOOST_SCROLLS = {
     description: "本场战斗限定 · 本次攻或防的第一颗骰直接视为最高面",
     rarity: "PR",
     timings: ["beforeAttackRoll", "beforeDefenseRoll"],
+    keywords: ["battleOnly"],
     effects: [{ type: "maxRoll", count: 1 }],
     drawable: false,
   },

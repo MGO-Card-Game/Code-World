@@ -16,6 +16,7 @@ export {
   EQUIPMENT_CATEGORY_NAMES,
   EQUIPMENT_SLOT_LIMITS,
   defineEquipment,
+  equipmentKeywords,
 } from "./definition";
 export type {
   EquipmentBody,

@@ -113,7 +113,7 @@ export const SHOES = defineEquipment("shoes", {
 
   lynxBoots: {
     name: "山猫软靴",
-    description: "地图移动骰上限 +1；本场战斗第一次攻击时，攻击骰最低点数为 2",
+    description: "地图移动骰上限 +1；本场战斗第一次攻击时，每颗攻击骰最低视为 2",
     rarity: "N",
     modifiers: [{ type: "dieSides", die: "movement", value: 1 }],
     effects: {

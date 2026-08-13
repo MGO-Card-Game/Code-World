@@ -4,9 +4,10 @@ import { defineEquipment } from "./definition";
 export const ARMOR = defineEquipment("armor", {
   bloodthirstyBattleplate: {
     name: "嗜血战甲",
-    description: "防御骰上限 +1；若本次攻击骰点数高于对手防御骰点数，附加 1D2 点伤害",
+    description: "防御骰上限 +1；若本次攻击骰点数高于对手防御骰点数，额外造成 1D2 点无视防御的伤害",
     rarity: "SR",
     modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
+    keywords: ["ignoreDefense"],
     effects: {
       afterOpposedRoll({ attackRoll, defenseRoll, modifiers, random, addBattleLog }) {
         if (attackRoll.sum <= defenseRoll.sum) return;
@@ -76,7 +77,7 @@ export const ARMOR = defineEquipment("armor", {
 
   borderLeather: {
     name: "边境皮甲",
-    description: "防御骰上限 +1（D6 → D7）",
+    description: "防御骰上限 +1",
     rarity: "N",
     modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
   },
@@ -182,7 +183,7 @@ export const ARMOR = defineEquipment("armor", {
 
   undyingKingPlate: {
     name: "不灭王铠",
-    description: "防御骰上限 +3；防御+1；本场战斗第一次受到致命伤害时，保留一半最大生命（向上取整）",
+    description: "防御骰上限 +3；防御永久 +1；本场战斗第一次受到致命伤害时，保留一半生命上限（向上取整）",
     rarity: "PR",
     modifiers: [
       { type: "dieSides", die: "defense", value: 3 },

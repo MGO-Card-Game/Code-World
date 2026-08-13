@@ -1,5 +1,6 @@
 import type { ScrollEffectDefinition } from "../../effects/cardEffects";
 import type { BattleState, ScrollTiming } from "../../types";
+import { orderKeywords, type KeywordKind } from "../keywords";
 import type { CardRarity } from "../rarity";
 
 export type ScrollRarity = CardRarity;
@@ -27,6 +28,15 @@ export interface ScrollDefinition {
   usableAgainst?: (
     battle: Pick<BattleState, "kind" | "enemyId" | "enemyAffix">,
   ) => boolean;
+  /**
+   * 牌面关键字里必须手写的那部分。
+   *
+   * 能从 effects 或别的字段看出来的一律不写在这里——`scrollKeywords()` 会补上，
+   * 手写只会多出一处能和实际不符的地方（category 从 timings 推导、装备 category
+   * 由文件盖章，都是同一条判据）。真正需要声明的是藏在 `custom` 函数体里、
+   * 静态看不见的那些，比如往 `bonusDamage` 上加数的牌。
+   */
+  keywords?: readonly KeywordKind[];
   /**
    * 引擎按数组顺序结算。
    *
@@ -65,6 +75,48 @@ export const SCROLL_CATEGORY_SIGILS: Record<ScrollCategory, string> = {
  * 这样疗牌可以同时拥有地图、攻击和防御时机，却仍显示独立的「疗」标识；
  * 其他牌继续由使用时机自然分成攻、防、通。
  */
+/**
+ * 从 effects 就能看出来的那些关键字。
+ *
+ * 都是声明式效果类型，读一遍数组即可，不必让卡自己写——写了就可能和 effects 对不上。
+ * 「走」和「跳」的区别（advanceTiles 逐格 vs teleport 只结算落点）在这里第一次
+ * 变成牌面上看得见的东西，此前它只活在 cardEffects.ts 的注释里。
+ */
+function derivedScrollKeywords(definition: ScrollDefinition): KeywordKind[] {
+  const derived: KeywordKind[] = [];
+  for (const effect of definition.effects) {
+    switch (effect.type) {
+      case "directDamage":
+        derived.push("directDamage");
+        break;
+      case "chooseMovement":
+      case "advanceTiles":
+        derived.push("replacesMovement");
+        break;
+      case "teleport":
+      case "teleportAnywhere":
+        derived.push("replacesMovement", "skipsPath");
+        break;
+      case "targetPlayer":
+        derived.push("needsTarget");
+        // 换位是唯一一条同时代替移动的目标效果，其余三条只是对别人动手
+        if (effect.apply.type === "swapPositions") {
+          derived.push("replacesMovement", "skipsPath");
+        }
+        break;
+    }
+  }
+  return derived;
+}
+
+/** 牌面该印哪些关键字：手写的加推导出来的，排成固定顺序。 */
+export function scrollKeywords(definition: ScrollDefinition): KeywordKind[] {
+  return orderKeywords([
+    ...(definition.keywords ?? []),
+    ...derivedScrollKeywords(definition),
+  ]);
+}
+
 export function scrollCategory(definition: ScrollDefinition): ScrollCategory {
   if (definition.effects.some((effect) => effect.type === "heal")) return "healing";
   const attack = definition.timings.includes("beforeAttackRoll");

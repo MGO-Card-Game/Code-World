@@ -5,9 +5,10 @@ import { targetsEliteOrBoss } from "../../enemyClassification";
 export const WEAPONS = defineEquipment("weapon", {
   blackIronGreatsword: {
     name: "黑铁巨剑",
-    description: "攻击时投 2 次并取较低值；额外造成 3 点伤害",
+    description: "攻击时投 2 次并取较低值；额外造成 3 点无视防御的伤害",
     rarity: "R",
     modifiers: [],
+    keywords: ["ignoreDefense"],
     effects: {
       beforeRoll({ dieKind, modifiers, addBattleLog }) {
         if (dieKind !== "attack") return;
@@ -54,9 +55,10 @@ export const WEAPONS = defineEquipment("weapon", {
 
   shadowlessSword: {
     name: "无影剑",
-    description: "攻击骰上限 -2；若本次攻击骰点数高于对手防御骰点数，附加 4 点伤害",
+    description: "攻击骰上限 -2；若本次攻击骰点数高于对手防御骰点数，额外造成 4 点无视防御的伤害",
     rarity: "SR",
     modifiers: [{ type: "dieSides", die: "attack", value: -2 }],
+    keywords: ["ignoreDefense"],
     effects: {
       afterOpposedRoll({ attackRoll, defenseRoll, modifiers, addBattleLog }) {
         if (attackRoll.sum <= defenseRoll.sum) return;
@@ -85,9 +87,10 @@ export const WEAPONS = defineEquipment("weapon", {
 
   oldKnightSword: {
     name: "旧骑士长剑",
-    description: "攻击骰上限 +1；攻击骰掷出最高面时，额外造成 1 点伤害",
+    description: "攻击骰上限 +1；攻击骰掷出最高面时，额外造成 1 点无视防御的伤害",
     rarity: "N",
     modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
+    keywords: ["ignoreDefense"],
     effects: {
       /*
         newCard.md 原文写的是「最高值为 6 时」，但这把剑自己就把攻击骰改成了 D7，
@@ -106,7 +109,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
   whetstoneDagger: {
     name: "磨石短匕",
-    description: "攻击骰上限 +1；攻击骰最低点数为 2",
+    description: "攻击骰上限 +1；每颗攻击骰最低视为 2",
     rarity: "N",
     modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
     effects: {
@@ -217,9 +220,10 @@ export const WEAPONS = defineEquipment("weapon", {
 
   coldIronSpear: {
     name: "寒铁长枪",
-    description: "攻击骰上限 +1；对精英敌人和首领额外造成 3 点伤害",
+    description: "攻击骰上限 +1；对精英敌人和首领额外造成 3 点无视防御的伤害",
     rarity: "R",
     modifiers: [{ type: "dieSides", die: "attack", value: 1 }],
+    keywords: ["ignoreDefense"],
     effects: {
       afterRoll({ battle, dieKind, modifiers, addBattleLog }) {
         if (dieKind !== "attack") return;
@@ -258,7 +262,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
   dawnHalberd: {
     name: "晨曦长戟",
-    description: "攻击骰上限 +2；本场战斗第一次攻击时，每颗攻击骰最低点数为 4",
+    description: "攻击骰上限 +2；本场战斗第一次攻击时，每颗攻击骰最低视为 4",
     rarity: "SR",
     modifiers: [{ type: "dieSides", die: "attack", value: 2 }],
     effects: {
@@ -338,7 +342,7 @@ export const WEAPONS = defineEquipment("weapon", {
 
   throneBreaker: {
     name: "王座破坏者",
-    description: "攻击骰上限 +3；攻击力+2；每场战斗开始时获得一张「王座破坏者」攻击牌",
+    description: "攻击骰上限 +3；攻击永久 +2；每场战斗开始时获得一张「王座破坏者」攻击牌",
     rarity: "PR",
     modifiers: [
       { type: "dieSides", die: "attack", value: 3 },

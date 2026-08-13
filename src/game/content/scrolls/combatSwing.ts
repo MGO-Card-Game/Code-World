@@ -37,7 +37,7 @@ export const COMBAT_SWING_SCROLLS = {
 
   ironWallOrder: {
     name: "铁壁令",
-    description: "本次防御中，每个防御骰最低视为 3",
+    description: "本次防御中，每颗防御骰最低视为 3",
     rarity: "N",
     timings: ["beforeDefenseRoll"],
     effects: [{ type: "minimumRoll", value: 3 }],
@@ -45,7 +45,7 @@ export const COMBAT_SWING_SCROLLS = {
 
   precision: {
     name: "精准卷轴",
-    description: "本次攻击中，每个攻击骰最低视为 4",
+    description: "本次攻击中，每颗攻击骰最低视为 4",
     rarity: "N",
     timings: ["beforeAttackRoll"],
     effects: [{ type: "minimumRoll", value: 4 }],
@@ -53,7 +53,7 @@ export const COMBAT_SWING_SCROLLS = {
 
   steadfast: {
     name: "坚守卷轴",
-    description: "本次防御中，每个防御骰最低视为 4",
+    description: "本次防御中，每颗防御骰最低视为 4",
     rarity: "N",
     timings: ["beforeDefenseRoll"],
     effects: [{ type: "minimumRoll", value: 4 }],
@@ -61,7 +61,7 @@ export const COMBAT_SWING_SCROLLS = {
 
   frenzy: {
     name: "狂暴卷轴",
-    description: "本次每个攻击骰投掷两次，取较高结果",
+    description: "本次每颗攻击骰投掷两次，取较高结果",
     rarity: "R",
     timings: ["beforeAttackRoll"],
     effects: [{ type: "rollTwice" }],
@@ -92,6 +92,7 @@ export const COMBAT_SWING_SCROLLS = {
     description: "本场战斗限定 · 本次防御 +2",
     rarity: "N",
     timings: ["beforeDefenseRoll"],
+    keywords: ["battleOnly"],
     effects: [{ type: "flatBonus", value: 2 }],
     drawable: false,
   },
@@ -102,10 +103,11 @@ export const COMBAT_SWING_SCROLLS = {
   */
   decapitationOrder: {
     name: "斩首命令",
-    description: "精英与首领限定 · 本次攻击额外造成 3 点伤害",
+    description: "精英与首领限定 · 本次攻击额外造成 3 点无视防御的伤害",
     rarity: "R",
     timings: ["beforeAttackRoll"],
     usableAgainst: targetsEliteOrBoss,
+    keywords: ["ignoreDefense", "eliteOnly"],
     effects: [{
       type: "custom",
       resolve({ modifiers, addBattleLog }) {

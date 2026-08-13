@@ -1,5 +1,6 @@
 import type { EnemyEffects, StatModifier } from "../../effects/battleHooks";
 import type { MapRegionId } from "../../types";
+import type { KeywordKind } from "../keywords";
 
 /**
  * 怪物本体的档位。词条是贴在漫游怪身上的正交标志，不在这里，见 ./affixes。
@@ -20,6 +21,13 @@ export const ENEMY_TIER_NAMES: Record<EnemyTier, string> = {
 export interface EnemyAbility {
   name: string;
   description: string;
+  /**
+   * 牌面关键字。怪的能力和装备一样住在 `effects` 的函数体里，只能手写。
+   *
+   * 怪也吃这套词是有必要的：「无视防御」最早就是从精英怪的蚀骨咒上来的，
+   * 玩家在敌我两侧读到的该是同一个词、同一条规则。
+   */
+  keywords?: readonly KeywordKind[];
 }
 
 /**

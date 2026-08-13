@@ -1,5 +1,6 @@
 import type { StatModifier } from "../../effects/battleHooks";
 import type { EquipmentEffects } from "../../effects/cardEffects";
+import { orderKeywords, type KeywordKind } from "../keywords";
 import type { CardRarity } from "../rarity";
 
 export type EquipmentCategory = "weapon" | "armor" | "shoes" | "accessory";
@@ -29,6 +30,13 @@ export interface EquipmentBody {
   rarity: CardRarity;
   modifiers: readonly StatModifier[];
   /**
+   * 牌面关键字。
+   *
+   * 装备这边全靠手写：效果都住在 `effects` 的函数体里，静态看不出装备到底做了
+   * 什么——卷轴那种"读一遍 effects 数组就知道"的推导在这里不成立。
+   */
+  keywords?: readonly KeywordKind[];
+  /**
    * 通用 modifier 表达不了的逻辑直接写在这里。
    *
    * 卡牌定义只活在模块常量里，GameState 只保存 { instanceId, kind }，
@@ -38,6 +46,11 @@ export interface EquipmentBody {
 }
 
 export type EquipmentDefinition = EquipmentBody & { category: EquipmentCategory };
+
+/** 牌面该印哪些关键字。装备没有可推导的部分，只是排成和卷轴一致的顺序。 */
+export function equipmentKeywords(definition: EquipmentBody): KeywordKind[] {
+  return orderKeywords(definition.keywords ?? []);
+}
 
 /**
  * 给一整张分类表盖上 category。

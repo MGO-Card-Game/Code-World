@@ -1,3 +1,4 @@
+import { targetsEliteOrBoss } from "../../enemyClassification";
 import type { ScrollDefinition } from "./definition";
 
 /** 攻防转换类：改攻防数值、伤害下限，或者绕过投骰直接结算。 */
@@ -95,15 +96,19 @@ export const COMBAT_SWING_SCROLLS = {
     drawable: false,
   },
 
+  /*
+    只认强敌：独立精英怪、带词条的漫游怪和首领。普通怪和玩家身上打不出去，
+    条件由 usableAgainst 在选牌阶段就挡住，effects 里不再重复判断。
+  */
   decapitationOrder: {
     name: "斩首命令",
-    description: "本次攻击对首领或敌方玩家额外造成 3 点伤害",
+    description: "精英与首领限定 · 本次攻击额外造成 3 点伤害",
     rarity: "R",
     timings: ["beforeAttackRoll"],
+    usableAgainst: targetsEliteOrBoss,
     effects: [{
       type: "custom",
-      resolve({ battle, modifiers, addBattleLog }) {
-        if (battle.kind !== "boss" && battle.kind !== "pvp") return;
+      resolve({ modifiers, addBattleLog }) {
         modifiers.bonusDamage += 3;
         addBattleLog("斩首命令锁定强敌，额外造成 3 点伤害。");
       },

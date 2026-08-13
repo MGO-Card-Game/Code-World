@@ -802,7 +802,8 @@ export function submitScrollChoice(
     const timing: ScrollTiming =
       side === battle.attacker ? "beforeAttackRoll" : "beforeDefenseRoll";
     const playable = new Set(
-      playableScrolls(state.players[playerId], timing).map((scroll) => scroll.instanceId),
+      playableScrolls(state.players[playerId], timing, battle)
+        .map((scroll) => scroll.instanceId),
     );
     if (new Set(chosen).size !== chosen.length) return false;
     if (chosen.some((id) => !playable.has(id))) return false;

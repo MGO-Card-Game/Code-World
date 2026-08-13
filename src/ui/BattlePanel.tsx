@@ -57,17 +57,19 @@ function pendingChoiceSide(battle: BattleState): CombatSide | null {
  * 战斗中的可用卷轴（规格 25.5「可使用卷轴」）。
  *
  * 按 timing 过滤而不是按 kind，加新卷轴时这里不用改（GameRule 8.9）。
+ * battle 交给筛选是为了挑对手的牌（斩首命令）在打不到的战斗里直接不出现。
  * 多选：8.5 不限张数，点一下选中、再点一下取消。
  */
-function BattleHand({ player, timing, label, selectedIds, onToggle, disabled }: {
+function BattleHand({ player, timing, battle, label, selectedIds, onToggle, disabled }: {
   player: PlayerView;
   timing: ScrollTiming;
+  battle: BattleState;
   label: string;
   selectedIds: readonly string[];
   onToggle: (instanceId: string) => void;
   disabled: boolean;
 }) {
-  const cards = playableFromView(player, timing);
+  const cards = playableFromView(player, timing, battle);
   const spacing = handSpacing(cards.length, 760, 118);
 
   return (
@@ -451,6 +453,7 @@ export function BattlePanel({ state, battle, live, dispatch, playback, viewerSea
             <BattleHand
               player={choosingPlayer}
               timing={choosingTiming}
+              battle={battle}
               label={choosingSide === attackerSide ? "攻击方" : "防守方"}
               selectedIds={pendingChoiceIds}
               onToggle={togglePendingChoice}

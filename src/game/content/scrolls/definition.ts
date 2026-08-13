@@ -1,5 +1,5 @@
 import type { ScrollEffectDefinition } from "../../effects/cardEffects";
-import type { ScrollTiming } from "../../types";
+import type { BattleState, ScrollTiming } from "../../types";
 import type { CardRarity } from "../rarity";
 
 export type ScrollRarity = CardRarity;
@@ -17,6 +17,16 @@ export interface ScrollDefinition {
    * 否则宝箱和战斗奖励会把它当普通卷轴发出去。
    */
   drawable?: boolean;
+  /**
+   * 战斗里的使用对象限制：timings 管什么时候能打，这条管能打给谁。
+   *
+   * 不配表示不挑对手。返回 false 的战斗里这张牌根本不进可选列表，
+   * 而不是打出去之后静默失效——挑对象的牌若能被当废牌交掉，
+   * 玩家迟早会在没读懂条件时白扔一张 R。
+   */
+  usableAgainst?: (
+    battle: Pick<BattleState, "kind" | "enemyId" | "enemyAffix">,
+  ) => boolean;
   /**
    * 引擎按数组顺序结算。
    *

@@ -823,6 +823,15 @@ interface Enemy extends Character {
 
 后续可以设计少量专门允许投骰后使用的卷轴，但第一阶段不实现。
 
+### 使用对象限制
+
+除了时机，单张卡还可以限定**能打给谁**（`usableAgainst`）。不满足条件的战斗里，这张牌不出现在可选列表中，提交也会被引擎拒绝——挑对象的牌不会被当作废牌交掉。
+
+```text
+斩首命令：只能对精英敌人（含带词条的漫游怪）和首领打出。
+普通怪与敌方玩家身上无法使用。
+```
+
 ---
 
 ## 8.4 卷轴生效范围
@@ -1033,6 +1042,8 @@ interface ScrollCard {
   effects: ScrollEffect[];
   /** 默认参与随机卡池；战斗限定的临时牌设为 false */
   drawable?: boolean;
+  /** 使用对象限制（见 8.3）；不配表示不挑对手 */
+  usableAgainst?: (battle: BattleState) => boolean;
 }
 ```
 

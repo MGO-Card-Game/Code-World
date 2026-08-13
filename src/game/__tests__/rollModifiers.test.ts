@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SCROLLS, type ScrollKind } from "../content/scrolls";
 import { createInitialGame, gameReducer } from "../engine";
 import { makeBattle, resolveRound } from "../testSupport";
-import type { GameEvent, GameState } from "../types";
+import type { BattleState, GameEvent, GameState } from "../types";
 
 function only<T extends GameEvent["type"]>(events: GameEvent[], type: T) {
   const found = events.filter(
@@ -184,36 +184,54 @@ describe("一回合多张卷轴", () => {
 });
 
 describe("斩首命令", () => {
-  it("只对首领和敌方玩家追加 3 点伤害", () => {
-    const cases = [
-      { kind: "pve" as const, enemyId: "slime" as const, bPlayerId: undefined, bonus: 0 },
-      { kind: "boss" as const, enemyId: "dragon" as const, bPlayerId: undefined, bonus: 3 },
-      { kind: "pvp" as const, enemyId: undefined, bPlayerId: "player2" as const, bonus: 3 },
+  /** 攻击方 player1 手上只有一张斩首命令的一场战斗 */
+  function stagedAgainst(enemy: Partial<BattleState>): GameState {
+    const state = createInitialGame(20260805);
+    state.players.player1.scrolls = [
+      { instanceId: "order-1", kind: "decapitationOrder" },
+    ];
+    state.phase = {
+      kind: "battle",
+      battle: makeBattle({ kind: "pve", aPlayerId: "player1", ...enemy }),
+    };
+    return state;
+  }
+
+  it("对精英、词条怪和首领追加 3 点伤害", () => {
+    const strongEnemies: Partial<BattleState>[] = [
+      { kind: "boss", enemyId: "dragon" },
+      { enemyId: "razorbackAlpha" },                    // 独立精英怪
+      { enemyId: "slime", enemyAffix: "frenzied" },     // 带词条的漫游怪
     ];
 
-    for (const scenario of cases) {
-      let state = createInitialGame(20260805);
-      state.players.player1.scrolls = [
-        { instanceId: "order-1", kind: "decapitationOrder" },
-      ];
-      state.phase = {
-        kind: "battle",
-        battle: makeBattle({
-          kind: scenario.kind,
-          aPlayerId: "player1",
-          bPlayerId: scenario.bPlayerId,
-          enemyId: scenario.enemyId,
-        }),
-      };
-
+    for (const enemy of strongEnemies) {
+      let state = stagedAgainst(enemy);
       state = resolveRound(state, { attack: "order-1" });
 
       const attack = only(state.lastEvents, "attackRolled");
       const defense = only(state.lastEvents, "defenseRolled");
       expect(only(state.lastEvents, "battleDamage").amount).toBe(
-        Math.max(0, attack.total - defense.total) + scenario.bonus,
+        Math.max(0, attack.total - defense.total) + 3,
       );
       expect(state.players.player1.scrolls).toHaveLength(0);
+    }
+  });
+
+  it("对普通怪和敌方玩家根本打不出，不会被白白交掉", () => {
+    const weakTargets: Partial<BattleState>[] = [
+      { enemyId: "slime" },                             // 无词条的漫游怪
+      { kind: "pvp", bPlayerId: "player2" },
+    ];
+
+    for (const target of weakTargets) {
+      const state = stagedAgainst(target);
+      expect(gameReducer(state, {
+        type: "submitScrollChoice",
+        side: "a",
+        instanceIds: ["order-1"],
+      })).toBe(state);
+      // 提交被拒，牌留在手上
+      expect(state.players.player1.scrolls).toHaveLength(1);
     }
   });
 });

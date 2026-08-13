@@ -3,8 +3,9 @@ import type { useEventQueue } from "../anim/useEventQueue";
 import { isRevealed } from "../anim/visualState";
 import { scrollDefinition } from "../game/content/scrolls";
 import { isHiddenScroll } from "../game/multiplayer";
-import { equipmentBlocksScrollTiming } from "../game/selectors";
+import { equipmentBlocksScrollTiming, scrollUsableAgainst } from "../game/selectors";
 import type {
+  BattleState,
   GameAction,
   OwnedScroll,
   PlayerView,
@@ -35,10 +36,15 @@ export function visibleScrolls(scrolls: ScrollView[]): OwnedScroll[] {
 }
 
 /** 视图版的可用卷轴筛选：看不见的牌不可能打得出 */
-export function playableFromView(player: PlayerView, timing: ScrollTiming) {
+export function playableFromView(
+  player: PlayerView,
+  timing: ScrollTiming,
+  battle?: Pick<BattleState, "kind" | "enemyId" | "enemyAffix">,
+) {
   if (equipmentBlocksScrollTiming(player, timing)) return [];
   return visibleScrolls(player.scrolls).filter(
-    (scroll) => scrollDefinition(scroll.kind).timings.includes(timing),
+    (scroll) => scrollDefinition(scroll.kind).timings.includes(timing)
+      && scrollUsableAgainst(scroll.kind, battle),
   );
 }
 

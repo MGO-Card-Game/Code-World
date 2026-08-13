@@ -5,7 +5,7 @@ import {
 } from "./content/enemies";
 import { EQUIPMENT, equipmentDefinition } from "./content/equipment";
 import { blessingDefinition } from "./content/blessings";
-import { scrollDefinition } from "./content/scrolls";
+import { scrollDefinition, type ScrollKind } from "./content/scrolls";
 import type {
   BattleDiceKind,
   CountedDiceKind,
@@ -14,6 +14,7 @@ import type {
   StatModifier,
 } from "./effects/battleHooks";
 import type {
+  BattleState,
   EliteAffixKind,
   EnemyKind,
   Player,
@@ -189,17 +190,36 @@ export function describeEquipment(player: PlayerStats) {
 }
 
 /**
+ * 卡牌自带的使用对象限制（GameRule 8.3）。没配 usableAgainst 的牌永远通过。
+ *
+ * 战斗外（地图时机）没有对手可判，调用方不传 battle 就跳过这一层。
+ */
+export function scrollUsableAgainst(
+  kind: ScrollKind,
+  battle: Pick<BattleState, "kind" | "enemyId" | "enemyAffix"> | undefined,
+) {
+  if (!battle) return true;
+  return scrollDefinition(kind).usableAgainst?.(battle) ?? true;
+}
+
+/**
  * 该玩家此刻能打出的卷轴（GameRule 8.3 / 8.9）。
  *
  * 按 timing 过滤而不是按 kind——加新卷轴时这里不用改。
+ * 战斗里再传 battle，把挑对手的牌（斩首命令）从可选列表里摘掉。
  */
-export function playableScrolls(player: Player, timing: ScrollTiming) {
+export function playableScrolls(
+  player: Player,
+  timing: ScrollTiming,
+  battle?: Pick<BattleState, "kind" | "enemyId" | "enemyAffix">,
+) {
   const blocked = player.equipment.some((item) =>
     equipmentDefinition(item.kind).effects?.blockedScrollTimings?.includes(timing)
   );
   if (blocked) return [];
   return player.scrolls.filter((scroll) =>
     scrollDefinition(scroll.kind).timings.includes(timing)
+    && scrollUsableAgainst(scroll.kind, battle)
   );
 }
 

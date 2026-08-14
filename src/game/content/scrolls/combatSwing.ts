@@ -35,6 +35,14 @@ export const COMBAT_SWING_SCROLLS = {
     effects: [{ type: "directDamage", amount: 6 }],
   },
 
+  lightStrike: {
+    name: "轻击",
+    description: "造成 4 点伤害，减去其当前防御",
+    rarity: "N",
+    timings: ["beforeAttackRoll"],
+    effects: [{ type: "directDamage", amount: 4 }],
+  },
+
   ironWallOrder: {
     name: "铁壁令",
     description: "本次防御中，每颗防御骰最低视为 3",
@@ -67,6 +75,14 @@ export const COMBAT_SWING_SCROLLS = {
     effects: [{ type: "rollTwice" }],
   },
 
+  composure: {
+    name: "沉稳",
+    description: "本次每颗防御骰投掷两次，取较高结果",
+    rarity: "R",
+    timings: ["beforeDefenseRoll"],
+    effects: [{ type: "rollTwice" }],
+  },
+
   dodge: {
     name: "闪避卷轴",
     description: "本次攻防结算的最终伤害减少 3，最低减至 0",
@@ -75,11 +91,27 @@ export const COMBAT_SWING_SCROLLS = {
     effects: [{ type: "damageReduction", amount: 3 }],
   },
 
+  thickArmor: {
+    name: "厚甲",
+    description: "本次攻防结算的最终伤害减少 5，最低减至 0",
+    rarity: "SR",
+    timings: ["beforeDefenseRoll"],
+    effects: [{ type: "damageReduction", amount: 5 }],
+  },
+
   breachDrum: {
     name: "破阵战鼓",
     description: "本次攻击额外投 1 个攻击骰，结果求和",
     rarity: "R",
     timings: ["beforeAttackRoll"],
+    effects: [{ type: "extraDice", count: 1 }],
+  },
+
+  defenseDrum: {
+    name: "守阵战鼓",
+    description: "本次防御额外投 1 个防御骰，结果求和",
+    rarity: "R",
+    timings: ["beforeDefenseRoll"],
     effects: [{ type: "extraDice", count: 1 }],
   },
 
@@ -113,6 +145,22 @@ export const COMBAT_SWING_SCROLLS = {
       resolve({ modifiers, addBattleLog }) {
         modifiers.bonusDamage += 3;
         addBattleLog("斩首命令锁定强敌，额外造成 3 点伤害。");
+      },
+    }],
+  },
+
+  headhuntOrder: {
+    name: "猎头令",
+    description: "本次攻击额外造成 5 点伤害",
+    rarity: "SR",
+    timings: ["beforeAttackRoll"],
+    usableAgainst: targetsEliteOrBoss,
+    keywords: ["ignoreDefense", "eliteOnly"],
+    effects: [{
+      type: "custom",
+      resolve({ modifiers, addBattleLog }) {
+        modifiers.bonusDamage += 5;
+        addBattleLog("猎头令锁定强敌，额外造成 5 点伤害。");
       },
     }],
   },

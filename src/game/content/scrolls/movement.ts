@@ -45,6 +45,14 @@ export const MOVEMENT_SCROLLS = {
     effects: [{ type: "advanceTiles", distance: 2 }],
   },
 
+  leapForward: {
+    name: "跃进",
+    description: "地图阶段使用：不掷骰，直接前进 4 格，落点触发",
+    rarity: "R",
+    timings: ["map"],
+    effects: [{ type: "advanceTiles", distance: 4 }],
+  },
+
   anywhereDoor: {
     name: "任意门",
     description: "地图阶段使用：直接传送至当前阶段地图上的任意一格，不触发沿途任何效果",

@@ -322,12 +322,13 @@ describe("推导出来的关键字不要手写", () => {
   });
 
   it("代替移动的牌都被推导到了", () => {
-    // 五张地图牌 + 移形换影，是当前全部会顶掉移动骰的卷轴
+    // 六张地图牌 + 移形换影，是当前全部会顶掉移动骰的卷轴
     const replacing = (Object.keys(SCROLLS) as ScrollKind[])
       .filter((kind) => scrollKeywords(scrollDefinition(kind)).includes("replacesMovement"));
     expect(replacing.sort()).toEqual([
       "anywhereDoor",
       "bodySwap",
+      "leapForward",
       "remoteDice",
       "shortRangeTeleportCharm",
       "somersault",
@@ -336,8 +337,8 @@ describe("推导出来的关键字不要手写", () => {
   });
 
   it("「跳过」和「走过」分得开", () => {
-    // 逐格走的两张不能带 skipsPath，否则营地回血和守关门计次会被牌面说反
-    const walking = ["remoteDice", "somersault"] as const;
+    // 逐格走的三张不能带 skipsPath，否则营地回血和守关门计次会被牌面说反
+    const walking = ["leapForward", "remoteDice", "somersault"] as const;
     for (const kind of walking) {
       expect(scrollKeywords(scrollDefinition(kind)), `${kind} 是逐格前进`)
         .not.toContain("skipsPath");

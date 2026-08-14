@@ -30,6 +30,7 @@ export function advanceAlongLoop(
   roll: number,
 ): LoopAdvanceResult {
   const region = regionForPosition(state.map, player.position);
+  player.previousStopPosition = player.position;
   let interceptedAtGate = false;
   let passedCamp = false;
   for (let step = 0; step < roll; step += 1) {
@@ -58,6 +59,7 @@ export function landDirectlyAt(
   region: MapRegion,
   targetPosition: number,
 ): { interceptedAtGate: boolean; targetTile: MapTile } {
+  player.previousStopPosition = player.position;
   player.position = targetPosition;
   let interceptedAtGate = false;
   if (player.position === region.gateIndex) {

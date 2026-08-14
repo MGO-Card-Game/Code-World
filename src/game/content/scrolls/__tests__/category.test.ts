@@ -32,6 +32,8 @@ describe("卷轴主题表", () => {
       "teleport",
       "teleportAnywhere",
       "advanceTiles",
+      "returnToCamp",
+      "returnToPreviousPosition",
       "targetPlayer",
     ];
 

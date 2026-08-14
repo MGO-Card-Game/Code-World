@@ -48,6 +48,12 @@ export function actionGuidance(
         action: "选择一名玩家",
         actorIds: [phase.choice.playerId],
       };
+    case "scrollDiscardChoice":
+      return {
+        label: "缴械",
+        action: "选择一张卷轴弃掉",
+        actorIds: [phase.choice.targetPlayerId],
+      };
     case "mapEventScrollChoice":
       return {
         label: "双子杀手",

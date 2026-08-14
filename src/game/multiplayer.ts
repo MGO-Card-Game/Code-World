@@ -62,6 +62,12 @@ export function canAct(state: GameState, action: GameAction, actor: PlayerId): b
         state.phase.choice.playerId === actor
       );
 
+    case "chooseScrollDiscard":
+      return (
+        state.phase.kind === "scrollDiscardChoice"
+        && state.phase.choice.targetPlayerId === actor
+      );
+
     case "chooseMapEventScroll":
       return (
         state.phase.kind === "mapEventScrollChoice" &&
@@ -446,6 +452,8 @@ export function currentActor(state: GameState): PlayerId {
       return state.phase.choice.challengerId;
     case "scrollTargetChoice":
       return state.phase.choice.playerId;
+    case "scrollDiscardChoice":
+      return state.phase.choice.targetPlayerId;
     case "mapEventScrollChoice":
       return state.phase.choice.playerId;
     case "mapEventEquipmentChoice":

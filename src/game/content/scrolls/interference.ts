@@ -18,6 +18,38 @@ export const EXTORTION_GOLD = 100;
  * 每张牌上只能有一条 targetPlayer 效果：选择会暂停结算，排在它后面的走不到。
  */
 export const INTERFERENCE_SCROLLS = {
+  duelContract: {
+    name: "决斗契约",
+    description: "地图阶段使用：代替本次移动，选择一名其他玩家立即发起战斗；双方位置不变",
+    rarity: "R",
+    timings: ["map"],
+    effects: [{ type: "targetPlayer", apply: { type: "startPvpBattle" } }],
+  },
+
+  plunder: {
+    name: "搜刮",
+    description: "选择一名持有卷轴的其他玩家，随机抽走他一张卷轴",
+    rarity: "R",
+    timings: ["map"],
+    effects: [{ type: "targetPlayer", apply: { type: "stealRandomScroll" } }],
+  },
+
+  disarm: {
+    name: "缴械",
+    description: "选择一名持有卷轴的其他玩家，由他自选弃掉一张卷轴",
+    rarity: "SR",
+    timings: ["map"],
+    effects: [{ type: "targetPlayer", apply: { type: "forceDiscardScroll" } }],
+  },
+
+  caltrop: {
+    name: "绊马索",
+    description: "选择一名其他玩家，他下一次掷骰移动结果 -2，最低为 1",
+    rarity: "N",
+    timings: ["map"],
+    effects: [{ type: "targetPlayer", apply: { type: "penalizeMovementRoll", amount: 2 } }],
+  },
+
   tripwire: {
     name: "绊索",
     description: "选定一名其他玩家，他下一次掷骰移动只能走 1 格",

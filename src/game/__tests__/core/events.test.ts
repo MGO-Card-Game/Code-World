@@ -6,6 +6,7 @@ import {
 } from "../../content/scrolls";
 import { REWARD_RARITY_TIERS } from "../../content/rarity";
 import { EQUIPMENT } from "../../content/equipment";
+import { BLESSINGS } from "../../content/blessings";
 import { createInitialGame, gameReducer } from "../../engine";
 import { regionForPosition } from "../../map";
 import { playableScrolls } from "../../selectors";
@@ -538,10 +539,11 @@ describe("事件流", () => {
     expect(pick(events, "gameOver").length).toBeLessThanOrEqual(1);
 
     /*
-      事件流描述的上限变化，应当与玩家最终装备提供的加成对得上。
+      事件流描述的上限变化，应当与玩家最终装备和赐福提供的加成对得上。
 
       按装备表求和而不是数护符：生命护符不是唯一抬上限的装备（疾风绑腿也给 +2），
-      写死某一件会在装备表扩充时悄悄失真。另一条上限来源是加点，自动玩家一律选
+      写死某一件会在装备表扩充时悄悄失真。赐福里的古树之心同样会抬上限，也必须
+      从最终持有列表计入。另一条上限来源是加点，自动玩家一律选
       攻击、进商店也不买，所以这里不必把它算进来。
     */
     for (const player of Object.values(state.players)) {
@@ -551,7 +553,15 @@ describe("事件流", () => {
           .reduce((sum, modifier) => sum + modifier.value, 0),
         0,
       );
-      expect(player.maxHp).toBe(initial.players[player.id].maxHp + fromEquipment);
+      const fromBlessings = player.blessings.reduce(
+        (total, blessing) => total + BLESSINGS[blessing.kind].modifiers
+          .filter((modifier) => modifier.type === "maxHp")
+          .reduce((sum, modifier) => sum + modifier.value, 0),
+        0,
+      );
+      expect(player.maxHp).toBe(
+        initial.players[player.id].maxHp + fromEquipment + fromBlessings,
+      );
     }
     // 超时理由同 engine.test.ts：这一局跑不完，每次都会烧满 PLAYTHROUGH_CAP 步
   }, 30_000);

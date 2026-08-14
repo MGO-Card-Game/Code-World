@@ -18,6 +18,7 @@ import {
   PenaltyPanel,
   PveRewardPanel,
   ScrollTargetChoicePanel,
+  ScrollDiscardChoicePanel,
   StatGrowthPanel,
   TreasureRewardPanel,
 } from "./outcomePanels";
@@ -128,6 +129,11 @@ export function pendingDecision(state: GameStateView) {
       return {
         key: `scroll-target-${state.turn}-${state.phase.choice.playerId}-${state.phase.choice.scrollKind}`,
         label: "继续选择目标",
+      };
+    case "scrollDiscardChoice":
+      return {
+        key: `scroll-discard-${state.turn}-${state.phase.choice.targetPlayerId}`,
+        label: "继续选择弃牌",
       };
     case "encounterChoice":
       return {
@@ -320,6 +326,16 @@ export function PhaseOverlayRouter({
           key="pve-reward"
           state={state}
           notice={state.phase.notice}
+          dispatch={dispatch}
+          playing={playback.playing}
+          viewerSeat={viewerSeat}
+        />
+      )}
+      {visible && !playback.playing && state.phase.kind === "scrollDiscardChoice" && (
+        <ScrollDiscardChoicePanel
+          key="scroll-discard-choice"
+          state={state}
+          choice={state.phase.choice}
           dispatch={dispatch}
           playing={playback.playing}
           viewerSeat={viewerSeat}

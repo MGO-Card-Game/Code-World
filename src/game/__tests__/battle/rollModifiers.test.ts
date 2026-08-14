@@ -161,12 +161,14 @@ describe("一回合多张卷轴", () => {
       commutative：换顺序结果不变；sequential：带副作用，按提交顺序结算。
       */
     const COMMUTATIVE = [
-      "flatBonus", "dieSides", "extraDice", "rollTwice", "minimumRoll", "maxRoll",
-      "fixedRoll", "damageReduction",
+      "flatBonus", "dieSides", "dieSidesBonus", "extraDice", "rollTwice", "minimumRoll", "maxRoll",
+      "fixedRoll", "damageReduction", "damageCap", "postRoundSelfHpLoss",
+      "skipNextAttack", "penalizeNextAttackDieSides",
     ];
     const SEQUENTIAL = [
       "directDamage", "heal", "forfeitMovement", "chooseMovement", "teleport",
-      "teleportAnywhere", "advanceTiles", "custom",
+      "teleportAnywhere", "advanceTiles", "returnToCamp", "returnToPreviousPosition",
+      "custom", "selfHpLoss", "mutualDirectDamage",
       "targetPlayer",
     ];
     /*

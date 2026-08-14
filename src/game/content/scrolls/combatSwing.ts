@@ -99,6 +99,17 @@ export const COMBAT_SWING_SCROLLS = {
     effects: [{ type: "damageReduction", amount: 5 }],
   },
 
+  lastBastion: {
+    name: "最后壁垒",
+    description: "本次受到的最终伤害最多为 1；下一次轮到你主动攻击时跳过该攻击",
+    rarity: "SR",
+    timings: ["beforeDefenseRoll"],
+    effects: [
+      { type: "damageCap", amount: 1 },
+      { type: "skipNextAttack" },
+    ],
+  },
+
   breachDrum: {
     name: "破阵战鼓",
     description: "本次攻击额外投 1 个攻击骰，结果求和",
@@ -113,6 +124,25 @@ export const COMBAT_SWING_SCROLLS = {
     rarity: "R",
     timings: ["beforeDefenseRoll"],
     effects: [{ type: "extraDice", count: 1 }],
+  },
+
+  mutualDestruction: {
+    name: "同归于尽",
+    description: "双方各受到 4 点伤害，减去其当前防御；同时倒下时你判负",
+    rarity: "SR",
+    timings: ["beforeAttackRoll"],
+    effects: [{ type: "mutualDirectDamage", amount: 4 }],
+  },
+
+  frostNail: {
+    name: "寒霜钉",
+    description: "本次攻击 +2；对方下一次攻击骰面上限 -2",
+    rarity: "R",
+    timings: ["beforeAttackRoll"],
+    effects: [
+      { type: "flatBonus", value: 2 },
+      { type: "penalizeNextAttackDieSides", amount: 2 },
+    ],
   },
 
   /*

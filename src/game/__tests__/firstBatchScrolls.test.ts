@@ -34,7 +34,7 @@ function stagedWithHands(
 }
 
 describe("第一批新增卷轴", () => {
-  it("八张牌全部进入随机卡池，决斗契约没有加入", () => {
+  it("首批九张牌全部进入随机卡池", () => {
     const added = [
       "defenseDrum",
       "composure",
@@ -44,12 +44,12 @@ describe("第一批新增卷轴", () => {
       "headhuntOrder",
       "leapForward",
       "reverseScale",
+      "duelContract",
     ] as const;
     const drawable = drawableScrollKinds();
 
     for (const kind of added) expect(drawable).toContain(kind);
-    expect(Object.values(SCROLLS).some((definition) => definition.name === "决斗契约"))
-      .toBe(false);
+    expect(SCROLLS.duelContract.name).toBe("决斗契约");
   });
 
   it("守阵战鼓让防守方额外投一颗骰子", () => {

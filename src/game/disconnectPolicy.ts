@@ -18,7 +18,7 @@ import { addHistory, cloneGameState } from "./state";
 import { resolveTile } from "./tiles";
 import { advanceCompletedTurn } from "./turns";
 import { settleActionResult } from "./actionResult";
-import { chooseBossChallenge } from "./mapActions";
+import { chooseBossChallenge, chooseScrollDiscard } from "./mapActions";
 import {
   acknowledgeMapEvent,
   chooseMapEventEquipment,
@@ -65,6 +65,20 @@ export function handleDisconnectTimeout(state: GameState, playerId: Player["id"]
       addHistory(next, `${timedOut.name}掉线超时，放弃本次针对。`);
       advanceCompletedTurn(next);
       return next;
+    case "scrollDiscardChoice":
+      if (next.phase.choice.targetPlayerId !== playerId) return state;
+      {
+        const first = next.phase.choice.candidateIds.find((instanceId) =>
+          timedOut.scrolls.some((scroll) => scroll.instanceId === instanceId)
+        );
+        if (!first) {
+          next.phase = { kind: next.phase.choice.resume };
+          addHistory(next, `${timedOut.name}掉线超时且已无卷轴可弃，缴械结算结束。`);
+          return next;
+        }
+        chooseScrollDiscard(next, first);
+        return next;
+      }
     case "mapEventScrollChoice":
       if (next.phase.choice.playerId !== playerId) return state;
       next.phase = { kind: "turnComplete" };

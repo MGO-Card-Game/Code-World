@@ -87,10 +87,13 @@ function derivedScrollKeywords(definition: ScrollDefinition): KeywordKind[] {
   for (const effect of definition.effects) {
     switch (effect.type) {
       case "directDamage":
+      case "mutualDirectDamage":
         derived.push("directDamage");
         break;
       case "chooseMovement":
       case "advanceTiles":
+      case "returnToCamp":
+      case "returnToPreviousPosition":
         derived.push("replacesMovement");
         break;
       case "teleport":
@@ -99,9 +102,11 @@ function derivedScrollKeywords(definition: ScrollDefinition): KeywordKind[] {
         break;
       case "targetPlayer":
         derived.push("needsTarget");
-        // 换位是唯一一条同时代替移动的目标效果，其余三条只是对别人动手
+        // 换位与主动邀战都会吃掉本次移动机会，其余目标效果只是对别人动手
         if (effect.apply.type === "swapPositions") {
           derived.push("replacesMovement", "skipsPath");
+        } else if (effect.apply.type === "startPvpBattle") {
+          derived.push("replacesMovement");
         }
         break;
     }

@@ -119,6 +119,11 @@ export function advanceAutomatically(state: GameState): GameState {
         type: "chooseScrollTarget",
         targetId: state.phase.choice.candidateIds[0],
       });
+    case "scrollDiscardChoice":
+      return gameReducer(state, {
+        type: "chooseScrollDiscard",
+        instanceId: state.phase.choice.candidateIds[0],
+      });
     case "mapEventScrollChoice":
       return gameReducer(state, {
         type: "chooseMapEventScroll",

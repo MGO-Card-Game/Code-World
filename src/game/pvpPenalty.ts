@@ -29,13 +29,21 @@ import type { GameAction, GameState } from "./types";
  * 之后才判断回合是否该推进，延后结算会读到还没落定的阶段。
  */
 
-function finishPenaltyAndResolveTile(state: GameState, tileIndex: number) {
+function finishPenaltyAndResolveTile(
+  state: GameState,
+  tileIndex: number,
+  resume?: "turnComplete",
+) {
+  if (resume === "turnComplete") {
+    state.phase = { kind: "turnComplete" };
+    return;
+  }
   resolveTile(state, state.map.tiles[tileIndex], false);
 }
 
 export function settleWaivedPvpPenalty(state: GameState) {
   if (state.phase.kind !== "pvpPenalty" || !state.phase.penalty.waived) return false;
-  const { loserId, tileIndex } = state.phase.penalty;
+  const { loserId, tileIndex, resume } = state.phase.penalty;
   if (
     state.unavailablePlayerIds.includes(loserId) &&
     state.activePlayerId === loserId
@@ -44,7 +52,7 @@ export function settleWaivedPvpPenalty(state: GameState) {
     advanceCompletedTurn(state);
     return true;
   }
-  finishPenaltyAndResolveTile(state, tileIndex);
+  finishPenaltyAndResolveTile(state, tileIndex, resume);
   return true;
 }
 
@@ -53,7 +61,7 @@ export function choosePvpPenalty(
   action: Extract<GameAction, { type: "choosePvpPenalty" }>,
 ) {
   if (state.phase.kind !== "pvpPenalty" || state.phase.penalty.waived) return false;
-  const { winnerId, loserId, tileIndex } = state.phase.penalty;
+  const { winnerId, loserId, tileIndex, resume } = state.phase.penalty;
   const winner = state.players[winnerId];
   const loser = state.players[loserId];
 
@@ -61,7 +69,7 @@ export function choosePvpPenalty(
     const amount = transferPvpGold(state, loser, winner);
     if (amount <= 0) return false;
     addHistory(state, `${loser.name}支付 ${amount} 金币给${winner.name}。`);
-    finishPenaltyAndResolveTile(state, tileIndex);
+    finishPenaltyAndResolveTile(state, tileIndex, resume);
     return true;
   }
 
@@ -92,7 +100,7 @@ export function choosePvpPenalty(
       reason: "pvpTransfer",
     });
     addHistory(state, `${loser.name}转移 ${amount} 点生命给${winner.name}。`);
-    finishPenaltyAndResolveTile(state, tileIndex);
+    finishPenaltyAndResolveTile(state, tileIndex, resume);
     return true;
   }
 
@@ -126,7 +134,9 @@ export function choosePvpPenalty(
           playerId: winner.id,
           offered: item,
           source: "transfer",
-          resume: { kind: "resolveTile", tileIndex },
+          resume: resume === "turnComplete"
+            ? { kind: "turnComplete" }
+            : { kind: "resolveTile", tileIndex },
         },
       };
       addHistory(
@@ -138,14 +148,14 @@ export function choosePvpPenalty(
     applyEquipmentStats(state, winner, item);
   }
   addHistory(state, `${loser.name}交出一件资源给${winner.name}。`);
-  finishPenaltyAndResolveTile(state, tileIndex);
+  finishPenaltyAndResolveTile(state, tileIndex, resume);
   return true;
 }
 
 /** 掉线玩家无法选择时按固定顺序自动支付；确实付不起则直接继续。 */
 export function settleUnavailablePvpPenalty(state: GameState) {
   if (state.phase.kind !== "pvpPenalty") return false;
-  const { winnerId, loserId, tileIndex } = state.phase.penalty;
+  const { winnerId, loserId, tileIndex, resume } = state.phase.penalty;
   const winner = state.players[winnerId];
   const loser = state.players[loserId];
   if (state.phase.penalty.waived) return settleWaivedPvpPenalty(state);
@@ -173,7 +183,7 @@ export function settleUnavailablePvpPenalty(state: GameState) {
       instanceId: equipment.instanceId,
     });
   }
-  finishPenaltyAndResolveTile(state, tileIndex);
+  finishPenaltyAndResolveTile(state, tileIndex, resume);
   return true;
 }
 
@@ -219,6 +229,7 @@ export function chooseBlessing(
     loserId,
     offered,
     tileIndex,
+    resume,
     penaltyWaived,
     penaltyWaiveReason,
   } = choice;
@@ -247,6 +258,7 @@ export function chooseBlessing(
       winnerId,
       loserId,
       tileIndex,
+      resume,
       waived: penaltyWaived,
       waiveReason: penaltyWaiveReason,
     },

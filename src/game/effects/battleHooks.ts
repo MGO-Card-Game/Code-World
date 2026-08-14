@@ -30,6 +30,8 @@ export type StatModifier =
 export interface RollModifiers {
   flatBonus: number;
   sidesOverride?: number;
+  /** 在基础骰面或卷轴替换骰面之上继续加减；与装备骰面修正处于同一层。 */
+  dieSidesBonus: number;
   extraDice: number;
   /** 每颗骰子投几次；多张同类牌取最大次数，不按张数累加。 */
   rollAttempts: number;
@@ -79,6 +81,10 @@ export interface RollModifiers {
   extraAttacks: number;
   /** 攻防差与追加伤害合计后再减免；只读取防守方这一份。 */
   damageReduction: number;
+  /** 本次最终伤害的封顶值；只读取防守方这一份，多张效果取更低值。 */
+  damageCap: number;
+  /** 本轮完整结算且战斗未结束后，由这侧支付的生命代价。 */
+  postRoundSelfHpLoss: number;
 }
 
 /** 传给掷骰后钩子的那一次投骰结果。 */

@@ -32,6 +32,7 @@ export type DynamicEquipmentModifier = Exclude<StatModifier, { type: "maxHp" }>;
 export type ScrollEffectDefinition =
   | { type: "flatBonus"; value: number }
   | { type: "dieSides"; sides: number }
+  | { type: "dieSidesBonus"; value: number }
   | { type: "extraDice"; count: number }
   | { type: "rollTwice" }
   | { type: "minimumRoll"; value: number }
@@ -41,6 +42,17 @@ export type ScrollEffectDefinition =
   | { type: "fixedRoll"; count: number; value: number }
   | { type: "directDamage"; amount: number }
   | { type: "damageReduction"; amount: number }
+  | { type: "damageCap"; amount: number }
+  /** 立刻损失生命，不经过护甲的受伤钩子。 */
+  | { type: "selfHpLoss"; amount: number }
+  /** 本轮攻防与伤害完整结算后再损失生命；战斗已经结束则不再追收。 */
+  | { type: "postRoundSelfHpLoss"; amount: number }
+  /** 双方同时承受一次减当前防御的直接伤害；同归时出牌者判负。 */
+  | { type: "mutualDirectDamage"; amount: number }
+  /** 让自己下一次轮到主动攻击时直接跳过该攻击轮。 */
+  | { type: "skipNextAttack" }
+  /** 令目标下一次主动攻击的骰面上限降低。 */
+  | { type: "penalizeNextAttackDieSides"; amount: number }
   | { type: "heal"; amount: number }
   /** 地图阶段放弃本次移动；战斗中使用则失去下一次地图移动。 */
   | { type: "forfeitMovement" }
@@ -65,6 +77,10 @@ export type ScrollEffectDefinition =
    * 走的是逐格前进那条路（营地回血、守关门计次照旧），落点照常结算。
    */
   | { type: "advanceTiles"; distance: number }
+  /** 代替移动，回到当前阶段营地并增加一圈进度。 */
+  | { type: "returnToCamp" }
+  /** 代替移动，回到自己上一次停留的同阶段格子并重新结算落点。 */
+  | { type: "returnToPreviousPosition" }
   /**
    * 地图阶段专用：先让出牌者挑一名其他玩家，再对他施加 apply。
    *
@@ -110,6 +126,23 @@ export type TargetedScrollEffect =
        * 白拿进度，那是比这张牌本身大得多的规则漏洞。
        */
       type: "swapPositions";
+    }
+  | {
+      /** 代替本次移动，直接与目标开始 PvP；双方棋子位置都不改变。 */
+      type: "startPvpBattle";
+    }
+  | {
+      /** 从目标手中随机抽走一张卷轴；只有仍持有卷轴的玩家可以成为目标。 */
+      type: "stealRandomScroll";
+    }
+  | {
+      /** 让目标进入自选弃牌阶段，弃掉自己的一张卷轴。 */
+      type: "forceDiscardScroll";
+    }
+  | {
+      /** 目标下一次掷骰移动结果减少 amount，最低为 1。 */
+      type: "penalizeMovementRoll";
+      amount: number;
     };
 
 /** 声明式效果覆盖不了的卷轴，直接在卡牌定义里写这个函数。 */

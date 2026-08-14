@@ -61,6 +61,7 @@ import type {
 export function newRollModifiers(): RollModifiers {
   return {
     flatBonus: 0,
+    dieSidesBonus: 0,
     extraDice: 0,
     rollAttempts: 1,
     rollSelection: "highest",
@@ -73,7 +74,46 @@ export function newRollModifiers(): RollModifiers {
     minimumDamage: 0,
     extraAttacks: 0,
     damageReduction: 0,
+    damageCap: Number.MAX_SAFE_INTEGER,
+    postRoundSelfHpLoss: 0,
   };
+}
+
+function oppositeSide(side: CombatSide): CombatSide {
+  return side === "a" ? "b" : "a";
+}
+
+function addNextAttackDieSidesPenalty(
+  battle: BattleState,
+  side: CombatSide,
+  amount: number,
+) {
+  if (side === "a") {
+    battle.nextAttackDieSidesPenaltyA = (battle.nextAttackDieSidesPenaltyA ?? 0) + amount;
+  } else {
+    battle.nextAttackDieSidesPenaltyB = (battle.nextAttackDieSidesPenaltyB ?? 0) + amount;
+  }
+}
+
+function takeNextAttackDieSidesPenalty(battle: BattleState, side: CombatSide) {
+  const amount = side === "a"
+    ? battle.nextAttackDieSidesPenaltyA ?? 0
+    : battle.nextAttackDieSidesPenaltyB ?? 0;
+  if (side === "a") delete battle.nextAttackDieSidesPenaltyA;
+  else delete battle.nextAttackDieSidesPenaltyB;
+  return amount;
+}
+
+function markSkipNextAttack(battle: BattleState, side: CombatSide) {
+  if (side === "a") battle.skipNextAttackA = true;
+  else battle.skipNextAttackB = true;
+}
+
+function takeSkipNextAttack(battle: BattleState, side: CombatSide) {
+  const skipped = side === "a" ? battle.skipNextAttackA : battle.skipNextAttackB;
+  if (side === "a") delete battle.skipNextAttackA;
+  else delete battle.skipNextAttackB;
+  return skipped === true;
 }
 
 export function applyScrollEffect(
@@ -88,7 +128,7 @@ export function applyScrollEffect(
   switch (effect.type) {
     case "flatBonus":
       modifiers.flatBonus += effect.value;
-      return false;
+      return undefined;
     case "dieSides":
       /*
         取最大而不是后写覆盖。
@@ -99,27 +139,30 @@ export function applyScrollEffect(
         rollModifiers.test.ts 有一条排列测试守着这个性质。
       */
       modifiers.sidesOverride = Math.max(modifiers.sidesOverride ?? 0, effect.sides);
-      return false;
+      return undefined;
+    case "dieSidesBonus":
+      modifiers.dieSidesBonus += effect.value;
+      return undefined;
     case "extraDice":
       modifiers.extraDice += effect.count;
-      return false;
+      return undefined;
     case "rollTwice":
       modifiers.rollAttempts = Math.max(modifiers.rollAttempts, 2);
-      return false;
+      return undefined;
     case "minimumRoll":
       modifiers.minimumRoll = Math.max(modifiers.minimumRoll, effect.value);
-      return false;
+      return undefined;
     case "maxRoll":
       modifiers.maxRollDice += effect.count;
-      return false;
+      return undefined;
     case "fixedRoll":
       modifiers.fixedRollDice += effect.count;
       // 颗数累加、点数取最大，理由同上面的 dieSides：一回合可以打任意多张牌，
       // 两张钉点数的卷轴撞在一起时，"谁生效"不能取决于提交顺序
       modifiers.fixedRollValue = Math.max(modifiers.fixedRollValue, effect.value);
-      return false;
-    case "directDamage":
-      return applyDirectScrollDamage(
+      return undefined;
+    case "directDamage": {
+      const defeated = applyDirectScrollDamage(
         state,
         battle,
         sourceSide,
@@ -127,12 +170,58 @@ export function applyScrollEffect(
         effect.amount,
         effectName,
       );
+      return defeated ? sourceSide : undefined;
+    }
     case "damageReduction":
       modifiers.damageReduction += Math.max(0, effect.amount);
-      return false;
+      return undefined;
+    case "damageCap":
+      modifiers.damageCap = Math.min(modifiers.damageCap, Math.max(0, effect.amount));
+      return undefined;
+    case "selfHpLoss": {
+      const defeated = applyBattleHpLoss(
+        state,
+        battle,
+        sourceSide,
+        effect.amount,
+        `${combatantName(state, battle, sourceSide)}使用${effectName}，损失 ${effect.amount} 点生命。`,
+      );
+      return defeated ? targetSide : undefined;
+    }
+    case "postRoundSelfHpLoss":
+      modifiers.postRoundSelfHpLoss += Math.max(0, effect.amount);
+      return undefined;
+    case "mutualDirectDamage": {
+      const targetDefeated = applyDirectScrollDamage(
+        state,
+        battle,
+        sourceSide,
+        targetSide,
+        effect.amount,
+        effectName,
+      );
+      const sourceDefeated = applyDirectScrollDamage(
+        state,
+        battle,
+        targetSide,
+        sourceSide,
+        effect.amount,
+        effectName,
+      );
+      // 同时倒下时由出牌者承担赌命代价，目标一侧获胜。
+      if (sourceDefeated) return targetSide;
+      if (targetDefeated) return sourceSide;
+      return undefined;
+    }
+    case "skipNextAttack":
+      markSkipNextAttack(battle, sourceSide);
+      return undefined;
+    case "penalizeNextAttackDieSides":
+      addNextAttackDieSidesPenalty(battle, targetSide, Math.max(0, effect.amount));
+      return undefined;
     case "heal":
       applyBattleHealing(state, battle, sourceSide, effect.amount, effectName);
-      return false;
+      return undefined;
     case "forfeitMovement": {
       const playerId = battlePlayerForSide(battle, sourceSide);
       if (playerId) state.players[playerId].skipNextMovement = { reason: "战地药剂" };
@@ -140,7 +229,7 @@ export function applyScrollEffect(
         `${combatantName(state, battle, sourceSide)}将在下一次地图行动中无法移动。`,
       );
       battle.log = battle.log.slice(0, 8);
-      return false;
+      return undefined;
     }
     case "custom": {
       let targetDefeated = false;
@@ -166,13 +255,13 @@ export function applyScrollEffect(
           battle.log = battle.log.slice(0, 8);
         },
       });
-      return targetDefeated || result?.targetDefeated === true;
+      return targetDefeated || result?.targetDefeated === true ? sourceSide : undefined;
     }
   }
 }
 
 /**
- * 依次结算本侧本回合打出的全部卷轴，返回目标是否已被打倒。
+ * 依次结算本侧本回合打出的全部卷轴，返回已经分出的胜方。
  *
  * 按提交顺序走，目标一倒就停手——后面的牌已经消耗掉了，只是效果不再结算。
  * 累加类效果（加值、骰数、骰面）与顺序无关，只有 directDamage / custom
@@ -189,8 +278,7 @@ export function applyScrollEffects(
   for (const kind of kinds) {
     const definition = SCROLLS[kind];
     for (const effect of definition.effects) {
-      if (
-        applyScrollEffect(
+      const winner = applyScrollEffect(
           state,
           battle,
           sourceSide,
@@ -198,13 +286,11 @@ export function applyScrollEffects(
           definition.name,
           effect,
           modifiers,
-        )
-      ) {
-        return true;
-      }
+        );
+      if (winner) return winner;
     }
   }
-  return false;
+  return undefined;
 }
 
 export function rollForSide(
@@ -227,7 +313,10 @@ export function rollForSide(
   const countBonus = player
     ? getDiceCountBonus(player, dieKind)
     : enemyDiceCountBonus(battle.enemyId!, battle.enemyAffix, dieKind);
-  const sides = Math.max(2, (modifiers.sidesOverride ?? 6) + sidesBonus);
+  const sides = Math.max(
+    2,
+    (modifiers.sidesOverride ?? 6) + sidesBonus + modifiers.dieSidesBonus,
+  );
   const count = Math.max(1, 1 + modifiers.extraDice + countBonus);
   /*
     每颗骰子都照常掷一次再决定要不要覆盖，而不是"视为最高面就跳过投骰"。
@@ -612,13 +701,16 @@ function resolveAttackSettlement(
   const attackTotal = attackBase + attackRoll.sum + attackBonus;
   const defenseTotal = defenseBase + defenseRoll.sum + defenseBonus;
   // bonusDamage 不吃防御值，但仍属于本次最终伤害，可以被闪避类效果减免
-  const damage = Math.max(
-    attackModifiers.minimumDamage,
+  const damage = Math.min(
+    defenseModifiers.damageCap,
     Math.max(
-      0,
-      Math.max(0, attackTotal - defenseTotal)
-        + attackModifiers.bonusDamage
-        - defenseModifiers.damageReduction,
+      attackModifiers.minimumDamage,
+      Math.max(
+        0,
+        Math.max(0, attackTotal - defenseTotal)
+          + attackModifiers.bonusDamage
+          - defenseModifiers.damageReduction,
+      ),
     ),
   );
 
@@ -697,15 +789,24 @@ export function resolveBattleRound(state: GameState) {
   */
   countScrollUse(battle, attackerSide, attackScrollKinds.length);
   const attackBaseline = newRollModifiers();
-  if (applyScrollEffects(
+  const attackDieSidesPenalty = takeNextAttackDieSidesPenalty(battle, attackerSide);
+  if (attackDieSidesPenalty > 0) {
+    attackBaseline.dieSidesBonus -= attackDieSidesPenalty;
+    battle.log.unshift(
+      `${combatantName(state, battle, attackerSide)}受到寒霜钉干扰，本次攻击骰上限 -${attackDieSidesPenalty}。`,
+    );
+    battle.log = battle.log.slice(0, 8);
+  }
+  const attackEffectWinner = applyScrollEffects(
     state,
     battle,
     attackerSide,
     defenderSide,
     attackScrollKinds,
     attackBaseline,
-  )) {
-    finishBattle(state, battle, attackerSide);
+  );
+  if (attackEffectWinner) {
+    finishBattle(state, battle, attackEffectWinner);
     return;
   }
   /*
@@ -727,15 +828,16 @@ export function resolveBattleRound(state: GameState) {
     : [];
   countScrollUse(battle, defenderSide, defenseScrollKinds.length);
   const defenseBaseline = newRollModifiers();
-  if (applyScrollEffects(
+  const defenseEffectWinner = applyScrollEffects(
     state,
     battle,
     defenderSide,
     attackerSide,
     defenseScrollKinds,
     defenseBaseline,
-  )) {
-    finishBattle(state, battle, defenderSide);
+  );
+  if (defenseEffectWinner) {
+    finishBattle(state, battle, defenseEffectWinner);
     return;
   }
   if (applyEquipmentScrollUse(state, battle, defenderSide, defenseScrollKinds)) {
@@ -762,19 +864,55 @@ export function resolveBattleRound(state: GameState) {
     pendingAttacks += outcome.extraAttacks - 1;
   }
 
+  const attackerCostDefeated = attackBaseline.postRoundSelfHpLoss > 0
+    && applyBattleHpLoss(
+      state,
+      battle,
+      attackerSide,
+      attackBaseline.postRoundSelfHpLoss,
+      `${combatantName(state, battle, attackerSide)}为极限突破支付代价，损失 ${attackBaseline.postRoundSelfHpLoss} 点生命。`,
+    );
+  const defenderCostDefeated = defenseBaseline.postRoundSelfHpLoss > 0
+    && applyBattleHpLoss(
+      state,
+      battle,
+      defenderSide,
+      defenseBaseline.postRoundSelfHpLoss,
+      `${combatantName(state, battle, defenderSide)}为极限突破支付代价，损失 ${defenseBaseline.postRoundSelfHpLoss} 点生命。`,
+    );
+  if (attackerCostDefeated || defenderCostDefeated) {
+    // 双方同时被代价拖倒时，主动使用爆发的一侧承担风险，当前防守方获胜。
+    finishBattle(
+      state,
+      battle,
+      attackerCostDefeated ? defenderSide : attackerSide,
+    );
+    return;
+  }
+
   const previousRound = battle.round;
-  battle.attacker = defenderSide;
-  battle.round += 1;
+  let nextAttacker: CombatSide = defenderSide;
+  let nextRound = previousRound + 1;
+  if (takeSkipNextAttack(battle, nextAttacker)) {
+    battle.log.unshift(
+      `${combatantName(state, battle, nextAttacker)}受最后壁垒影响，跳过下一次主动攻击。`,
+    );
+    battle.log = battle.log.slice(0, 8);
+    nextAttacker = oppositeSide(nextAttacker);
+    nextRound += 1;
+  }
+  battle.attacker = nextAttacker;
+  battle.round = nextRound;
   resetChoices(battle);
   emit(state, {
     type: "battleRoundAdvanced",
     round: battle.round,
-    attacker: defenderSide,
+    attacker: nextAttacker,
     fromRound: previousRound,
     fromAttacker: attackerSide,
   });
   state.message = {
-    text: `战斗第 ${battle.round} 轮：轮到${combatantName(state, battle, defenderSide)}攻击。`,
+    text: `战斗第 ${battle.round} 轮：轮到${combatantName(state, battle, nextAttacker)}攻击。`,
   };
 }
 

@@ -39,8 +39,12 @@ function isAnywhereDoor(definition: ScrollDefinition) {
   return definition.effects.some((effect) => effect.type === "teleportAnywhere");
 }
 
-function isMovementScroll(definition: ScrollDefinition) {
+function needsMovementConfiguration(definition: ScrollDefinition) {
   return !!movementEffectOf(definition) || isAnywhereDoor(definition);
+}
+
+function replacesMovement(definition: ScrollDefinition) {
+  return scrollKeywords(definition).includes("replacesMovement");
 }
 
 /**
@@ -51,7 +55,7 @@ function isMovementScroll(definition: ScrollDefinition) {
  */
 function mapUseState(
   definition: ScrollDefinition,
-  player: Pick<PlayerView, "hp" | "maxHp">,
+  player: Pick<PlayerView, "hp" | "maxHp" | "position" | "previousStopPosition">,
   mapUsePhase: MapUsePhase,
 ): { usable: boolean; reason?: string } {
   if (!definition.timings.includes("map")) return { usable: false, reason: "只能在战斗中使用" };
@@ -66,8 +70,15 @@ function mapUseState(
   if (forfeitsMovement && mapUsePhase === "turnComplete") {
     return { usable: false, reason: "已经移动，不能再放弃移动" };
   }
-  if (isMovementScroll(definition) && mapUsePhase !== "awaitingRoll") {
-    return { usable: false, reason: "本回合已经移动，无法再指定移动" };
+  if (replacesMovement(definition) && mapUsePhase !== "awaitingRoll") {
+    return { usable: false, reason: "本回合已经移动，不能再使用这张牌" };
+  }
+  const retraces = definition.effects.some((effect) => effect.type === "returnToPreviousPosition");
+  if (
+    retraces
+    && (player.previousStopPosition === undefined || player.previousStopPosition === player.position)
+  ) {
+    return { usable: false, reason: "还没有可折返的上一次停留位置" };
   }
   return { usable: true };
 }
@@ -129,7 +140,7 @@ export function ResourceModal({
     : false;
   // 配置器只在这张卡真的能用时展开，否则步进器调半天最后还是按不下去
   const configuring = !!selected && !!mapUse?.usable
-    && !!configuringDefinition && isMovementScroll(configuringDefinition);
+    && !!configuringDefinition && needsMovementConfiguration(configuringDefinition);
   const configuringMaxDistance = configuringMovementEffect
     ? configuringMovementEffect.type === "chooseMovement"
       ? movementSides
@@ -378,7 +389,7 @@ export function ResourceModal({
                     type="button"
                     aria-pressed={isSelected}
                     aria-label={`${definition.name}：${blurbText(scrollKeywords(definition), definition.description)}`}
-                    className={`hand-card scroll-${scroll.kind} card-${category} ${isSelected ? "selected" : ""} ${isMovementScroll(definition) ? "movement-configurable" : ""}`}
+                    className={`hand-card scroll-${scroll.kind} card-${category} ${isSelected ? "selected" : ""} ${needsMovementConfiguration(definition) ? "movement-configurable" : ""}`}
                     style={{ marginLeft, zIndex: isSelected ? 60 : index }}
                     onClick={() => setSelectedId(isSelected ? null : scroll.instanceId)}
                     initial={{ opacity: 0, y: 40, scale: 0.8 }}

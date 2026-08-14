@@ -53,6 +53,22 @@ export const MOVEMENT_SCROLLS = {
     effects: [{ type: "advanceTiles", distance: 4 }],
   },
 
+  townPortal: {
+    name: "回城卷轴",
+    description: "代替本次移动：传送回当前阶段营地并计为完成一圈",
+    rarity: "SR",
+    timings: ["map"],
+    effects: [{ type: "returnToCamp" }],
+  },
+
+  retrace: {
+    name: "折返",
+    description: "代替本次移动：回到上一次停留的同阶段格子，并重新触发落点",
+    rarity: "R",
+    timings: ["map"],
+    effects: [{ type: "returnToPreviousPosition" }],
+  },
+
   anywhereDoor: {
     name: "任意门",
     description: "地图阶段使用：直接传送至当前阶段地图上的任意一格，不触发沿途任何效果",

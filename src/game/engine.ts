@@ -32,6 +32,7 @@ import { settleActionResult } from "./actionResult";
 import {
   buyBossKey,
   chooseBossChallenge,
+  chooseScrollDiscard,
   chooseScrollTarget,
   openBossGate,
   rollMovement,
@@ -90,6 +91,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return chooseEncounterOpponent(next, action.opponentId) ? next : state;
     case "chooseScrollTarget":
       return settleActionResult(next, state, chooseScrollTarget(next, action.targetId));
+    case "chooseScrollDiscard":
+      return chooseScrollDiscard(next, action.instanceId) ? next : state;
     case "chooseEncounterIntent":
       return settleActionResult(next, state, chooseEncounterIntent(next, action));
     case "submitTradeOffer":

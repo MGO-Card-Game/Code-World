@@ -9,7 +9,7 @@ import { MAP_REGION_SIZE, regionForPosition } from "./map";
 import { advanceAlongLoop, landDirectlyAt } from "./movement";
 import { consumeScroll } from "./resources";
 import { getDiceCountBonus, getDieSidesBonus } from "./selectors";
-import { addHistory, emit, rollDie } from "./state";
+import { addHistory, emit, nextRandom, rollDie } from "./state";
 import { canOpenBossGate, restAtStageCamp, stageBossUnlocked } from "./stages";
 import { resolveTile } from "./tiles";
 import type {
@@ -41,8 +41,11 @@ export function rollMovement(state: GameState) {
   const dice = forced === undefined
     ? Array.from({ length: diceCount }, () => rollDie(state, sides))
     : [forced];
-  const roll = forced ??
+  const rawRoll = forced ??
     dice.reduce((total, die) => total + die, 0) + blessingMovementRollBonus(player);
+  const movementPenalty = Math.max(0, player.nextMovementRollPenalty ?? 0);
+  delete player.nextMovementRollPenalty;
+  const roll = Math.max(1, rawRoll - movementPenalty);
   state.lastMovementRoll = roll;
   const positionBefore = player.position;
   state.movementOrigin = positionBefore;
@@ -357,6 +360,63 @@ function useAdvanceScroll(
   return true;
 }
 
+function useReturnToCampScroll(
+  state: GameState,
+  player: Player,
+  instanceId: string,
+  scrollKind: OwnedScroll["kind"],
+  definition: ScrollDefinition,
+) {
+  if (state.phase.kind !== "awaitingRoll") return false;
+  const region = regionForPosition(state.map, player.position);
+  const positionBefore = player.position;
+
+  consumeScroll(state, player, instanceId);
+  state.movementOrigin = positionBefore;
+  player.stageProgress[region.id].laps += 1;
+  const { targetTile } = landDirectlyAt(state, player, region, region.entryIndex);
+  emit(state, { type: "playerMoved", playerId: player.id, from: positionBefore, to: player.position });
+  addHistory(
+    state,
+    `${player.name}使用${definition.name}传送回「${targetTile.label}」，本阶段圈数 +1。`,
+  );
+  resolveTile(state, targetTile);
+  applyEquipmentMapScrollUse(state, player, scrollKind);
+  return true;
+}
+
+function useRetraceScroll(
+  state: GameState,
+  player: Player,
+  instanceId: string,
+  scrollKind: OwnedScroll["kind"],
+  definition: ScrollDefinition,
+) {
+  if (state.phase.kind !== "awaitingRoll") return false;
+  const targetPosition = player.previousStopPosition;
+  if (targetPosition === undefined || targetPosition === player.position) return false;
+  const region = regionForPosition(state.map, player.position);
+  if (regionForPosition(state.map, targetPosition).id !== region.id) return false;
+
+  consumeScroll(state, player, instanceId);
+  const positionBefore = player.position;
+  state.movementOrigin = positionBefore;
+  const { interceptedAtGate, targetTile } = landDirectlyAt(
+    state,
+    player,
+    region,
+    targetPosition,
+  );
+  emit(state, { type: "playerMoved", playerId: player.id, from: positionBefore, to: player.position });
+  addHistory(
+    state,
+    `${player.name}使用${definition.name}回到「${targetTile.label}」，重新触发落点。`,
+  );
+  settleMovementDestination(state, player, region, interceptedAtGate, targetTile);
+  applyEquipmentMapScrollUse(state, player, scrollKind);
+  return true;
+}
+
 /**
  * 某条针对型效果此刻能选谁。
  *
@@ -364,6 +424,12 @@ function useAdvanceScroll(
  */
 function targetCandidates(state: GameState, player: Player, apply: TargetedScrollEffect) {
   const others = state.turnOrder.filter((id) => id !== player.id);
+  if (apply.type === "startPvpBattle") {
+    return others.filter((id) => !state.unavailablePlayerIds.includes(id));
+  }
+  if (apply.type === "stealRandomScroll" || apply.type === "forceDiscardScroll") {
+    return others.filter((id) => state.players[id].scrolls.length > 0);
+  }
   if (apply.type !== "swapPositions") return others;
   /*
     换位只能在同一区域内。跨区域换位是这批牌里最大的规则漏洞：山脚的玩家和
@@ -377,7 +443,7 @@ function targetCandidates(state: GameState, player: Player, apply: TargetedScrol
 
 /** 换位牌代替本次移动，所以和其他移动牌一样只能在还没掷骰时打出。 */
 function replacesMovement(apply: TargetedScrollEffect) {
-  return apply.type === "swapPositions";
+  return apply.type === "swapPositions" || apply.type === "startPvpBattle";
 }
 
 /**
@@ -417,6 +483,7 @@ function applyTargetedScrollEffect(
   target: Player,
   apply: TargetedScrollEffect,
   scrollName: string,
+  resume: "awaitingRoll" | "turnComplete",
 ) {
   switch (apply.type) {
     case "stealGold": {
@@ -473,6 +540,69 @@ function applyTargetedScrollEffect(
       resolveTile(state, targetTile);
       return;
     }
+    case "startPvpBattle": {
+      addHistory(
+        state,
+        `${player.name}以${scrollName}向${target.name}发起决斗，双方原地进入战斗。`,
+      );
+      startBattle(
+        state,
+        "pvp",
+        player.id,
+        undefined,
+        target.id,
+        undefined,
+        { pvpResume: "turnComplete" },
+      );
+      return;
+    }
+    case "stealRandomScroll": {
+      if (target.scrolls.length === 0) {
+        addHistory(state, `${target.name}已经没有卷轴，${player.name}的${scrollName}落了空。`);
+        return;
+      }
+      const index = Math.floor(nextRandom(state) * target.scrolls.length);
+      const [scroll] = target.scrolls.splice(index, 1);
+      player.scrolls.push(scroll);
+      emit(state, {
+        type: "scrollTransferred",
+        fromId: target.id,
+        toId: player.id,
+        instanceId: scroll.instanceId,
+        kind: scroll.kind,
+      });
+      addHistory(
+        state,
+        `${player.name}用${scrollName}从${target.name}手中随机抽走一张卷轴。`,
+      );
+      return;
+    }
+    case "forceDiscardScroll": {
+      if (target.scrolls.length === 0) {
+        addHistory(state, `${target.name}已经没有卷轴，${player.name}的${scrollName}落了空。`);
+        return;
+      }
+      state.phase = {
+        kind: "scrollDiscardChoice",
+        choice: {
+          sourcePlayerId: player.id,
+          targetPlayerId: target.id,
+          candidateIds: target.scrolls.map((scroll) => scroll.instanceId),
+          scrollName,
+          resume,
+        },
+      };
+      addHistory(state, `${target.name}受到${player.name}的${scrollName}影响，必须弃掉一张卷轴。`);
+      return;
+    }
+    case "penalizeMovementRoll": {
+      target.nextMovementRollPenalty = (target.nextMovementRollPenalty ?? 0) + apply.amount;
+      addHistory(
+        state,
+        `${target.name}中了${player.name}的${scrollName}，下一次掷骰移动结果 -${apply.amount}。`,
+      );
+      return;
+    }
   }
 }
 
@@ -491,7 +621,32 @@ export function chooseScrollTarget(state: GameState, targetId: Player["id"]) {
 
   // 换位那一支会自己结算落点并定下阶段，所以先摆回默认阶段再施加效果
   state.phase = { kind: resume };
-  applyTargetedScrollEffect(state, player, target, effect.apply, definition.name);
+  applyTargetedScrollEffect(
+    state,
+    player,
+    target,
+    effect.apply,
+    definition.name,
+    resume,
+  );
+  return true;
+}
+
+/** 缴械的目标从自己的暗牌中选择一张弃掉。 */
+export function chooseScrollDiscard(state: GameState, instanceId: string) {
+  if (state.phase.kind !== "scrollDiscardChoice") return false;
+  const { targetPlayerId, candidateIds, scrollName, resume } = state.phase.choice;
+  if (!candidateIds.includes(instanceId)) return false;
+  const target = state.players[targetPlayerId];
+  const scroll = target?.scrolls.find((candidate) => candidate.instanceId === instanceId);
+  if (!target || !scroll) return false;
+
+  consumeScroll(state, target, instanceId);
+  state.phase = { kind: resume };
+  addHistory(
+    state,
+    `${target.name}因${scrollName}弃掉了${scrollDefinition(scroll.kind).name}。`,
+  );
   return true;
 }
 
@@ -536,6 +691,26 @@ export function useMapScroll(
       owned.kind,
       definition,
       Math.max(1, Math.floor(advance.distance)),
+    );
+  }
+
+  if (definition.effects.some((effect) => effect.type === "returnToCamp")) {
+    return useReturnToCampScroll(
+      state,
+      player,
+      instanceId,
+      owned.kind,
+      definition,
+    );
+  }
+
+  if (definition.effects.some((effect) => effect.type === "returnToPreviousPosition")) {
+    return useRetraceScroll(
+      state,
+      player,
+      instanceId,
+      owned.kind,
+      definition,
     );
   }
 

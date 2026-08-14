@@ -144,7 +144,7 @@ const SOURCE_RULES: readonly {
       调 dealDamage。两种都要认——只认其中一种的话，另一种就成了不受管的暗门。
     */
     needle: "掷骰前伤害",
-    pattern: /dealDamage\(|"type":"directDamage"/,
+    pattern: /dealDamage\(|"type":"(?:directDamage|mutualDirectDamage)"/,
     keyword: "directDamage",
   },
   // 自损只出现在装备的 onScrollUsed 上；怪的 loseHp 是自爆，不是"用牌的代价"
@@ -328,10 +328,13 @@ describe("推导出来的关键字不要手写", () => {
     expect(replacing.sort()).toEqual([
       "anywhereDoor",
       "bodySwap",
+      "duelContract",
       "leapForward",
       "remoteDice",
+      "retrace",
       "shortRangeTeleportCharm",
       "somersault",
+      "townPortal",
       "withinReach",
     ]);
   });

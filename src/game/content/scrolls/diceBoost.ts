@@ -34,6 +34,28 @@ export const DICE_BOOST_SCROLLS = {
     effects: [{ type: "extraDice", count: 2 }],
   },
 
+  recklessGamble: {
+    name: "孤注一掷",
+    description: "本次攻击额外投 2 个骰子；立即损失 2 点生命",
+    rarity: "R",
+    timings: ["beforeAttackRoll"],
+    effects: [
+      { type: "extraDice", count: 2 },
+      { type: "selfHpLoss", amount: 2 },
+    ],
+  },
+
+  limitBreak: {
+    name: "极限突破",
+    description: "本次攻击或防御骰面上限 +3；本轮结算后损失 2 点生命",
+    rarity: "SR",
+    timings: ["beforeAttackRoll", "beforeDefenseRoll"],
+    effects: [
+      { type: "dieSidesBonus", value: 3 },
+      { type: "postRoundSelfHpLoss", amount: 2 },
+    ],
+  },
+
   rewriteFate: {
     name: "突破",
     description: "本次攻或防额外投 1 个骰子，第一颗骰直接视为最高面",

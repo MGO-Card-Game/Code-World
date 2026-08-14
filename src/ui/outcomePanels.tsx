@@ -22,6 +22,7 @@ import type {
   EquipmentChoiceState,
   EncounterChoiceState,
   ScrollTargetChoiceState,
+  ScrollDiscardChoiceState,
   GameStateView,
   MapEventEquipmentChoiceState,
   MapEventHarmonyChoiceState,
@@ -750,6 +751,58 @@ export function ScrollTargetChoicePanel({ state, choice, dispatch, playing, view
                 <small>
                   {`位置 ${state.map.tiles[target.position]?.label ?? "—"}`}
                   {unavailable ? " · 暂时离线" : ""}
+                </small>
+              </button>
+            );
+          })}
+        </div>
+      }
+    />
+  );
+}
+
+export function ScrollDiscardChoicePanel({ state, choice, dispatch, playing, viewerSeat }: {
+  state: GameStateView;
+  choice: ScrollDiscardChoiceState;
+  dispatch: Dispatch;
+  playing: boolean;
+  viewerSeat: PlayerId;
+}) {
+  const target = state.players[choice.targetPlayerId];
+  const candidates = visibleScrolls(target.scrolls).filter((scroll) =>
+    choice.candidateIds.includes(scroll.instanceId)
+  );
+  const canChoose = viewerSeat === choice.targetPlayerId;
+
+  return (
+    <DecisionModal
+      className="equipment-choice-modal"
+      kicker={choice.scrollName}
+      title={`${target.name}选择要弃掉的卷轴`}
+      lead="被缴械的玩家自行决定损失哪一张暗牌。"
+      canAct={canChoose}
+      waiting={<p className="waiting-notice">{`等待${target.name}选择弃牌……`}</p>}
+      actions={
+        <div className="equipment-choice-options">
+          {candidates.map((scroll) => {
+            const definition = SCROLLS[scroll.kind];
+            return (
+              <button
+                type="button"
+                key={scroll.instanceId}
+                disabled={playing}
+                onClick={() => dispatch({
+                  type: "chooseScrollDiscard",
+                  instanceId: scroll.instanceId,
+                })}
+              >
+                <span>弃掉</span>
+                <strong>{definition.name}</strong>
+                <small>
+                  <CardBlurb
+                    keywords={scrollKeywords(definition)}
+                    description={definition.description}
+                  />
                 </small>
               </button>
             );

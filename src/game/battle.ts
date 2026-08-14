@@ -95,7 +95,11 @@ export function startBattle(
   enemyId?: EnemyKind,
   bPlayerId?: PlayerId,
   enemyAffix?: EliteAffixKind,
-  context?: { stageId?: GameState["map"]["regions"][number]["id"]; tileIndex?: number },
+  context?: {
+    stageId?: GameState["map"]["regions"][number]["id"];
+    tileIndex?: number;
+    pvpResume?: "turnComplete";
+  },
 ) {
   emit(state, {
     type: "battleStarted",
@@ -135,6 +139,7 @@ export function startBattle(
     scrollsUsedB: 0,
     enemyAttacksPerformed: 0,
     nextPlayerAttackPenalty: 0,
+    pvpResume: context?.pvpResume,
     choiceA: { status: "pending" },
     // 敌人不使用卷轴（GameRule 8.6），直接视为已提交
     choiceB: bPlayerId ? { status: "pending" } : { status: "declined" },
@@ -221,6 +226,7 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
         loserId,
         offered: offeredBlessing,
         tileIndex,
+        resume: battle.pvpResume,
         penaltyWaived: noPayablePenalty || undefined,
         penaltyWaiveReason,
       },
@@ -246,6 +252,7 @@ export function finishPvp(state: GameState, battle: BattleState, winnerSide: Com
       winnerId,
       loserId,
       tileIndex,
+      resume: battle.pvpResume,
       waived: noPayablePenalty || undefined,
       waiveReason: penaltyWaiveReason,
     },

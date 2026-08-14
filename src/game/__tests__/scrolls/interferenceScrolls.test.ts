@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { finishBattle } from "../../battle";
 import { drawableScrollKinds } from "../../content/scrolls";
 import { EXTORTION_GOLD } from "../../content/scrolls/interference";
 import { createInitialGame, gameReducer, handleDisconnectTimeout } from "../../engine";
@@ -131,6 +132,67 @@ describe("勒索信", () => {
       expect(eventsOf(resolved, "goldChanged").map((event) => event.to - event.from))
         .toEqual([-expected, expected]);
     }
+  });
+});
+
+describe("决斗契约", () => {
+  it("选择一名在线玩家原地发起 PvP，并消耗本次移动", () => {
+    const { state, playerId } = withScroll("duelContract", {
+      playerIds: ["player1", "player2", "player3"],
+    });
+    const opponents = state.turnOrder.filter((id) => id !== playerId);
+    state.unavailablePlayerIds = [opponents[1]];
+    const positions = Object.fromEntries(
+      Object.values(state.players).map((player) => [player.id, player.position]),
+    );
+
+    const played = play(state);
+    if (played.phase.kind !== "scrollTargetChoice") throw new Error("应停在选人阶段");
+    expect(played.phase.choice.candidateIds).toEqual([opponents[0]]);
+
+    const started = gameReducer(played, {
+      type: "chooseScrollTarget",
+      targetId: opponents[0],
+    });
+
+    expect(started.phase.kind).toBe("battle");
+    if (started.phase.kind !== "battle") return;
+    expect(started.phase.battle).toMatchObject({
+      kind: "pvp",
+      aPlayerId: playerId,
+      bPlayerId: opponents[0],
+      pvpResume: "turnComplete",
+    });
+    for (const [id, position] of Object.entries(positions)) {
+      expect(started.players[id].position).toBe(position);
+    }
+  });
+
+  it("已经完成移动后不能再使用", () => {
+    const { state } = withScroll("duelContract");
+    state.phase = { kind: "turnComplete" };
+
+    expect(play(state)).toBe(state);
+  });
+
+  it("战斗代价结算后直接结束回合，不重复触发脚下格子", () => {
+    const { state, playerId } = withScroll("duelContract");
+    const played = play(state);
+    if (played.phase.kind !== "scrollTargetChoice") throw new Error("应停在选人阶段");
+    const targetId = played.phase.choice.candidateIds[0];
+    const started = gameReducer(played, { type: "chooseScrollTarget", targetId });
+    if (started.phase.kind !== "battle") throw new Error("应进入 PvP");
+
+    started.map.tiles[started.players[playerId].position].type = "treasure";
+    started.players[targetId].gold = 100;
+    finishBattle(started, started.phase.battle, "a");
+    if ((started.phase as GameState["phase"]).kind !== "pvpPenalty") {
+      throw new Error("应进入代价阶段");
+    }
+
+    const settled = gameReducer(started, { type: "choosePvpPenalty", choice: "gold" });
+
+    expect(settled.phase.kind).toBe("turnComplete");
   });
 });
 
@@ -311,9 +373,16 @@ describe("翻跟头", () => {
 });
 
 describe("卡池", () => {
-  it("这五张都进随机卡池，不是事件专属", () => {
+  it("这六张都进随机卡池，不是事件专属", () => {
     const drawable = drawableScrollKinds();
-    for (const kind of ["tripwire", "extortion", "moonwalk", "bodySwap", "somersault"] as const) {
+    for (const kind of [
+      "duelContract",
+      "tripwire",
+      "extortion",
+      "moonwalk",
+      "bodySwap",
+      "somersault",
+    ] as const) {
       expect(drawable).toContain(kind);
     }
   });

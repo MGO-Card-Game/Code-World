@@ -124,6 +124,10 @@ export interface Player {
    * 真掷骰才兑现——"下次掷骰点数为 1"说的就是掷骰，没掷就还没发生。
    */
   forcedMovementRoll?: number;
+  /** 下一次真正掷骰移动的最终结果减值；多次施加会累加，最低仍走 1 格。 */
+  nextMovementRollPenalty?: number;
+  /** 最近一次离开并停留过的同阶段格子，供折返卷轴使用。 */
+  previousStopPosition?: number;
   scrolls: OwnedScroll[];
   equipment: OwnedEquipment[];
   blessings: OwnedBlessing[];
@@ -213,6 +217,14 @@ export interface BattleState {
   enemyAttacksPerformed: number;
   /** Boss 能力施加的下一次玩家攻击减值；玩家完成一次攻击后清零。 */
   nextPlayerAttackPenalty: number;
+  /** 寒霜钉施加的下一次攻击骰面减值，按战斗双方分别保存。 */
+  nextAttackDieSidesPenaltyA?: number;
+  nextAttackDieSidesPenaltyB?: number;
+  /** 最后壁垒施加的下一次主动攻击跳过标记。 */
+  skipNextAttackA?: true;
+  skipNextAttackB?: true;
+  /** 决斗契约发起的 PvP 不结算脚下格子，战后直接结束当前回合。 */
+  pvpResume?: "turnComplete";
   /** 本回合双方的卷轴选择，两侧都非 pending 时才结算 */
   choiceA: ScrollChoice;
   choiceB: ScrollChoice;
@@ -222,6 +234,8 @@ export interface PvpPenaltyState {
   winnerId: PlayerId;
   loserId: PlayerId;
   tileIndex: number;
+  /** 决斗契约战后的特殊出口；普通同格相遇仍回到 tileIndex 继续结算。 */
+  resume?: "turnComplete";
   /** 当前无可支付项；正常惩罚应由引擎直接跳过。 */
   waived?: true;
   waiveReason?: "noPayable";
@@ -306,6 +320,8 @@ export interface PvpBlessingChoiceState {
   loserId: PlayerId;
   offered: OwnedBlessing;
   tileIndex: number;
+  /** 决斗契约战后的特殊出口，跨过赐福取舍阶段继续保留。 */
+  resume?: "turnComplete";
   penaltyWaived?: true;
   penaltyWaiveReason?: "noPayable";
 }
@@ -506,6 +522,15 @@ export interface ScrollTargetChoiceState {
   resume: "awaitingRoll" | "turnComplete";
 }
 
+/** 缴械的目标从自己的暗牌中选择一张弃掉。 */
+export interface ScrollDiscardChoiceState {
+  sourcePlayerId: PlayerId;
+  targetPlayerId: PlayerId;
+  candidateIds: string[];
+  scrollName: string;
+  resume: "awaitingRoll" | "turnComplete";
+}
+
 export interface EquipmentChoiceState {
   playerId: PlayerId;
   offered: OwnedEquipment;
@@ -534,6 +559,7 @@ export type GamePhase =
   | { kind: "turnComplete" }
   | { kind: "encounterChoice"; choice: EncounterChoiceState }
   | { kind: "scrollTargetChoice"; choice: ScrollTargetChoiceState }
+  | { kind: "scrollDiscardChoice"; choice: ScrollDiscardChoiceState }
   | { kind: "encounterDecision"; encounter: EncounterDecisionState }
   | { kind: "tradeOffer"; trade: TradeOfferState }
   | { kind: "tradeConfirmation"; trade: TradeConfirmationState }
@@ -800,6 +826,7 @@ export type GameAction =
   | { type: "endTurn" }
   | { type: "chooseEncounterOpponent"; opponentId: PlayerId }
   | { type: "chooseScrollTarget"; targetId: PlayerId }
+  | { type: "chooseScrollDiscard"; instanceId: string }
   | { type: "chooseEncounterIntent"; side: CombatSide; intent: EncounterIntent }
   | {
       type: "submitTradeOffer";

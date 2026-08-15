@@ -1,4 +1,4 @@
-import type { MapRegionId, ScrollKind, TileType } from "../../types";
+import type { MapRegionId, ScrollKind, TileType, TimedStatPenalty } from "../../types";
 import type { EquipmentCategory } from "../equipment/definition";
 import type { RewardRarityTier } from "../rarity";
 
@@ -144,6 +144,15 @@ export type MapEventEffectDefinition =
       stat: MapEventBaseStat;
       amount: number;
       narration: (context: BaseStatNarrationContext) => string;
+    }
+  | {
+      /** 按玩家自己的完整回合计时；同 kind 再次施加时刷新持续时间。 */
+      type: "applyTimedStatPenalty";
+      kind: TimedStatPenalty["kind"];
+      attack: number;
+      defense: number;
+      turns: number;
+      narration: (context: PlayerNarrationContext) => string;
     }
   | {
       type: "grantGold";

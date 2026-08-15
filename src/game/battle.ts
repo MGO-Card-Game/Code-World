@@ -624,6 +624,7 @@ function applyBeforeDamage(
       ownMaxHp,
       incoming,
       reduceDamage: (by) => shrinkTo(damage - Math.max(0, by)),
+      capDamage: (max) => shrinkTo(max),
       keepAtLeast: (hp) => {
         const floor = Math.min(ownMaxHp, Math.max(0, hp));
         minimumHpAfter = Math.max(minimumHpAfter, floor);

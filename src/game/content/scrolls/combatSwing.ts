@@ -160,6 +160,20 @@ export const COMBAT_SWING_SCROLLS = {
   },
 
   /*
+    诱敌号角（饰品·SR）在每场战斗开始时发一张这个，战斗结束回收。
+    攻防时机都允许使用，但“下一次攻击”不会追溯影响已经开始结算的这一击。
+  */
+  lureHornTaunt: {
+    name: "诱敌号角",
+    description: "令对方下一次攻击骰结果 -2",
+    rarity: "SR",
+    timings: ["beforeAttackRoll", "beforeDefenseRoll"],
+    keywords: ["battleOnly"],
+    effects: [{ type: "penalizeNextAttackRoll", amount: 2 }],
+    drawable: false,
+  },
+
+  /*
     只认强敌：独立精英怪、带词条的漫游怪和首领。普通怪和玩家身上打不出去，
     条件由 usableAgainst 在选牌阶段就挡住，effects 里不再重复判断。
   */

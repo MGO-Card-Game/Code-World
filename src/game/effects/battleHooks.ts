@@ -32,6 +32,8 @@ export interface RollModifiers {
   sidesOverride?: number;
   /** 在基础骰面或卷轴替换骰面之上继续加减；与装备骰面修正处于同一层。 */
   dieSidesBonus: number;
+  /** 将本次骰面上限压到指定值；用于“固定为 D1”这类绝对限制。 */
+  dieSidesCap: number;
   extraDice: number;
   /** 每颗骰子投几次；多张同类牌取最大次数，不按张数累加。 */
   rollAttempts: number;

@@ -62,6 +62,7 @@ export function newRollModifiers(): RollModifiers {
   return {
     flatBonus: 0,
     dieSidesBonus: 0,
+    dieSidesCap: Number.MAX_SAFE_INTEGER,
     extraDice: 0,
     rollAttempts: 1,
     rollSelection: "highest",
@@ -101,6 +102,27 @@ function takeNextAttackDieSidesPenalty(battle: BattleState, side: CombatSide) {
     : battle.nextAttackDieSidesPenaltyB ?? 0;
   if (side === "a") delete battle.nextAttackDieSidesPenaltyA;
   else delete battle.nextAttackDieSidesPenaltyB;
+  return amount;
+}
+
+function addNextAttackRollPenalty(
+  battle: BattleState,
+  side: CombatSide,
+  amount: number,
+) {
+  if (side === "a") {
+    battle.nextAttackRollPenaltyA = (battle.nextAttackRollPenaltyA ?? 0) + amount;
+  } else {
+    battle.nextAttackRollPenaltyB = (battle.nextAttackRollPenaltyB ?? 0) + amount;
+  }
+}
+
+function takeNextAttackRollPenalty(battle: BattleState, side: CombatSide) {
+  const amount = side === "a"
+    ? battle.nextAttackRollPenaltyA ?? 0
+    : battle.nextAttackRollPenaltyB ?? 0;
+  if (side === "a") delete battle.nextAttackRollPenaltyA;
+  else delete battle.nextAttackRollPenaltyB;
   return amount;
 }
 
@@ -219,6 +241,9 @@ export function applyScrollEffect(
     case "penalizeNextAttackDieSides":
       addNextAttackDieSidesPenalty(battle, targetSide, Math.max(0, effect.amount));
       return undefined;
+    case "penalizeNextAttackRoll":
+      addNextAttackRollPenalty(battle, targetSide, Math.max(0, effect.amount));
+      return undefined;
     case "heal":
       applyBattleHealing(state, battle, sourceSide, effect.amount, effectName);
       return undefined;
@@ -313,10 +338,10 @@ export function rollForSide(
   const countBonus = player
     ? getDiceCountBonus(player, dieKind)
     : enemyDiceCountBonus(battle.enemyId!, battle.enemyAffix, dieKind);
-  const sides = Math.max(
-    2,
-    (modifiers.sidesOverride ?? 6) + sidesBonus + modifiers.dieSidesBonus,
-  );
+  const sides = Math.max(1, Math.min(
+    modifiers.dieSidesCap,
+    Math.max(2, (modifiers.sidesOverride ?? 6) + sidesBonus + modifiers.dieSidesBonus),
+  ));
   const count = Math.max(1, 1 + modifiers.extraDice + countBonus);
   /*
     每颗骰子都照常掷一次再决定要不要覆盖，而不是"视为最高面就跳过投骰"。
@@ -482,6 +507,28 @@ export function applyEquipmentAfterOpposedRoll(
       defenseRoll,
       modifiers,
       random: () => nextRandom(state),
+    });
+  });
+}
+
+/** 双方骰点公开后的防守方装备钩子。 */
+export function applyEquipmentAfterDefensiveOpposedRoll(
+  state: GameState,
+  battle: BattleState,
+  defenderSide: CombatSide,
+  attackerSide: CombatSide,
+  modifiers: RollModifiers,
+  attackRoll: RollResult,
+  defenseRoll: RollResult,
+) {
+  forEachEquipmentEffects(state, battle, defenderSide, (effects, item, player) => {
+    effects.afterDefensiveOpposedRoll?.({
+      ...battleEffectContext(state, battle, defenderSide, attackerSide),
+      player,
+      item,
+      attackRoll,
+      defenseRoll,
+      modifiers,
     });
   });
 }
@@ -693,6 +740,15 @@ function resolveAttackSettlement(
     attackRoll,
     defenseRoll,
   );
+  applyEquipmentAfterDefensiveOpposedRoll(
+    state,
+    battle,
+    defenderSide,
+    attackerSide,
+    defenseModifiers,
+    attackRoll,
+    defenseRoll,
+  );
 
   const attackBase = sideStats(state, battle, attackerSide).attack;
   const defenseBase = sideStats(state, battle, defenderSide).defense;
@@ -794,6 +850,14 @@ export function resolveBattleRound(state: GameState) {
     attackBaseline.dieSidesBonus -= attackDieSidesPenalty;
     battle.log.unshift(
       `${combatantName(state, battle, attackerSide)}受到寒霜钉干扰，本次攻击骰上限 -${attackDieSidesPenalty}。`,
+    );
+    battle.log = battle.log.slice(0, 8);
+  }
+  const attackRollPenalty = takeNextAttackRollPenalty(battle, attackerSide);
+  if (attackRollPenalty > 0) {
+    attackBaseline.flatBonus -= attackRollPenalty;
+    battle.log.unshift(
+      `${combatantName(state, battle, attackerSide)}受到诱敌号角干扰，本次攻击骰结果 -${attackRollPenalty}。`,
     );
     battle.log = battle.log.slice(0, 8);
   }

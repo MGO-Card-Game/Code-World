@@ -8,6 +8,22 @@ import type { GameState } from "./types";
  */
 
 export function advanceCompletedTurn(state: GameState) {
+  const outgoing = state.players[state.activePlayerId];
+  if (outgoing.timedStatPenalties) {
+    const expired: string[] = [];
+    outgoing.timedStatPenalties = outgoing.timedStatPenalties.flatMap((penalty) => {
+      // 地图事件发生在本回合行动末尾；施加当回合不算五个受影响回合之一。
+      if (penalty.appliedOnTurn === state.turn) return [penalty];
+      const remainingTurns = penalty.remainingTurns - 1;
+      if (remainingTurns > 0) return [{ ...penalty, remainingTurns }];
+      expired.push(penalty.kind);
+      return [];
+    });
+    if (outgoing.timedStatPenalties.length === 0) delete outgoing.timedStatPenalties;
+    if (expired.includes("doomPossession")) {
+      addHistory(state, `${outgoing.name}身上的厄运终于消散了。`);
+    }
+  }
   state.activePlayerId = nextPlayerId(state);
   state.turn += 1;
   state.lastMovementRoll = undefined;

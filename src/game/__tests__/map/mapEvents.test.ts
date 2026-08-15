@@ -5,7 +5,9 @@ import { drawableScrollKinds, SCROLLS } from "../../content/scrolls";
 import { ECONOMY } from "../../economy";
 import { createInitialGame, gameReducer, handleDisconnectTimeout } from "../../engine";
 import { MAP_REGION_SIZE } from "../../map";
+import { applyMapEventEffect } from "../../mapEvents";
 import { canAct, viewFor } from "../../multiplayer";
+import { getAttack, getDefense } from "../../selectors";
 import type { GameEvent, GameState, PlayerId } from "../../types";
 
 /**
@@ -27,6 +29,7 @@ const EVENT_NARRATIONS = {
   coinRain: "天降金钱雨",
   campfire: "旅人的篝火旁",
   impulseBuy: "被摊主说动",
+  doomPossession: "被厄运附体",
   // 收到牌和无人可收两条旁白共用这一段，两种情况都认得出来
   requisition: "交出一张卷轴",
   twinSlayer: "双子杀手",
@@ -179,6 +182,15 @@ describe("地图事件结算", () => {
           expect(eventsOf(state, "goldChanged")).toHaveLength(0);
           break;
         }
+        case "doomPossession":
+          expect(player.timedStatPenalties).toEqual([{
+            kind: "doomPossession",
+            attack: 1,
+            defense: 1,
+            remainingTurns: 5,
+            appliedOnTurn: state.turn,
+          }]);
+          break;
         case "requisition":
           // 这个测试床里对手手上没有卷轴，走的是「一张都收不到」那条分支
           expect(player.scrolls).toHaveLength(0);
@@ -291,6 +303,57 @@ describe("地图事件结算", () => {
     expect(state.phase.kind).toBe("turnComplete");
     expect(state.players.player1.skipNextMovement).toBeUndefined();
     expect(state.message.text).toContain("受沼泽影响，本回合无法移动");
+  });
+
+  it("厄运附体持续五个本人回合，施加当回合不提前消耗", () => {
+    let state = createInitialGame(8);
+    const playerId = state.activePlayerId;
+    const player = state.players[playerId];
+    const effect = MAP_EVENTS.doomPossession.effects[0];
+    applyMapEventEffect(state, player, effect);
+
+    expect(getAttack(player)).toBe(4);
+    expect(getDefense(player)).toBe(1);
+
+    // 事件发生在本回合行动末尾；交棒时仍保留完整的五回合。
+    state.phase = { kind: "turnComplete" };
+    state = gameReducer(state, { type: "endTurn" });
+    expect(state.players[playerId].timedStatPenalties?.[0].remainingTurns).toBe(5);
+
+    for (let completed = 1; completed <= 5; completed += 1) {
+      // 另一名玩家结束回合，轮到受厄运影响的玩家行动。
+      state.phase = { kind: "turnComplete" };
+      state = gameReducer(state, { type: "endTurn" });
+      expect(state.activePlayerId).toBe(playerId);
+      expect(getAttack(state.players[playerId])).toBe(4);
+      expect(getDefense(state.players[playerId])).toBe(1);
+
+      state.phase = { kind: "turnComplete" };
+      state = gameReducer(state, { type: "endTurn" });
+      const penalty = state.players[playerId].timedStatPenalties?.[0];
+      if (completed < 5) expect(penalty?.remainingTurns).toBe(5 - completed);
+      else expect(penalty).toBeUndefined();
+    }
+
+    expect(getAttack(state.players[playerId])).toBe(5);
+    expect(getDefense(state.players[playerId])).toBe(2);
+    expect(state.history.some((entry) => entry.text.includes("厄运终于消散"))).toBe(true);
+  });
+
+  it("再次触发厄运附体会刷新五回合而不会叠加", () => {
+    const state = createInitialGame(9);
+    const player = state.players[state.activePlayerId];
+    const effect = MAP_EVENTS.doomPossession.effects[0];
+    applyMapEventEffect(state, player, effect);
+    player.timedStatPenalties![0].remainingTurns = 2;
+    state.turn += 1;
+
+    applyMapEventEffect(state, player, effect);
+
+    expect(player.timedStatPenalties).toHaveLength(1);
+    expect(player.timedStatPenalties?.[0].remainingTurns).toBe(5);
+    expect(getAttack(player)).toBe(4);
+    expect(getDefense(player)).toBe(1);
   });
 
   it("冲动消费按余额扣 30%，向下取整", () => {

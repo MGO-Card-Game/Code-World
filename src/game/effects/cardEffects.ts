@@ -53,6 +53,8 @@ export type ScrollEffectDefinition =
   | { type: "skipNextAttack" }
   /** 令目标下一次主动攻击的骰面上限降低。 */
   | { type: "penalizeNextAttackDieSides"; amount: number }
+  /** 令目标下一次主动攻击的骰点总结果降低。 */
+  | { type: "penalizeNextAttackRoll"; amount: number }
   | { type: "heal"; amount: number }
   /** 地图阶段放弃本次移动；战斗中使用则失去下一次地图移动。 */
   | { type: "forfeitMovement" }
@@ -194,6 +196,15 @@ export interface EquipmentOpposedRollContext extends BattleEffectContext {
   random: () => number;
 }
 
+/** 双方投骰后提供给防守方装备的上下文；修正写入本次防御。 */
+export interface EquipmentDefensiveOpposedRollContext extends BattleEffectContext {
+  player: Player;
+  item: OwnedEquipment;
+  attackRoll: RollResult;
+  defenseRoll: RollResult;
+  modifiers: RollModifiers;
+}
+
 /**
  * 战斗开始时装备能做的事。
  *
@@ -251,6 +262,8 @@ export interface EquipmentDamageContext {
   incoming: number;
   /** 减免固定伤害量。 */
   reduceDamage: (by: number) => void;
+  /** 把这一次伤害压到不超过 max。 */
+  capDamage: (max: number) => void;
   /**
    * 保证这次伤害结算后至少剩 hp 点生命，用于致命拦截。
    *
@@ -313,6 +326,8 @@ export interface EquipmentEffects {
   afterRoll?: (context: EquipmentBattleContext & { roll: RollResult }) => void;
   /** 攻击方与防守方都完成投骰后，仅对攻击方装备调用。 */
   afterOpposedRoll?: (context: EquipmentOpposedRollContext) => void;
+  /** 攻击方与防守方都完成投骰后，仅对防守方装备调用。 */
+  afterDefensiveOpposedRoll?: (context: EquipmentDefensiveOpposedRollContext) => void;
   /**
    * 伤害落地前，只对受击方调用。
    *

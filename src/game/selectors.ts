@@ -82,15 +82,21 @@ export function blessingModifiers(player: PlayerStats): StatModifier[] {
 }
 
 export function playerModifiers(player: PlayerStats): StatModifier[] {
-  return [...equipmentModifiers(player), ...blessingModifiers(player)];
+  const timedPenalties: StatModifier[] = (player.timedStatPenalties ?? []).flatMap(
+    (penalty) => [
+      { type: "statBonus", stat: "attack", value: -Math.max(0, penalty.attack) },
+      { type: "statBonus", stat: "defense", value: -Math.max(0, penalty.defense) },
+    ],
+  );
+  return [...equipmentModifiers(player), ...blessingModifiers(player), ...timedPenalties];
 }
 
 export function getAttack(player: PlayerStats) {
-  return player.baseAttack + statBonus(playerModifiers(player), "attack");
+  return Math.max(0, player.baseAttack + statBonus(playerModifiers(player), "attack"));
 }
 
 export function getDefense(player: PlayerStats) {
-  return player.baseDefense + statBonus(playerModifiers(player), "defense");
+  return Math.max(0, player.baseDefense + statBonus(playerModifiers(player), "defense"));
 }
 
 export function getDieSidesBonus(player: PlayerStats, die: DiceKind) {

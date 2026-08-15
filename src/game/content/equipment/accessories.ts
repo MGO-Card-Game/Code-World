@@ -26,6 +26,18 @@ export const ACCESSORIES = defineEquipment("accessory", {
     modifiers: [{ type: "diceCount", die: "movement", value: 1 }],
   },
 
+  lureHorn: {
+    name: "诱敌号角",
+    description: "每场战斗限一次：令对方下一次攻击骰结果 -2",
+    rarity: "SR",
+    modifiers: [],
+    effects: {
+      onBattleStart({ grantBattleScroll }) {
+        grantBattleScroll("lureHornTaunt");
+      },
+    },
+  },
+
   fateCoin: {
     name: "命运硬币",
     description: "你的攻击骰和防御骰只会掷出最小值或最大值",

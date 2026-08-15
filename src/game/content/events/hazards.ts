@@ -57,4 +57,20 @@ export const HAZARD_EVENTS = defineMapEvents("hazard", {
       },
     ],
   },
+
+  doomPossession: {
+    name: "厄运附体",
+    description: "接下来 5 个回合，攻击和防御各 -1。",
+    // 持续五个本人回合，比一次性掉血更难规避，按强负面事件给半权重。
+    regions: { foothill: 0.5, mountainside: 0.5, summit: 0.5 },
+    effects: [{
+      type: "applyTimedStatPenalty",
+      kind: "doomPossession",
+      attack: 1,
+      defense: 1,
+      turns: 5,
+      narration: ({ playerName }) =>
+        `${playerName}被厄运附体，接下来 5 个回合攻击和防御各 -1。`,
+    }],
+  },
 });

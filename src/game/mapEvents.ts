@@ -200,6 +200,22 @@ export function applyMapEventEffect(
       }
       return false;
     }
+    case "applyTimedStatPenalty": {
+      const penalty = {
+        kind: effect.kind,
+        attack: Math.max(0, effect.attack),
+        defense: Math.max(0, effect.defense),
+        remainingTurns: Math.max(1, Math.floor(effect.turns)),
+        appliedOnTurn: state.turn,
+      };
+      const current = player.timedStatPenalties ?? [];
+      player.timedStatPenalties = [
+        ...current.filter((candidate) => candidate.kind !== effect.kind),
+        penalty,
+      ];
+      addHistory(state, effect.narration({ playerName: player.name }));
+      return false;
+    }
     case "duplicateOwnedScroll": {
       if (player.scrolls.length === 0) {
         addHistory(state, effect.emptyNarration({ playerName: player.name }));

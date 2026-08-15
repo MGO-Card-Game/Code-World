@@ -31,6 +31,62 @@ export const ARMOR = defineEquipment("armor", {
     },
   },
 
+  ultimateWall: {
+    name: "终极之壁",
+    description: "基础攻击降为一半（向下取整）；防御提升等同于因此降低的攻击值",
+    rarity: "PR",
+    modifiers: [],
+    effects: {
+      modifiers({ player }) {
+        const attackReduction = player.baseAttack - Math.floor(player.baseAttack / 2);
+        return [
+          { type: "statBonus", stat: "attack", value: -attackReduction },
+          { type: "statBonus", stat: "defense", value: attackReduction },
+        ];
+      },
+    },
+  },
+
+  slimeSuit: {
+    name: "粘液服",
+    description: "防御骰上限固定为 1；单次受到的伤害不超过 5",
+    rarity: "SR",
+    modifiers: [],
+    keywords: ["damageCap"],
+    effects: {
+      beforeRoll({ dieKind, modifiers }) {
+        if (dieKind !== "defense") return;
+        modifiers.dieSidesCap = Math.min(modifiers.dieSidesCap, 1);
+      },
+      beforeDamage({ incoming, capDamage, addBattleLog }) {
+        if (incoming <= 5) return;
+        capDamage(5);
+        addBattleLog("粘液服吸收了冲击，本次伤害被压到 5 点。");
+      },
+    },
+  },
+
+  dragonHeart: {
+    name: "巨龙之心",
+    description: "防御骰上限 +2",
+    rarity: "SR",
+    modifiers: [{ type: "dieSides", die: "defense", value: 2 }],
+  },
+
+  steadfastCloak: {
+    name: "坚毅披风",
+    description: "防御骰上限 +1；防守时若对方攻击骰点数高于你的防御骰点数，本回合防御 +2",
+    rarity: "PR",
+    modifiers: [{ type: "dieSides", die: "defense", value: 1 }],
+    effects: {
+      afterDefensiveOpposedRoll({ attackRoll, defenseRoll, modifiers, addBattleLog }) {
+        if (attackRoll.sum <= defenseRoll.sum) return;
+        modifiers.flatBonus += 2;
+        addBattleLog("坚毅披风迎住强攻，本回合防御 +2。");
+      },
+    },
+  },
+
   turtleShell: {
     name: "龟壳",
     description: "地图移动骰上限 -2；防御骰上限 +4",

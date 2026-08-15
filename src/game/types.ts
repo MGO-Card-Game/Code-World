@@ -94,6 +94,16 @@ export interface OwnedBlessing {
   kind: BlessingKind;
 }
 
+/** 按玩家自己的完整回合计时；同 kind 的状态再次施加时刷新而不叠加。 */
+export interface TimedStatPenalty {
+  kind: "doomPossession";
+  attack: number;
+  defense: number;
+  remainingTurns: number;
+  /** 施加事件所在的全局回合；该回合结束时不扣持续时间。 */
+  appliedOnTurn: number;
+}
+
 export interface Player {
   id: PlayerId;
   name: string;
@@ -126,6 +136,8 @@ export interface Player {
   forcedMovementRoll?: number;
   /** 下一次真正掷骰移动的最终结果减值；多次施加会累加，最低仍走 1 格。 */
   nextMovementRollPenalty?: number;
+  /** 地图事件施加的限时攻防惩罚；旧存档没有此字段时视为空。 */
+  timedStatPenalties?: TimedStatPenalty[];
   /** 最近一次离开并停留过的同阶段格子，供折返卷轴使用。 */
   previousStopPosition?: number;
   scrolls: OwnedScroll[];
@@ -220,6 +232,9 @@ export interface BattleState {
   /** 寒霜钉施加的下一次攻击骰面减值，按战斗双方分别保存。 */
   nextAttackDieSidesPenaltyA?: number;
   nextAttackDieSidesPenaltyB?: number;
+  /** 诱敌号角施加的下一次攻击骰总点数减值，按战斗双方分别保存。 */
+  nextAttackRollPenaltyA?: number;
+  nextAttackRollPenaltyB?: number;
   /** 最后壁垒施加的下一次主动攻击跳过标记。 */
   skipNextAttackA?: true;
   skipNextAttackB?: true;

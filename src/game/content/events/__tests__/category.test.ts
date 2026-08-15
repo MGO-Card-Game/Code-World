@@ -12,6 +12,7 @@ describe("地图事件内容注册表", () => {
       "fallingRocks",
       "mire",
       "impulseBuy",
+      "doomPossession",
       "lostPurse",
       "travelerGift",
       "fallenAdventurer",
@@ -33,6 +34,7 @@ describe("地图事件内容注册表", () => {
     expect(MAP_EVENTS.fallingRocks.category).toBe("hazard");
     expect(MAP_EVENTS.mire.category).toBe("hazard");
     expect(MAP_EVENTS.impulseBuy.category).toBe("hazard");
+    expect(MAP_EVENTS.doomPossession.category).toBe("hazard");
     expect(MAP_EVENTS.lostPurse.category).toBe("reward");
     expect(MAP_EVENTS.travelerGift.category).toBe("reward");
     expect(MAP_EVENTS.fallenAdventurer.category).toBe("reward");
@@ -59,6 +61,7 @@ describe("地图事件内容注册表", () => {
         ["fallingRocks", 1],
         ["mire", 0.5],
         ["impulseBuy", 1],
+        ["doomPossession", 0.5],
         ["lostPurse", 1],
         ["travelerGift", 1],
         ["fallenAdventurer", 0.5],
@@ -90,28 +93,29 @@ describe("地图事件内容注册表", () => {
     }
   });
 
-  it("一次权重抽取消耗一个随机数并覆盖二十个事件区间", () => {
-    // 取值都落在各自区间的中段：权重总和是 12，边界值容易随权重微调而漂移。
+  it("一次权重抽取消耗一个随机数并覆盖全部事件区间", () => {
+    // 取值都落在各自区间的中段：权重总和是 12.5，边界值容易随权重微调而漂移。
     const cases = [
       [0.04, "roadsideRespite"],
-      [0.105, "hotSpring"],
-      [0.17, "fallingRocks"],
-      [0.23, "mire"],
-      [0.29, "impulseBuy"],
-      [0.375, "lostPurse"],
-      [0.46, "travelerGift"],
-      [0.52, "fallenAdventurer"],
-      [0.552, "weaponInStone"],
-      [0.583, "coinRain"],
-      [0.625, "campfire"],
-      [0.657, "requisition"],
-      [0.687, "twinSlayer"],
-      [0.73, "weaponCollector"],
-      [0.77, "eliteHunter"],
-      [0.812, "commerceOutpost"],
-      [0.854, "veteranGuidance"],
-      [0.895, "guardianInscription"],
-      [0.937, "harmony"],
+      [0.10, "hotSpring"],
+      [0.16, "fallingRocks"],
+      [0.22, "mire"],
+      [0.28, "impulseBuy"],
+      [0.34, "doomPossession"],
+      [0.40, "lostPurse"],
+      [0.48, "travelerGift"],
+      [0.54, "fallenAdventurer"],
+      [0.57, "weaponInStone"],
+      [0.60, "coinRain"],
+      [0.64, "campfire"],
+      [0.67, "requisition"],
+      [0.70, "twinSlayer"],
+      [0.74, "weaponCollector"],
+      [0.78, "eliteHunter"],
+      [0.82, "commerceOutpost"],
+      [0.86, "veteranGuidance"],
+      [0.90, "guardianInscription"],
+      [0.94, "harmony"],
       [0.98, "casinoRoulette"],
     ] as const;
 

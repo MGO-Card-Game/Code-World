@@ -34,7 +34,7 @@ export const KEYWORDS = {
   damageCap: {
     label: "伤害上限",
     rule: "单次受到的伤害不会超过这个数，攻防差与掷骰前伤害一并压住。",
-    engine: "EnemyDamageContext.capDamage",
+    engine: "EnemyDamageContext.capDamage / EquipmentDamageContext.capDamage",
   },
 
   selfCost: {

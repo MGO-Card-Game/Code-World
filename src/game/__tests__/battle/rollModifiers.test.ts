@@ -163,7 +163,7 @@ describe("一回合多张卷轴", () => {
     const COMMUTATIVE = [
       "flatBonus", "dieSides", "dieSidesBonus", "extraDice", "rollTwice", "minimumRoll", "maxRoll",
       "fixedRoll", "damageReduction", "damageCap", "postRoundSelfHpLoss",
-      "skipNextAttack", "penalizeNextAttackDieSides",
+      "skipNextAttack", "penalizeNextAttackDieSides", "penalizeNextAttackRoll",
     ];
     const SEQUENTIAL = [
       "directDamage", "heal", "forfeitMovement", "chooseMovement", "teleport",

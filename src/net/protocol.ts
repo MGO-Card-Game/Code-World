@@ -25,6 +25,8 @@ export interface RoomMember {
 export interface RoomView {
   code: string;
   status: RoomStatus;
+  /** 单人调试房随当前决策切换观看和操作的座位。 */
+  soloDebug?: true;
   /** 你坐在哪个位置 */
   seat: PlayerId;
   hostSeat: PlayerId;
@@ -35,6 +37,7 @@ export interface RoomView {
 }
 
 export type ClientMessage =
+  | { type: "createSoloDebug"; requestId: string; playerName: string; playerToken: string }
   | {
       type: "createRoom";
       requestId: string;
@@ -51,7 +54,7 @@ export type ClientMessage =
     }
   | { type: "leaveRoom"; requestId: string }
   | { type: "startGame"; requestId: string }
-  | { type: "action"; requestId: string; action: GameAction };
+  | { type: "action"; requestId: string; action: GameAction; expectedSeat?: PlayerId };
 
 export type ServerMessage =
   | { type: "ack"; requestId: string; roomCode: string; seat: PlayerId }

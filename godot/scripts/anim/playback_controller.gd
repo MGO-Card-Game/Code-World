@@ -87,6 +87,12 @@ func reset() -> void:
 	_clear_presentation()
 
 
+## The next seat receives its own redacted events. Keep the battle for its ending animation.
+func change_viewer() -> void:
+	queue.reset()
+	_caption = ""
+
+
 func _clear_presentation() -> void:
 	_caption = ""
 	_live_battle = false

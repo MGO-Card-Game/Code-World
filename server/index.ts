@@ -88,12 +88,14 @@ wss.on("connection", (socket) => {
     }
 
     switch (message.type) {
+      case "createSoloDebug":
       case "createRoom": {
         const result = rooms.createRoom(
           connection,
           message.playerName,
           message.playerToken,
-          message.capacity,
+          message.type === "createSoloDebug" ? 2 : message.capacity,
+          message.type === "createSoloDebug",
         );
         connection.send(
           result.ok
@@ -128,7 +130,7 @@ wss.on("connection", (socket) => {
         return;
       }
       case "action": {
-        const result = rooms.applyAction(connection, message.action);
+        const result = rooms.applyAction(connection, message.action, message.expectedSeat);
         if (!result.ok) {
           connection.send({ type: "error", requestId: message.requestId, message: result.message });
         }

@@ -35,6 +35,7 @@ const ShopCasino = preload("res://scripts/ui/shop_casino_overlay.gd")
 @onready var room_code_input: LineEdit = $Margin/Root/Screens/Lobby/Margin/Content/RoomCode
 @onready var create_button: Button = $Margin/Root/Screens/Lobby/Margin/Content/CreateRoom
 @onready var join_button: Button = $Margin/Root/Screens/Lobby/Margin/Content/JoinRoom
+@onready var solo_debug_button: Button = $Margin/Root/Screens/Lobby/Margin/Content/SoloDebug
 
 @onready var waiting_code: Label = $Margin/Root/Screens/Room/Margin/Content/Code
 @onready var waiting_members: VBoxContainer = $Margin/Root/Screens/Room/Margin/Content/Members
@@ -46,6 +47,7 @@ const ShopCasino = preload("res://scripts/ui/shop_casino_overlay.gd")
 @onready var board: Board = $Margin/Root/Screens/Game/Body/BoardCard/Margin/Content/Board
 @onready var router: Router = $Margin/Root/Screens/Game/ActionDock
 @onready var overlay_host: ColorRect = $OverlayHost
+@onready var debug_seat: Label = $OverlayHost/DebugSeat
 @onready var battle_panel: Battle = $OverlayHost/BattlePanel
 @onready var outcome_overlay: Outcome = $OverlayHost/OutcomeOverlay
 @onready var trade_overlay: Trade = $OverlayHost/TradeOverlay
@@ -69,6 +71,7 @@ func _ready() -> void:
 	player_name.text = GameClient.load_player_name()
 
 	create_button.pressed.connect(_on_create_room)
+	solo_debug_button.pressed.connect(_on_solo_debug)
 	join_button.pressed.connect(_on_join_room)
 	start_button.pressed.connect(GameClient.start_game)
 	$Margin/Root/Screens/Room/Margin/Content/LeaveRoom.pressed.connect(_on_leave_room)
@@ -142,6 +145,11 @@ func _on_join_room() -> void:
 	GameClient.join_room(code, player_name.text)
 
 
+func _on_solo_debug() -> void:
+	_clear_notice()
+	GameClient.create_room(player_name.text, 2, true)
+
+
 func _on_leave_room() -> void:
 	GameClient.leave_room()
 	_current_room = {}
@@ -152,6 +160,7 @@ func _on_status_changed(next_status: String) -> void:
 	connection_status.text = str(STATUS_LABELS.get(next_status, next_status))
 	create_button.disabled = next_status == "connecting"
 	join_button.disabled = next_status == "connecting"
+	solo_debug_button.disabled = next_status == "connecting"
 
 
 func _on_room_changed(next_room: Dictionary) -> void:
@@ -159,6 +168,9 @@ func _on_room_changed(next_room: Dictionary) -> void:
 	if next_room.get("seat") != _current_room.get("seat"):
 		inspect_overlay.dismiss()
 		_minimized_decision_key = ""
+		if next_room.get("soloDebug", false):
+			playback.change_viewer()
+			shop_casino_overlay.close_camp_shop()
 	if next_room.get("code") != _current_room.get("code"):
 		_reset_presentation()
 		board.reset_selection()
@@ -237,14 +249,19 @@ func _show_game(state: Dictionary) -> void:
 	var active_player_id := str(state.get("activePlayerId", ""))
 	var active_player: Dictionary = players.get(active_player_id, {})
 	turn_label.text = "行动 %d · %s的回合" % [int(state.get("turn", 0)), str(active_player.get("name", "旅者"))]
-	game_room_code.text = "房间 %s" % str(_current_room.get("code", "-----"))
-
 	var viewer: String = _current_room.get("seat", "")
+	var solo_debug: bool = _current_room.get("soloDebug", false)
+	debug_seat.visible = solo_debug
+	if solo_debug:
+		debug_seat.text = "单人调试 · 当前操作 %s席 · %s" % ["一" if viewer == "player1" else "二", players[viewer].name]
+		game_room_code.text = debug_seat.text
+	else:
+		game_room_code.text = "房间 %s" % str(_current_room.get("code", "-----"))
 	roster.set_game_state(state, viewer, playback)
 	board.set_game_state(state, "", playback)
 	router.set_game_state(state, viewer, playback)
 	battle_panel.set_game_state(state, viewer, playback)
-	outcome_overlay.set_game_state(state, viewer, playback, router, viewer == _current_room.get("hostSeat", ""))
+	outcome_overlay.set_game_state(state, viewer, playback, router, solo_debug or viewer == _current_room.get("hostSeat", ""))
 	trade_overlay.set_game_state(state, viewer, playback)
 	shop_casino_overlay.set_game_state(state, viewer, playback)
 	map_event_overlay.set_game_state(state, viewer, playback, router)

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, type ServerMessage } from "../../src/net/protocol";
 import { isHiddenScroll } from "../../src/game/multiplayer";
+import { makeBattle } from "../../src/game/testSupport";
 import { RoomStore, type Connection } from "../roomStore";
 
 class FakeConnection implements Connection {
@@ -42,6 +43,101 @@ function seatedRoom() {
   if (!started.ok) throw new Error(started.message);
   return { store, host, guest, code: created.roomCode };
 }
+
+describe("单人调试", () => {
+  function soloRoom() {
+    const store = new RoomStore();
+    const client = new FakeConnection();
+    const result = store.createRoom(client, "调试员", "owner-token", 2, true);
+    if (!result.ok) throw new Error(result.message);
+    const state = store.peek(result.roomCode)!.state!;
+    return { store, client, state, code: result.roomCode };
+  }
+
+  it("一条连接开双人局，回合交接时切换手牌，旧席位的操作无效", () => {
+    const { store, client, state, code } = soloRoom();
+    const seat = state.activePlayerId;
+    const other = seat === "player1" ? "player2" : "player1";
+    expect(client.lastRoom()).toMatchObject({ soloDebug: true, capacity: 2, status: "playing", seat });
+    expect(client.lastRoom()?.members).toHaveLength(2);
+    expect(store.joinRoom(new FakeConnection(), code, "访客", "guest-token").ok).toBe(false);
+    state.players[seat].scrolls = [{ instanceId: "first", kind: "might" }];
+    state.players[other].scrolls = [{ instanceId: "second", kind: "guard" }];
+    state.phase = { kind: "turnComplete" };
+    expect(store.applyAction(client, { type: "endTurn" }, seat).ok).toBe(true);
+    const next = client.lastRoom()!;
+    expect(next.seat).toBe(other);
+    expect(next.state?.players[seat].scrolls).toEqual([{ instanceId: "first", hidden: true }]);
+    expect(next.state?.players[other].scrolls).toEqual([{ instanceId: "second", kind: "guard" }]);
+    expect(store.applyAction(client, { type: "rollMovement" }, seat).ok).toBe(false);
+    expect(store.applyAction(client, { type: "rollMovement" }, other).ok).toBe(true);
+    store.leave(client);
+    expect(store.size).toBe(0);
+  });
+
+  it("双方秘密报价和确认分别切席，第二席断线后可以从同一待办继续", () => {
+    const { store, client, state, code } = soloRoom();
+    state.activePlayerId = "player1";
+    state.phase = { kind: "tradeOffer", trade: {
+      aPlayerId: "player1", bPlayerId: "player2", tileIndex: state.players.player1.position,
+      offerA: { status: "pending" }, offerB: { status: "pending" },
+    } };
+    const offer = { type: "submitTradeOffer" as const, gold: 1, scrollInstanceIds: [], equipmentInstanceIds: [] };
+    expect(store.applyAction(client, { ...offer, side: "a" }, "player1").ok).toBe(true);
+    expect(client.lastRoom()).toMatchObject({ seat: "player2", state: { activePlayerId: "player1",
+      phase: { trade: { offerA: { status: "submitted" } } } } });
+    store.disconnect(client);
+    expect(store.peek(code)?.state?.unavailablePlayerIds).toEqual([]);
+    const resumed = new FakeConnection();
+    expect(store.joinRoom(resumed, code, "调试员", "owner-token").ok).toBe(true);
+    expect(resumed.lastRoom()?.seat).toBe("player2");
+    expect(store.applyAction(resumed, { ...offer, side: "b" }, "player2").ok).toBe(true);
+    expect(resumed.lastRoom()).toMatchObject({ seat: "player1", state: { phase: { kind: "tradeConfirmation" } } });
+    expect(store.applyAction(resumed, { type: "confirmTrade", side: "a", accept: true }, "player1").ok).toBe(true);
+    expect(resumed.lastRoom()?.seat).toBe("player2");
+    expect(store.applyAction(resumed, { type: "confirmTrade", side: "b", accept: true }, "player2").ok).toBe(true);
+  });
+
+  it("战斗中随攻守双方切席，在第二席也能从终局重开", () => {
+    const { store, client, state, code } = soloRoom();
+    state.activePlayerId = "player1";
+    state.phase = { kind: "battle", battle: makeBattle({
+      kind: "pvp", aPlayerId: "player1", bPlayerId: "player2", attacker: "b",
+    }) };
+    expect(store.applyAction(client, { type: "submitScrollChoice", side: "b", instanceIds: [] }, "player2").ok).toBe(true);
+    expect(client.lastRoom()).toMatchObject({ seat: "player1", state: { phase: { kind: "battle" } } });
+    expect(store.applyAction(client, { type: "submitScrollChoice", side: "a", instanceIds: [] }, "player1").ok).toBe(true);
+    const finished = store.peek(code)!.state!;
+    finished.phase = { kind: "gameOver", winnerId: "player2" };
+    finished.activePlayerId = "player2";
+    expect(store.applyAction(client, { type: "restart", seed: 52 }, "player2").ok).toBe(true);
+    expect(client.lastRoom()?.state?.phase.kind).toBe("awaitingRoll");
+  });
+
+  it("缴械时切到弃牌者，处理后回到出牌者", () => {
+    const { store, client, state, code } = soloRoom();
+    state.activePlayerId = "player1";
+    state.players.player2.scrolls = [{ kind: "guard", instanceId: "discard" }];
+    state.phase = { kind: "scrollDiscardChoice", choice: {
+      sourcePlayerId: "player1", targetPlayerId: "player2", candidateIds: ["discard"],
+      scrollName: "缴械", resume: "awaitingRoll",
+    } };
+    const resumed = new FakeConnection();
+    store.joinRoom(resumed, code, "调试员", "owner-token");
+    expect(resumed.lastRoom()?.seat).toBe("player2");
+    const discard = { type: "chooseScrollDiscard" as const, instanceId: "discard" };
+    expect(store.applyAction(client, discard, "player2").ok).toBe(false);
+    expect(store.applyAction(resumed, discard, "player2").ok).toBe(true);
+    expect(resumed.lastRoom()).toMatchObject({ seat: "player1", state: { phase: { kind: "awaitingRoll" } } });
+  });
+
+  it("普通联机仍按真实连接授权", () => {
+    const { store, host, guest, code } = seatedRoom();
+    const state = store.peek(code)!.state!;
+    const waiting = state.activePlayerId === "player1" ? guest : host;
+    expect(store.applyAction(waiting, { type: "rollMovement" }, state.activePlayerId).ok).toBe(false);
+  });
+});
 
 describe("房间码", () => {
   it("长度与字符集符合约定，且不含易混字符", () => {

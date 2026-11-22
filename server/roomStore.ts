@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { createInitialGame, gameReducer, handleDisconnectTimeout } from "../src/game/engine";
-import { canAct, viewFor } from "../src/game/multiplayer";
+import { canAct, currentActor, viewFor } from "../src/game/multiplayer";
 import type { GameAction, GameState, PlayerId } from "../src/game/types";
 import {
   ROOM_CODE_ALPHABET,
@@ -32,6 +32,7 @@ interface Seat {
 
 interface Room {
   code: string;
+  soloDebug: boolean;
   seats: Seat[];
   capacity: PlayerCount;
   hostToken: string;
@@ -89,26 +90,30 @@ export class RoomStore {
     playerName: string,
     playerToken: string,
     capacity: PlayerCount = 2,
+    soloDebug = false,
   ): JoinResult | FailResult {
     if (!playerToken) return { ok: false, message: "缺少身份凭证" };
     if (![2, 3, 4].includes(capacity)) return { ok: false, message: "房间人数必须为 2–4 人" };
+    if (soloDebug && capacity !== 2) return { ok: false, message: "单人调试固定使用两个席位" };
     this.detach(connection);
 
     const code = this.generateCode();
+    const name = sanitizeName(playerName, "赤焰旅者");
     const room: Room = {
       code,
+      soloDebug,
       capacity,
       hostToken: playerToken,
       seats: [
         {
           seat: "player1",
-          name: sanitizeName(playerName, "赤焰旅者"),
+          name,
           token: playerToken,
           connection,
           connected: true,
         },
       ],
-      state: null,
+      state: soloDebug ? createInitialGame(undefined, { player1: name }, ["player1", "player2"]) : null,
       lastActivity: this.now(),
     };
     this.rooms.set(code, room);
@@ -135,7 +140,10 @@ export class RoomStore {
     const existing = room.seats.find((seat) => seat.token === playerToken);
     if (existing) {
       this.clearDisconnectTimer(room.code, existing.token);
-      existing.connection?.close();
+      if (existing.connection) {
+        this.bySocket.delete(existing.connection);
+        existing.connection.close();
+      }
       existing.connection = connection;
       existing.connected = true;
       if (room.state) {
@@ -190,7 +198,7 @@ export class RoomStore {
     return { ok: true };
   }
 
-  applyAction(connection: Connection, action: GameAction): ActionOutcome {
+  applyAction(connection: Connection, action: GameAction, expectedSeat?: PlayerId): ActionOutcome {
     const located = this.locate(connection);
     if (!located) return { ok: false, message: "尚未加入房间" };
     const { room, seat } = located;
@@ -204,7 +212,11 @@ export class RoomStore {
     }
 
     // canAct 只管授权：阶段对不对、是不是他那一侧、是不是已经提交过
-    if (!canAct(room.state, action, seat.seat)) {
+    const actor = room.soloDebug ? currentActor(room.state) : seat.seat;
+    if (room.soloDebug && expectedSeat !== actor) {
+      return { ok: false, message: "操作席位已切换，请按当前席位重新操作" };
+    }
+    if (!canAct(room.state, action, actor)) {
       return { ok: false, message: "现在还轮不到你做这个操作" };
     }
 
@@ -247,12 +259,12 @@ export class RoomStore {
     if (seat.connection !== connection) return;
     seat.connection = null;
     seat.connected = false;
-    if (room.state && !room.state.unavailablePlayerIds.includes(seat.seat)) {
+    if (room.state && !room.soloDebug && !room.state.unavailablePlayerIds.includes(seat.seat)) {
       room.state.unavailablePlayerIds.push(seat.seat);
     }
     room.lastActivity = this.now();
     this.broadcast(room);
-    if (room.state) this.scheduleDisconnectTimeout(room, seat);
+    if (room.state && !room.soloDebug) this.scheduleDisconnectTimeout(room, seat);
   }
 
   /** 回收全员掉线且超时的房间。由服务器定时调用 */
@@ -330,19 +342,24 @@ export class RoomStore {
   }
 
   private viewOf(room: Room, seat: Seat): RoomView {
+    const debugState = room.soloDebug ? room.state : null;
+    const viewer = debugState ? currentActor(debugState) : seat.seat;
     return {
       code: room.code,
+      ...(room.soloDebug && { soloDebug: true as const }),
       status: room.state ? "playing" : "waiting",
-      seat: seat.seat,
+      seat: viewer,
       hostSeat: room.seats.find((item) => item.token === room.hostToken)?.seat ?? "player1",
       capacity: room.capacity,
-      members: room.seats.map((item) => ({
+      members: debugState ? debugState.turnOrder.map((id) => ({
+        seat: id, name: debugState.players[id].name, connected: seat.connected,
+      })) : room.seats.map((item) => ({
         seat: item.seat,
         name: item.name,
         connected: item.connected,
       })),
       // 每个人拿到的是按自己裁剪过的状态，不是同一份
-      state: room.state ? viewFor(room.state, seat.seat) : null,
+      state: room.state ? viewFor(room.state, viewer) : null,
     };
   }
 

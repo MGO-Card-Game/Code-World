@@ -91,17 +91,18 @@ func _process(delta: float) -> void:
 		_handle_socket_closed()
 
 
-func create_room(player_name: String, capacity: int) -> void:
+func create_room(player_name: String, capacity: int, solo_debug := false) -> void:
 	_player_name = _normalized_name(player_name)
 	_save_identity(_player_name)
 	_last_join.clear()
 	_pending_message = {
-		"type": "createRoom",
+		"type": "createSoloDebug" if solo_debug else "createRoom",
 		"requestId": _next_request_id(),
 		"playerName": _player_name,
 		"playerToken": _load_or_create_token(),
-		"capacity": clampi(capacity, 2, 4),
 	}
+	if not solo_debug:
+		_pending_message.capacity = clampi(capacity, 2, 4)
 	_connect_to_server()
 
 
@@ -122,7 +123,10 @@ func dispatch(action: Dictionary) -> void:
 	if not _in_flight_request.is_empty():
 		return
 	var request_id := _next_request_id()
-	if _send({"type": "action", "requestId": request_id, "action": action}):
+	var message := {"type": "action", "requestId": request_id, "action": action}
+	if room.get("soloDebug", false):
+		message.expectedSeat = room.seat
+	if _send(message):
 		_in_flight_request = request_id
 		_action_timeout_remaining = ACTION_TIMEOUT_SECONDS
 
@@ -247,6 +251,8 @@ func _handle_socket_closed() -> void:
 		_reconnect_remaining = RECONNECT_DELAY_SECONDS
 	elif not _manual_close and not close_reason.is_empty():
 		error_received.emit("连接已关闭：%s" % close_reason)
+	elif not _manual_close and not _pending_message.is_empty():
+		error_received.emit("无法连接房间服，请确认服务已启动后重试。")
 
 
 func _next_request_id() -> String:

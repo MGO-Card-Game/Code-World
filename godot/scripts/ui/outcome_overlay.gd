@@ -22,11 +22,13 @@ func _ready() -> void:
 	body.add_child(options)
 
 
-func set_game_state(state: Dictionary, viewer: String, playback: Playback, router: Router) -> void:
+func set_game_state(state: Dictionary, viewer: String, playback: Playback, router: Router, can_restart: bool = false) -> void:
 	var kind: String = "" if state.is_empty() else state.phase.kind
 	var decision: Dictionary
 	var owner: String
 	var key := []
+	var playing := playback.is_playing()
+	var ready_to_show := true
 	match kind:
 		"pvpPenalty":
 			decision = state.phase.penalty
@@ -37,19 +39,33 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback, route
 			decision = state.phase.notice
 			owner = decision.playerId
 			key = [kind, state.turn, owner, decision.enemyName, viewer]
+			ready_to_show = router.presentation_ready(decision.get("revealAfterEventId"))
 		"equipmentChoice":
 			decision = state.phase.choice
 			owner = decision.playerId
 			key = [kind, state.turn, owner, decision.offered.instanceId, viewer]
+			ready_to_show = router.presentation_ready(decision.get("revealAfterEventId"))
+		"scrollDiscardChoice":
+			decision = state.phase.choice
+			owner = decision.targetPlayerId
+			key = [kind, state.turn, owner, viewer]
+			ready_to_show = not playing
+		"statGrowthChoice":
+			decision = state.phase.choice
+			owner = decision.playerId
+			key = [kind, state.turn, owner, decision.stageId, viewer]
+		"gameOver":
+			owner = state.phase.winnerId
+			key = [kind, state.turn, owner, viewer, can_restart]
 	_set_phase_key(key)
-	visible = not key.is_empty() and playback.lingering_battle.is_empty() and router.presentation_ready(decision.get("revealAfterEventId"))
+	visible = not key.is_empty() and playback.lingering_battle.is_empty() and ready_to_show
 	if not visible:
 		return
 	var player: Dictionary = state.players[owner]
-	var mine := owner == viewer
+	var mine := can_restart if kind == "gameOver" else owner == viewer
 	options.visible = mine
 	waiting.visible = not mine
-	skip.visible = playback.is_playing()
+	skip.visible = playing and kind != "gameOver" and (kind != "statGrowthChoice" or mine)
 	match kind:
 		"pvpPenalty":
 			_show_penalty(player, state.players[decision.winnerId].name, state.pvpPenaltyAmounts, mine)
@@ -57,8 +73,55 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback, route
 			_show_reward(decision, player.name, mine)
 		"equipmentChoice":
 			_show_equipment(decision, player, player.name, mine)
+		"scrollDiscardChoice":
+			_show_discard(decision, player, mine)
+		"statGrowthChoice":
+			_show_growth(decision, state.map.regions, player, mine)
+		"gameOver":
+			kicker.text = "登峰之冠"
+			title.text = "%s获胜" % player.name
+			details.text = "巨龙已经倒下，山巅见证了新的冠军。"
+			waiting.text = "等待房主重新开局……"
+			if can_restart:
+				_action_button("restart", "再来一局", {"type": "restart"})
 	for button: Button in _buttons.values():
-		button.disabled = playback.is_playing()
+		button.disabled = playing and kind != "gameOver"
+
+
+func _show_discard(choice: Dictionary, target: Dictionary, mine: bool) -> void:
+	kicker.text = choice.scrollName
+	title.text = "%s选择要弃掉的卷轴" % target.name
+	details.text = "被缴械的玩家自行决定损失哪一张暗牌。"
+	waiting.text = "等待%s选择弃牌……" % target.name
+	if not mine:
+		return
+	var keys := []
+	for scroll: Dictionary in target.scrolls:
+		if not scroll.get("hidden", false) and scroll.instanceId in choice.candidateIds:
+			var info := Catalog.scroll_info(scroll.kind)
+			keys.append(scroll.instanceId)
+			_action_button(scroll.instanceId, "弃掉%s\n%s" % [info.name, card_description(info)],
+				{"type": "chooseScrollDiscard", "instanceId": scroll.instanceId})
+	_sync_option_order(keys)
+
+
+func _show_growth(choice: Dictionary, regions: Array, player: Dictionary, mine: bool) -> void:
+	for region: Dictionary in regions:
+		if region.id == choice.stageId:
+			kicker.text = "%s·登顶之证" % region.name
+			break
+	title.text = "%s的永久成长" % player.name
+	details.text = "击败阶段首领的奖赏，一局只有两次，选定后不可更改。"
+	waiting.text = "等待%s分配成长……" % player.name
+	if not mine:
+		return
+	var labels := {
+		"attack": "攻击 +1\n永久提高攻击，每一次出手都更疼。\n当前基础 %d" % player.baseAttack,
+		"defense": "防御 +1\n永久提高防御，挨打时少扣一点。\n当前基础 %d" % player.baseDefense,
+		"maxHp": "生命上限 +5\n永久提高生命上限，并立即补上这 5 点。\n当前 %d/%d" % [player.hp, player.maxHp],
+	}
+	for option: String in labels:
+		_action_button(option, labels[option], {"type": "chooseStatGrowth", "option": option})
 
 
 func _show_reward(notice: Dictionary, player_name: String, mine: bool) -> void:
@@ -150,6 +213,7 @@ func _remove_button(key: String) -> void:
 func _action_button(key: String, label: String, action: Dictionary) -> void:
 	if not _buttons.has(key):
 		var button := Button.new()
+		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.pressed.connect(_submit.bind(button, action))
 		options.add_child(button)
 		_buttons[key] = button

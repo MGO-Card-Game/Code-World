@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/ui/mountain_board.gd" id="2_board"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/ui/phase_overlay_router.gd" id="4_router"]
 [ext_resource type="Script" path="res://scripts/ui/battle_panel.gd" id="5_battle"]
 [ext_resource type="Script" path="res://scripts/ui/outcome_overlay.gd" id="6_outcome"]
+[ext_resource type="Script" path="res://scripts/ui/trade_overlay.gd" id="7_trade"]
 
 [sub_resource type="Gradient" id="Gradient_background"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -496,3 +497,12 @@ anchor_top = 0.18
 anchor_right = 0.77
 anchor_bottom = 0.82
 script = ExtResource("6_outcome")
+
+[node name="TradeOverlay" type="PanelContainer" parent="OverlayHost"]
+visible = false
+layout_mode = 1
+anchor_left = 0.23
+anchor_top = 0.18
+anchor_right = 0.77
+anchor_bottom = 0.82
+script = ExtResource("7_trade")

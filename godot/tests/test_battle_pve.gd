@@ -277,7 +277,7 @@ func _test_ending(equipment_first: bool) -> void:
 	if notice.get("statGrowth", false):
 		state.phase = {"kind": "statGrowthChoice", "choice": {"playerId": "player1", "stageId": "foothill"}}
 		_broadcast()
-		_check.call(not main.overlay_host.visible and main.router.guidance.text.contains("永久成长"), "boss acknowledgement yields to stat growth phase")
+		_check.call(outcome.is_visible_in_tree() and outcome.title.text == "青岚的永久成长" and main.router.guidance.text.contains("永久成长"), "boss acknowledgement yields to stat growth phase")
 	else:
 		state.phase = {"kind": "turnComplete"}
 		_broadcast()

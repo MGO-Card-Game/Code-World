@@ -18,6 +18,7 @@ const Router = preload("res://scripts/ui/phase_overlay_router.gd")
 const Playback = preload("res://scripts/anim/playback_controller.gd")
 const Battle = preload("res://scripts/ui/battle_panel.gd")
 const Outcome = preload("res://scripts/ui/outcome_overlay.gd")
+const Trade = preload("res://scripts/ui/trade_overlay.gd")
 
 @onready var connection_status: Label = $Margin/Root/Topbar/ConnectionStatus
 @onready var notice: Label = $Margin/Root/Notice
@@ -43,6 +44,7 @@ const Outcome = preload("res://scripts/ui/outcome_overlay.gd")
 @onready var overlay_host: ColorRect = $OverlayHost
 @onready var battle_panel: Battle = $OverlayHost/BattlePanel
 @onready var outcome_overlay: Outcome = $OverlayHost/OutcomeOverlay
+@onready var trade_overlay: Trade = $OverlayHost/TradeOverlay
 
 var _current_room: Dictionary = {}
 var playback := Playback.new()
@@ -66,8 +68,10 @@ func _ready() -> void:
 	router.skip_requested.connect(_skip_playback)
 	battle_panel.skip_requested.connect(_skip_playback)
 	outcome_overlay.skip_requested.connect(_skip_playback)
+	trade_overlay.skip_requested.connect(_skip_playback)
 	battle_panel.action_requested.connect(router.dispatch_action)
 	outcome_overlay.action_requested.connect(router.dispatch_action)
+	trade_overlay.action_requested.connect(router.dispatch_action)
 
 	GameClient.status_changed.connect(_on_status_changed)
 	GameClient.room_changed.connect(_on_room_changed)
@@ -214,8 +218,9 @@ func _show_game(state: Dictionary) -> void:
 	board.set_game_state(state, "", playback)
 	router.set_game_state(state, viewer, playback)
 	battle_panel.set_game_state(state, viewer, playback)
-	outcome_overlay.set_game_state(state, viewer, playback, router)
-	_set_overlay_visible(battle_panel.visible or outcome_overlay.visible)
+	outcome_overlay.set_game_state(state, viewer, playback, router, viewer == _current_room.get("hostSeat", ""))
+	trade_overlay.set_game_state(state, viewer, playback)
+	_set_overlay_visible(battle_panel.visible or outcome_overlay.visible or trade_overlay.visible)
 
 
 func _set_overlay_visible(is_open: bool) -> void:
@@ -227,6 +232,7 @@ func _reset_presentation() -> void:
 	playback.reset()
 	battle_panel.set_game_state({}, "", playback)
 	outcome_overlay.set_game_state({}, "", playback, router)
+	trade_overlay.set_game_state({}, "", playback)
 	_set_overlay_visible(false)
 
 

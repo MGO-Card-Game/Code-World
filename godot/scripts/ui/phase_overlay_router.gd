@@ -138,6 +138,8 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback = null
 					labels.append(INTENTS[intent])
 			else:
 				guidance.text += " · 等待相遇双方决定"
+		"battle", "pveReward", "equipmentChoice":
+			pass # The mounted modal owns these actions.
 		_:
 			guidance.text += " · 当前版本仅展示此阶段"
 
@@ -175,12 +177,16 @@ func _clear_choices() -> void:
 
 func _on_choice_pressed(action: Dictionary) -> void:
 	if choices.visible and action in _choice_actions:
-		dispatch_callable.call(action)
+		dispatch_action(action)
 
 
 func _on_primary_pressed() -> void:
 	if not primary_action.disabled:
-		dispatch_callable.call({"type": _primary_type})
+		dispatch_action({"type": _primary_type})
+
+
+func dispatch_action(action: Dictionary) -> void:
+	dispatch_callable.call(action)
 
 
 func _phase_sigil(phase_kind: String) -> String:

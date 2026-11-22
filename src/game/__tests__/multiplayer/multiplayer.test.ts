@@ -505,3 +505,83 @@ describe("暗牌裁剪 viewFor", () => {
     expect(checkedSecrets).toBeGreaterThan(0);
   });
 });
+
+describe("按观看座位派生的战斗与可用卷轴视图", () => {
+  it.each(["awaitingRoll", "turnComplete"] as const)("%s 只给行动者地图卷轴", (kind) => {
+    const state = createInitialGame(42);
+    state.activePlayerId = "player1";
+    state.phase = { kind };
+    state.players.player1.scrolls = [
+      { instanceId: "map", kind: "plunder" }, { instanceId: "attack", kind: "might" },
+    ];
+    expect(viewFor(state, "player1").viewerPlayableScrollIds).toEqual({ map: ["map"] });
+    expect(viewFor(state, "player2").viewerPlayableScrollIds).toBeUndefined();
+    expect(viewFor(state, "player1").battleEnemy).toBeUndefined();
+  });
+
+  it("魔战肩仅封锁攻击时机", () => {
+    const state = withBattle();
+    state.players.player1.scrolls = [
+      { instanceId: "attack", kind: "might" }, { instanceId: "defense", kind: "guard" },
+    ];
+    state.players.player1.equipment = [{ instanceId: "armor", kind: "warcasterPauldron" }];
+    expect(viewFor(state, "player1").viewerPlayableScrollIds).toEqual({
+      beforeAttackRoll: [], beforeDefenseRoll: ["defense"],
+    });
+  });
+
+  it.each([
+    ["pve", "slime", undefined, []],
+    ["pve", "cliffOgre", undefined, ["order"]],
+    ["pve", "slime", "vigorous", ["order"]],
+    ["boss", "banditChief", undefined, ["order"]],
+  ] as const)("斩首命令按敌人筛选：%s / %s / %s", (kind, enemyId, enemyAffix, expected) => {
+    const state = createInitialGame(42);
+    state.phase = { kind: "battle", battle: makeBattle({ kind, enemyId, enemyAffix, aPlayerId: "player1" }) };
+    state.players.player1.scrolls = [{ instanceId: "order", kind: "decapitationOrder" }];
+    expect(viewFor(state, "player1").viewerPlayableScrollIds?.beforeAttackRoll).toEqual(expected);
+  });
+
+  it("双方仅收到自己的候选 ID，旁观者无候选，暗选结果不暴露牌面", () => {
+    const state = createInitialGame(42, {}, ["player1", "player2", "player3"]);
+    state.players.player1.scrolls = [{ instanceId: "11", kind: "might" }];
+    state.players.player2.scrolls = [{ instanceId: "22", kind: "guard" }];
+    state.phase = { kind: "battle", battle: makeBattle({
+      kind: "pvp", aPlayerId: "player1", bPlayerId: "player2",
+      choiceA: { status: "chosen", instanceIds: ["11"] },
+    }) };
+    expect(viewFor(state, "player1").viewerPlayableScrollIds).toEqual({
+      beforeAttackRoll: ["11"], beforeDefenseRoll: [],
+    });
+    const opponent = viewFor(state, "player2");
+    expect(opponent.viewerPlayableScrollIds).toEqual({ beforeAttackRoll: [], beforeDefenseRoll: ["22"] });
+    const spectator = viewFor(state, "player3");
+    expect(spectator.viewerPlayableScrollIds).toBeUndefined();
+    for (const view of [opponent, spectator]) {
+      expect(view.phase).toEqual({ kind: "battle", battle: { ...state.phase.battle, choiceA: { status: "submitted" } } });
+      // 旧契约以公开 ID 跟踪牌背；暗选不能额外标出哪个牌背将被打出。
+      const { players, ...payload } = view;
+      expect(players.player1.scrolls).toEqual([{ instanceId: "11", hidden: true }]);
+      expect(allText(payload)).not.toContain('"11"');
+      expect(allText(view)).not.toContain('"might"');
+      expect(allText(view)).not.toContain("力量卷轴");
+      expect(view.battleEnemy).toBeUndefined();
+    }
+  });
+
+  it.each([
+    ["vigorous", { name: "生命旺盛的史莱姆", maxHp: 15, attack: 1, defense: 0 }],
+    ["frenzied", { name: "狂暴的史莱姆", maxHp: 10, attack: 3, defense: 0 }],
+    ["ironclad", { name: "坚甲的史莱姆", maxHp: 10, attack: 1, defense: 2 }],
+  ] as const)("词条怪视图含前缀、精英基础生命及 %s 修正", (enemyAffix, expected) => {
+    const state = createInitialGame(42);
+    state.phase = { kind: "battle", battle: makeBattle({
+      kind: "pve", aPlayerId: "player1", enemyId: "slime", enemyAffix,
+    }) };
+    for (const viewer of state.turnOrder) {
+      const view = viewFor(state, viewer);
+      expect(view.battleEnemy).toEqual(expected);
+      expect(view.phase).toEqual(state.phase);
+    }
+  });
+});

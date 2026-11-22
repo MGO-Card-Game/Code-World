@@ -2,6 +2,7 @@ class_name EventQueue
 extends RefCounted
 
 signal event_started(event: Dictionary)
+signal restarted
 
 const DEFAULT_DURATIONS := {
 	"narration": 420,
@@ -44,13 +45,14 @@ func enqueue(events: Array, speed: float = 1.0) -> bool:
 	if events.is_empty():
 		return false
 	var highest := int(events[-1].get("id", 0))
-	var restarted := highest < _watermark
-	if restarted:
+	var is_restart := highest < _watermark
+	if is_restart:
 		reset()
+		restarted.emit()
 
 	var added := false
 	for event: Dictionary in events:
-		if not restarted and int(event.get("id", 0)) <= _watermark:
+		if not is_restart and int(event.get("id", 0)) <= _watermark:
 			continue
 		var base := int(DEFAULT_DURATIONS.get(event.get("type"), 0))
 		var duration := maxi(0, roundi(float(base) / speed)) if speed > 0.0 else 0

@@ -8,6 +8,8 @@ var queue := Queue.new()
 var _caption := ""
 var _live_battle := false
 var _remembered_battle: Dictionary = {}
+var _remembered_battle_enemy: Dictionary = {}
+var battle_instance := 0
 
 var lingering_battle: Dictionary:
 	get:
@@ -17,17 +19,36 @@ var lingering_battle: Dictionary:
 			return {}
 		return Visual.battle_with_damage(_remembered_battle, Visual.battle_timeline(queue.seen_events()))
 
+var lingering_battle_enemy: Dictionary:
+	get:
+		return {} if lingering_battle.is_empty() else _remembered_battle_enemy
+
 
 func _init() -> void:
 	queue.event_started.connect(_on_event_started)
+	queue.restarted.connect(_clear_presentation)
 
 
 func sync_state(state: Dictionary) -> void:
-	queue.enqueue(state.get("lastEvents", []))
+	var events: Array = state.get("lastEvents", [])
+	var previous_id := queue.watermark()
+	queue.enqueue(events)
 	var phase: Dictionary = state.get("phase", {})
-	_live_battle = phase.get("kind") == "battle"
-	if _live_battle:
+	if phase.get("kind") == "battle":
+		if not _live_battle or events.any(func(e: Dictionary) -> bool: return e.type == "battleStarted" and int(e.id) > previous_id):
+			battle_instance += 1
+		_live_battle = true
 		_remembered_battle = phase.get("battle", {}).duplicate(true)
+		_remembered_battle_enemy = state.get("battleEnemy", {}).duplicate(true)
+	else:
+		_live_battle = false
+		_release_finished_battle()
+
+
+func _release_finished_battle() -> void:
+	if not _live_battle and not _remembered_battle.is_empty() and not Visual.is_battle_ending(queue.current_event(), queue.pending_events()):
+		_remembered_battle = {}
+		_remembered_battle_enemy = {}
 
 
 func _on_event_started(event: Dictionary) -> void:
@@ -49,15 +70,25 @@ func is_playing() -> bool:
 func advance(delta_ms: float) -> bool:
 	var previous_length := queue.queue_length()
 	queue.advance(delta_ms)
-	return queue.queue_length() != previous_length
+	if queue.queue_length() == previous_length:
+		return false
+	_release_finished_battle()
+	return true
 
 
 func drain() -> bool:
-	return queue.drain()
+	var changed := queue.drain()
+	_release_finished_battle()
+	return changed
 
 
 func reset() -> void:
 	queue.reset()
+	_clear_presentation()
+
+
+func _clear_presentation() -> void:
 	_caption = ""
 	_live_battle = false
 	_remembered_battle = {}
+	_remembered_battle_enemy = {}

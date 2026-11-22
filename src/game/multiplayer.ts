@@ -1,4 +1,5 @@
 import { SCROLLS } from "./content/scrolls";
+import { enemyStats, playableScrolls } from "./selectors";
 import type {
   CombatSide,
   GameAction,
@@ -11,6 +12,7 @@ import type {
   PlayerView,
   ScrollChoice,
   ScrollView,
+  ViewerPlayableScrollIds,
 } from "./types";
 
 /**
@@ -428,9 +430,28 @@ export function viewFor(state: GameState, viewer: PlayerId): GameStateView {
     };
   }
 
+  const { phase } = state;
+  const viewerPlayer = state.players[viewer];
+  let viewerPlayableScrollIds: ViewerPlayableScrollIds | undefined;
+  let battleEnemy: GameStateView["battleEnemy"];
+  if (phase.kind === "battle") {
+    const battle = phase.battle;
+    if (viewer === battle.aPlayerId || viewer === battle.bPlayerId) {
+      viewerPlayableScrollIds = {
+        beforeAttackRoll: playableScrolls(viewerPlayer, "beforeAttackRoll", battle).map((s) => s.instanceId),
+        beforeDefenseRoll: playableScrolls(viewerPlayer, "beforeDefenseRoll", battle).map((s) => s.instanceId),
+      };
+    }
+    if (battle.enemyId) battleEnemy = enemyStats(battle.enemyId, battle.enemyAffix);
+  } else if ((phase.kind === "awaitingRoll" || phase.kind === "turnComplete") && viewer === state.activePlayerId) {
+    viewerPlayableScrollIds = { map: playableScrolls(viewerPlayer, "map").map((s) => s.instanceId) };
+  }
+
   return {
     ...state,
     players,
+    ...(viewerPlayableScrollIds && { viewerPlayableScrollIds }),
+    ...(battleEnemy && { battleEnemy }),
     phase: redactPhase(state.phase, viewer),
     message: redactLogEntry(state.message, viewer),
     history: state.history.map((entry) => redactLogEntry(entry, viewer)),

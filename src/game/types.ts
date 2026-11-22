@@ -932,7 +932,22 @@ export type PlayerStats = Omit<Player, "scrolls">;
 /** 玩家的可见视图，scrolls 可能是裁剪过的 */
 export type PlayerView = PlayerStats & { scrolls: ScrollView[] };
 
+export interface ViewerPlayableScrollIds {
+  map?: string[];
+  beforeAttackRoll?: string[];
+  beforeDefenseRoll?: string[];
+}
+
+export interface BattleEnemyView {
+  name: string;
+  maxHp: number;
+  attack: number;
+  defense: number;
+}
+
 /** 发给某一名玩家的状态视图 */
 export type GameStateView = Omit<GameState, "players"> & {
   players: Record<string, PlayerView>;
+  viewerPlayableScrollIds?: ViewerPlayableScrollIds;
+  battleEnemy?: BattleEnemyView;
 };

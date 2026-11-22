@@ -6,6 +6,7 @@ const Board = preload("res://scripts/ui/mountain_board.gd")
 const Roster = preload("res://scripts/ui/roster_panel.gd")
 const Router = preload("res://scripts/ui/phase_overlay_router.gd")
 const AnimTests = preload("res://tests/test_anim_playback.gd")
+const BattleTests = preload("res://tests/test_battle_pve.gd")
 
 var _checks := 0
 var _failures := 0
@@ -46,6 +47,7 @@ func _run() -> void:
 		root.add_child(main)
 		_test_scene(main)
 		anim.test_scene(main, _game_state())
+		await BattleTests.new(_check, main, _game_state()).run()
 		main.queue_free()
 	await process_frame
 	await process_frame
@@ -53,7 +55,7 @@ func _run() -> void:
 	var orphans := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
 	_check(orphans == 0, "absolute orphan node count after cleanup")
 	OS.remove_logger(_errors)
-	print("Godot M2a: %d checks, %d failed, %d runtime errors during tests, %d orphan nodes" % [_checks, _failures, _errors.count, orphans])
+	print("Godot M2b: %d checks, %d failed, %d runtime errors during tests, %d orphan nodes" % [_checks, _failures, _errors.count, orphans])
 	quit(0 if _failures == 0 and _errors.count == 0 else 1)
 
 

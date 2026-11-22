@@ -16,6 +16,8 @@ const Board = preload("res://scripts/ui/mountain_board.gd")
 const Roster = preload("res://scripts/ui/roster_panel.gd")
 const Router = preload("res://scripts/ui/phase_overlay_router.gd")
 const Playback = preload("res://scripts/anim/playback_controller.gd")
+const Battle = preload("res://scripts/ui/battle_panel.gd")
+const Outcome = preload("res://scripts/ui/outcome_overlay.gd")
 
 @onready var connection_status: Label = $Margin/Root/Topbar/ConnectionStatus
 @onready var notice: Label = $Margin/Root/Notice
@@ -38,6 +40,9 @@ const Playback = preload("res://scripts/anim/playback_controller.gd")
 @onready var roster: Roster = $Margin/Root/Screens/Game/Body/RosterCard
 @onready var board: Board = $Margin/Root/Screens/Game/Body/BoardCard/Margin/Content/Board
 @onready var router: Router = $Margin/Root/Screens/Game/ActionDock
+@onready var overlay_host: ColorRect = $OverlayHost
+@onready var battle_panel: Battle = $OverlayHost/BattlePanel
+@onready var outcome_overlay: Outcome = $OverlayHost/OutcomeOverlay
 
 var _current_room: Dictionary = {}
 var playback := Playback.new()
@@ -59,6 +64,10 @@ func _ready() -> void:
 	$Margin/Root/Screens/Game/ActionDock/Margin/Content/ActionRow/Leave.pressed.connect(_on_leave_room)
 	board.region_tabs = $Margin/Root/Screens/Game/Body/BoardCard/Margin/Content/RegionHeader/RegionTabs
 	router.skip_requested.connect(_skip_playback)
+	battle_panel.skip_requested.connect(_skip_playback)
+	outcome_overlay.skip_requested.connect(_skip_playback)
+	battle_panel.action_requested.connect(router.dispatch_action)
+	outcome_overlay.action_requested.connect(router.dispatch_action)
 
 	GameClient.status_changed.connect(_on_status_changed)
 	GameClient.room_changed.connect(_on_room_changed)
@@ -121,7 +130,7 @@ func _on_status_changed(next_status: String) -> void:
 func _on_room_changed(next_room: Dictionary) -> void:
 	_clear_notice()
 	if next_room.get("code") != _current_room.get("code"):
-		playback.reset()
+		_reset_presentation()
 		board.reset_selection()
 		router.reset_phase()
 	_current_room = next_room
@@ -140,14 +149,14 @@ func _on_room_closed(reason: String) -> void:
 
 
 func _show_lobby() -> void:
-	playback.reset()
+	_reset_presentation()
 	lobby_panel.visible = true
 	room_panel.visible = false
 	game_panel.visible = false
 
 
 func _show_waiting_room() -> void:
-	playback.reset()
+	_reset_presentation()
 	lobby_panel.visible = false
 	room_panel.visible = true
 	game_panel.visible = false
@@ -204,6 +213,21 @@ func _show_game(state: Dictionary) -> void:
 	roster.set_game_state(state, viewer, playback)
 	board.set_game_state(state, "", playback)
 	router.set_game_state(state, viewer, playback)
+	battle_panel.set_game_state(state, viewer, playback)
+	outcome_overlay.set_game_state(state, viewer, playback, router)
+	_set_overlay_visible(battle_panel.visible or outcome_overlay.visible)
+
+
+func _set_overlay_visible(is_open: bool) -> void:
+	overlay_host.visible = is_open
+	$Margin.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED if is_open else Control.FOCUS_BEHAVIOR_INHERITED
+
+
+func _reset_presentation() -> void:
+	playback.reset()
+	battle_panel.set_game_state({}, "", playback)
+	outcome_overlay.set_game_state({}, "", playback, router)
+	_set_overlay_visible(false)
 
 
 func _show_notice(message: String) -> void:

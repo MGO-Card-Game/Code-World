@@ -1,0 +1,2148 @@
+{
+  "blessings": {
+    "ancientTreeHeart": {
+      "description": "生命上限永久 +10，获得时恢复 6 点生命",
+      "enabled": true,
+      "name": "古树之心"
+    },
+    "dragonScale": {
+      "description": "防御永久 +2",
+      "enabled": true,
+      "name": "龙鳞护体"
+    },
+    "favoredByFate": {
+      "description": "每颗攻击骰和防御骰最低视为 3",
+      "enabled": true,
+      "name": "命运垂青"
+    },
+    "giantStrength": {
+      "description": "攻击永久 +2",
+      "enabled": true,
+      "name": "巨人之力"
+    },
+    "midasTouch": {
+      "description": "通过战斗、宝箱和事件获得的金币增加 20%",
+      "enabled": true,
+      "name": "点石成金"
+    },
+    "treasureHunter": {
+      "description": "开启宝箱时，额外获得 1 件随机装备",
+      "enabled": true,
+      "name": "宝物猎人"
+    },
+    "unyieldingWill": {
+      "description": "战败时不退回阶段营地，改为留在原地以半血复活",
+      "enabled": true,
+      "name": "不屈意志"
+    },
+    "warTycoon": {
+      "description": "每次赢得非 Boss 的 PvE 战斗后，额外获得 1 张随机卷轴",
+      "enabled": true,
+      "name": "战争财阀"
+    },
+    "windrunner": {
+      "description": "移动骰结果 +1",
+      "enabled": true,
+      "name": "逐风者"
+    }
+  },
+  "eliteAffixes": {
+    "agile": {
+      "description": "防御骰上限 +2",
+      "keywords": [],
+      "name": "敏捷的",
+      "rarity": "N"
+    },
+    "cornered": {
+      "description": "自身生命低于一半时，攻击 +3",
+      "keywords": [],
+      "name": "濒死反扑",
+      "rarity": "SR"
+    },
+    "frenzied": {
+      "description": "攻击 +2",
+      "keywords": [],
+      "name": "狂暴的",
+      "rarity": "R"
+    },
+    "honed": {
+      "description": "攻击骰上限 +2",
+      "keywords": [],
+      "name": "锋锐的",
+      "rarity": "N"
+    },
+    "ironclad": {
+      "description": "防御 +2",
+      "keywords": [],
+      "name": "坚甲的",
+      "rarity": "R"
+    },
+    "venomous": {
+      "description": "攻击时额外造成 1 点伤害",
+      "keywords": [
+        "ignoreDefense"
+      ],
+      "name": "淬毒的",
+      "rarity": "R"
+    },
+    "vigorous": {
+      "description": "生命上限 +5",
+      "keywords": [],
+      "name": "生命旺盛的",
+      "rarity": "N"
+    }
+  },
+  "enemies": {
+    "banditChief": {
+      "abilities": [
+        {
+          "description": "攻击骰掷出最高面时，额外造成 2 点伤害",
+          "keywords": [
+            "ignoreDefense"
+          ],
+          "name": "重斧"
+        },
+        {
+          "description": "本场战斗中的第一次攻击结算两次：重新投骰、重新判定伤害",
+          "keywords": [],
+          "name": "动作如潮"
+        }
+      ],
+      "attack": 6,
+      "defense": 3,
+      "maxHp": 28,
+      "name": "山匪头目",
+      "tier": "boss",
+      "tierName": "首领"
+    },
+    "bioSlug": {
+      "abilities": [
+        {
+          "description": "受到的每一次伤害至多为 3 点",
+          "keywords": [
+            "damageCap"
+          ],
+          "name": "凝胶质"
+        }
+      ],
+      "attack": 3,
+      "defense": 1,
+      "maxHp": 12,
+      "name": "生化蛞蝓",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "caveBats": {
+      "abilities": [],
+      "attack": 2,
+      "defense": 0,
+      "maxHp": 8,
+      "name": "岩穴蝠群",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "cliffOgre": {
+      "abilities": [
+        {
+          "description": "攻击骰上限 +2",
+          "keywords": [],
+          "name": "巨力"
+        }
+      ],
+      "attack": 6,
+      "defense": 3,
+      "maxHp": 28,
+      "name": "断崖巨魔",
+      "tier": "elite",
+      "tierName": "精英"
+    },
+    "dragon": {
+      "abilities": [
+        {
+          "description": "防御骰上限 +2",
+          "keywords": [],
+          "name": "龙鳞"
+        },
+        {
+          "description": "生命低于 70 点时，攻击 +2、攻击骰改为 D8、防御 -2，防御骰恢复为 D6",
+          "keywords": [],
+          "name": "暴怒"
+        },
+        {
+          "description": "生命低于 40 点时，攻击再 +2；每次攻击对玩家造成 10 点伤害，减去其当前防御",
+          "keywords": [
+            "directDamage"
+          ],
+          "name": "真·巨龙打击"
+        }
+      ],
+      "attack": 8,
+      "defense": 6,
+      "maxHp": 75,
+      "name": "峰顶巨龙",
+      "tier": "boss",
+      "tierName": "首领"
+    },
+    "frostFang": {
+      "abilities": [
+        {
+          "description": "生命高于 20 点时，攻击 +2",
+          "keywords": [],
+          "name": "霜锋之牙"
+        },
+        {
+          "description": "每当对玩家造成伤害，玩家下一次攻击 -2",
+          "keywords": [],
+          "name": "霜冻之铠"
+        }
+      ],
+      "attack": 8,
+      "defense": 5,
+      "maxHp": 40,
+      "name": "霜牙巨兽",
+      "tier": "boss",
+      "tierName": "首领"
+    },
+    "frostWraith": {
+      "abilities": [
+        {
+          "description": "自身生命低于一半时，防御 +2",
+          "keywords": [],
+          "name": "霜幕"
+        }
+      ],
+      "attack": 6,
+      "defense": 4,
+      "maxHp": 24,
+      "name": "霜幕怨灵",
+      "tier": "elite",
+      "tierName": "精英"
+    },
+    "golem": {
+      "abilities": [],
+      "attack": 3,
+      "defense": 2,
+      "maxHp": 16,
+      "name": "石像守卫",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "iceShellLizard": {
+      "abilities": [],
+      "attack": 2,
+      "defense": 4,
+      "maxHp": 18,
+      "name": "冰壳蜥",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "mireHexer": {
+      "abilities": [
+        {
+          "description": "攻击骰掷出最高面时，额外造成 2 点伤害",
+          "keywords": [
+            "ignoreDefense"
+          ],
+          "name": "蚀骨咒"
+        }
+      ],
+      "attack": 4,
+      "defense": 2,
+      "maxHp": 20,
+      "name": "腐沼巫兽",
+      "tier": "elite",
+      "tierName": "精英"
+    },
+    "mistSpider": {
+      "abilities": [
+        {
+          "description": "攻击骰掷出最高面时，额外造成 1 点伤害",
+          "keywords": [
+            "ignoreDefense"
+          ],
+          "name": "毒牙"
+        }
+      ],
+      "attack": 3,
+      "defense": 1,
+      "maxHp": 14,
+      "name": "雾毒蜘蛛",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "obsidianSentinel": {
+      "abilities": [
+        {
+          "description": "受到的每一次伤害至多为 5 点",
+          "keywords": [
+            "damageCap"
+          ],
+          "name": "黑曜躯壳"
+        }
+      ],
+      "attack": 6,
+      "defense": 6,
+      "maxHp": 36,
+      "name": "黑曜镇守者",
+      "tier": "elite",
+      "tierName": "精英"
+    },
+    "ragingBear": {
+      "abilities": [
+        {
+          "description": "玩家本场每使用一张卷轴，它的攻击 +1",
+          "keywords": [],
+          "name": "激怒"
+        }
+      ],
+      "attack": 1,
+      "defense": 6,
+      "maxHp": 20,
+      "name": "愤怒的熊",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "razorbackAlpha": {
+      "abilities": [
+        {
+          "description": "自身生命全满时，攻击 +2",
+          "keywords": [],
+          "name": "扑杀"
+        }
+      ],
+      "attack": 4,
+      "defense": 2,
+      "maxHp": 18,
+      "name": "刃脊头狼",
+      "tier": "elite",
+      "tierName": "精英"
+    },
+    "slime": {
+      "abilities": [],
+      "attack": 1,
+      "defense": 0,
+      "maxHp": 8,
+      "name": "史莱姆",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "thornbackBoar": {
+      "abilities": [],
+      "attack": 1,
+      "defense": 2,
+      "maxHp": 12,
+      "name": "荆背野猪",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "thunderEagle": {
+      "abilities": [],
+      "attack": 5,
+      "defense": 1,
+      "maxHp": 14,
+      "name": "雷羽鹰",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "thunderRoc": {
+      "abilities": [
+        {
+          "description": "攻击骰掷出最高面时，额外造成 2 点伤害",
+          "keywords": [
+            "ignoreDefense"
+          ],
+          "name": "雷坠"
+        }
+      ],
+      "attack": 8,
+      "defense": 3,
+      "maxHp": 30,
+      "name": "撼雷鹏",
+      "tier": "elite",
+      "tierName": "精英"
+    },
+    "uncannyFlesh": {
+      "abilities": [
+        {
+          "description": "完成第 3 次攻击后，生命降为 0",
+          "keywords": [],
+          "name": "崩解"
+        }
+      ],
+      "attack": 3,
+      "defense": 4,
+      "maxHp": 100,
+      "name": "诡异肉块",
+      "tier": "roaming",
+      "tierName": "漫游"
+    },
+    "watcherWyvern": {
+      "abilities": [
+        {
+          "description": "自身生命低于一半时，攻击 +2",
+          "keywords": [],
+          "name": "负伤狂怒"
+        }
+      ],
+      "attack": 5,
+      "defense": 4,
+      "maxHp": 30,
+      "name": "看守者飞龙",
+      "tier": "elite",
+      "tierName": "精英"
+    },
+    "wolf": {
+      "abilities": [],
+      "attack": 2,
+      "defense": 1,
+      "maxHp": 10,
+      "name": "山狼",
+      "tier": "roaming",
+      "tierName": "漫游"
+    }
+  },
+  "enemyTiers": {
+    "boss": "首领",
+    "elite": "精英",
+    "roaming": "漫游"
+  },
+  "equipment": {
+    "ashenIronCuirass": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +1；本场战斗第一次受到伤害时，伤害减少 1",
+      "keywords": [],
+      "name": "灰铁胸甲",
+      "rarity": "N"
+    },
+    "blackIronGreatsword": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击时投 2 次并取较低值；额外造成 3 点伤害",
+      "keywords": [
+        "ignoreDefense"
+      ],
+      "name": "黑铁巨剑",
+      "rarity": "R"
+    },
+    "blackSunShard": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "攻击骰上限 +1；防御骰上限 +1；地图移动骰上限 +1；每使用一张卷轴，损失 1 点生命",
+      "keywords": [
+        "selfCost"
+      ],
+      "name": "黑日碎片",
+      "rarity": "SR"
+    },
+    "blacksmithsApron": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +1；单次受到的伤害达到 4 点及以上时，伤害减少 2",
+      "keywords": [],
+      "name": "铁匠围裙",
+      "rarity": "N"
+    },
+    "blankTalisman": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "每场战斗开始时，随机将攻击或防御骰上限 +2，持续整场",
+      "keywords": [],
+      "name": "空白护符",
+      "rarity": "R"
+    },
+    "bloodOathRing": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "战斗生命值低于一半时，攻击骰上限 +1；防御骰上限 +1",
+      "keywords": [],
+      "name": "血誓指环",
+      "rarity": "R"
+    },
+    "bloodthirstyBattleplate": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +1；若本次攻击骰点数高于对手防御骰点数，额外造成 1D2 点伤害",
+      "keywords": [
+        "ignoreDefense"
+      ],
+      "name": "嗜血战甲",
+      "rarity": "SR"
+    },
+    "borderLeather": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +1",
+      "keywords": [],
+      "name": "边境皮甲",
+      "rarity": "N"
+    },
+    "brassCompass": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "地图移动骰上限 +1；攻击骰上限 +1",
+      "keywords": [],
+      "name": "黄铜罗盘",
+      "rarity": "N"
+    },
+    "charm": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "生命上限 +4，获得时恢复 4 点生命",
+      "keywords": [],
+      "name": "生命护符",
+      "rarity": "R"
+    },
+    "coldIronSpear": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +1；对精英敌人和首领额外造成 3 点伤害",
+      "keywords": [
+        "ignoreDefense"
+      ],
+      "name": "寒铁长枪",
+      "rarity": "R"
+    },
+    "crackedBulwark": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +2；本场战斗一旦受到伤害，此后防御骰上限 -1",
+      "keywords": [],
+      "name": "裂口重盾",
+      "rarity": "N"
+    },
+    "crackedDieFace": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "每场战斗开始时获得一张「裂纹骰面」卷轴，可将一颗骰定为 4",
+      "keywords": [],
+      "name": "裂纹骰面",
+      "rarity": "N"
+    },
+    "dawnHalberd": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +2；本场战斗第一次攻击时，每颗攻击骰最低视为 4",
+      "keywords": [],
+      "name": "晨曦长戟",
+      "rarity": "SR"
+    },
+    "dragonHeart": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +2",
+      "keywords": [],
+      "name": "巨龙之心",
+      "rarity": "SR"
+    },
+    "duskBellPlate": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +1；战斗第 4 回合起，每次受到的伤害减少 2",
+      "keywords": [],
+      "name": "暮钟板甲",
+      "rarity": "SR"
+    },
+    "echoBlade": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +1；本次攻击骰点数之和的一半（向下取整）加到下一次防御总值上",
+      "keywords": [],
+      "name": "回响之剑",
+      "rarity": "SR"
+    },
+    "engravedArmlet": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "攻击骰上限 +1；防御骰上限 +1",
+      "keywords": [],
+      "name": "刻纹臂环",
+      "rarity": "R"
+    },
+    "fateCoin": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "你的攻击骰和防御骰只会掷出最小值或最大值",
+      "keywords": [],
+      "name": "命运硬币",
+      "rarity": "PR"
+    },
+    "fateCrown": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "每场战斗开始时获得一张「命运王冠」卷轴，可将一颗骰视为最高面",
+      "keywords": [],
+      "name": "命运王冠",
+      "rarity": "PR"
+    },
+    "formationBreakerAxe": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +2，但先攻骰上限 -1",
+      "keywords": [],
+      "name": "破阵长柄斧",
+      "rarity": "R"
+    },
+    "frayedBracers": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "攻击骰上限 +1；防御骰上限 +1；每使用一张卷轴，损失 1 点生命",
+      "keywords": [
+        "selfCost"
+      ],
+      "name": "破损护腕",
+      "rarity": "N"
+    },
+    "gamekeepersBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "移动骰上限 +1；对手是精英或首领时，防御骰上限 +1",
+      "keywords": [],
+      "name": "护卫靴",
+      "rarity": "R"
+    },
+    "headwindBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "地图移动骰上限 +2；战斗前 2 回合，战斗骰上限 -1，之后各 +1",
+      "keywords": [],
+      "name": "逆风长靴",
+      "rarity": "N"
+    },
+    "heavyBulwark": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +2，但地图移动骰上限 -1",
+      "keywords": [],
+      "name": "沉重壁垒",
+      "rarity": "R"
+    },
+    "houndstepBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "移动骰上限 +2，但防御骰上限 -1",
+      "keywords": [],
+      "name": "猎踪靴",
+      "rarity": "N"
+    },
+    "huntersPointer": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "地图移动骰上限 +1；攻击骰上限 +1",
+      "keywords": [],
+      "name": "猎人的指针",
+      "rarity": "N"
+    },
+    "inkBambooBracelet": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "地图移动骰数量 +1",
+      "keywords": [],
+      "name": "墨竹手环",
+      "rarity": "SR"
+    },
+    "ironRimShield": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御永久 +1",
+      "keywords": [],
+      "name": "包铁圆盾",
+      "rarity": "N"
+    },
+    "lureHorn": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "每场战斗限一次：令对方下一次攻击骰结果 -2",
+      "keywords": [],
+      "name": "诱敌号角",
+      "rarity": "SR"
+    },
+    "lynxBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "地图移动骰上限 +1；本场战斗第一次攻击时，每颗攻击骰最低视为 2",
+      "keywords": [],
+      "name": "山猫软靴",
+      "rarity": "N"
+    },
+    "militiaSabre": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +1；先攻骰上限 +1",
+      "keywords": [],
+      "name": "民兵短剑",
+      "rarity": "N"
+    },
+    "momentumHammer": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +1；攻击骰首颗掷出 1 或 2 时，下一次攻击 +2",
+      "keywords": [],
+      "name": "蓄势战锤",
+      "rarity": "R"
+    },
+    "monsterHunterBlade": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +1；攻击生命值低于一半的目标时，攻击额外 +1",
+      "keywords": [],
+      "name": "猎魔短刃",
+      "rarity": "N"
+    },
+    "namelessKnightArmor": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +2；战斗生命值低于三成时，防御骰再 +1",
+      "keywords": [],
+      "name": "无名骑士遗甲",
+      "rarity": "R"
+    },
+    "oathkeeperCloak": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +1；对手的基础攻击高于你的基础防御时，本场战斗防御 +2",
+      "keywords": [],
+      "name": "缄誓披风",
+      "rarity": "SR"
+    },
+    "oldKnightSword": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +1；攻击骰掷出最高面时，额外造成 1 点伤害",
+      "keywords": [
+        "ignoreDefense"
+      ],
+      "name": "旧骑士长剑",
+      "rarity": "N"
+    },
+    "oldLeatherBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "地图移动骰上限 +1；先攻骰上限 +1",
+      "keywords": [],
+      "name": "旧皮行靴",
+      "rarity": "N"
+    },
+    "oniBlade": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "先攻骰上限 +1；累计击败 2 次精英后解锁：攻击骰上限 +3，攻击被完全抵挡时仍造成 3 点固定伤害",
+      "keywords": [],
+      "name": "鬼切",
+      "rarity": "SR"
+    },
+    "parryShield": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "完全抵挡对方攻击后，下一次攻击骰上限 +4",
+      "keywords": [],
+      "name": "招架盾",
+      "rarity": "SR"
+    },
+    "postRoadBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "地图移动骰上限 +2",
+      "keywords": [],
+      "name": "驿路长靴",
+      "rarity": "R"
+    },
+    "rendingAxe": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +2，但防御骰上限 -1",
+      "keywords": [],
+      "name": "裂甲战斧",
+      "rarity": "R"
+    },
+    "reverseHourglass": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "每场战斗第一次攻击和第一次防御各额外投 1 个骰子",
+      "keywords": [],
+      "name": "逆刻沙漏",
+      "rarity": "PR"
+    },
+    "runnersBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "移动骰上限 +1；本场战斗第一次结算己方防御骰时，防御骰上限额外 +1",
+      "keywords": [],
+      "name": "逃亡者短靴",
+      "rarity": "R"
+    },
+    "scavengersSatchel": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "每场战斗开始时获得一张「拾荒者背袋」卷轴，可将本次防御 +2",
+      "keywords": [],
+      "name": "拾荒者背袋",
+      "rarity": "N"
+    },
+    "shadowlessSword": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 -2；若本次攻击骰点数高于对手防御骰点数，额外造成 4 点伤害",
+      "keywords": [
+        "ignoreDefense"
+      ],
+      "name": "无影剑",
+      "rarity": "SR"
+    },
+    "shield": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御永久 +1",
+      "keywords": [],
+      "name": "木盾",
+      "rarity": "N"
+    },
+    "sigilCarversKnife": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +1；本场战斗你每打出一张卷轴，本次攻击 +1（最多 +2）",
+      "keywords": [],
+      "name": "符匠刻刀",
+      "rarity": "N"
+    },
+    "slimeSuit": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限固定为 1；单次受到的伤害不超过 5",
+      "keywords": [
+        "damageCap"
+      ],
+      "name": "粘液服",
+      "rarity": "SR"
+    },
+    "starbreakerSword": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +2；攻击骰掷出最高面时，下一次攻击额外投 1 个骰子",
+      "keywords": [],
+      "name": "断星剑",
+      "rarity": "SR"
+    },
+    "steadfastCloak": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +1；防守时若对方攻击骰点数高于你的防御骰点数，本回合防御 +2",
+      "keywords": [],
+      "name": "坚毅披风",
+      "rarity": "PR"
+    },
+    "stoneheartArmor": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +1；防御骰掷出 1 时，本次伤害减少 3",
+      "keywords": [],
+      "name": "岩心甲",
+      "rarity": "R"
+    },
+    "stormstepBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "移动骰上限 +1，攻击骰上限 +1；本场战斗第一次由己方发起攻击时，本次攻击额外投 1 个骰子",
+      "keywords": [],
+      "name": "迅雷战靴",
+      "rarity": "SR"
+    },
+    "sunchaserBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "移动骰上限 +2；每场战斗开始时，随机使本场攻击或防御 +3",
+      "keywords": [],
+      "name": "逐日靴",
+      "rarity": "PR"
+    },
+    "sword": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击永久 +1",
+      "keywords": [],
+      "name": "铁剑",
+      "rarity": "N"
+    },
+    "throneBreaker": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +3；攻击永久 +2；每场战斗开始时获得一张「王座破坏者」攻击牌",
+      "keywords": [],
+      "name": "王座破坏者",
+      "rarity": "PR"
+    },
+    "towerShield": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +2，但先攻骰上限 -1",
+      "keywords": [],
+      "name": "塔楼重盾",
+      "rarity": "R"
+    },
+    "travelerBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "地图移动骰上限 +1",
+      "keywords": [],
+      "name": "旅行者短靴",
+      "rarity": "N"
+    },
+    "turtleShell": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "地图移动骰上限 -2；防御骰上限 +4",
+      "keywords": [],
+      "name": "龟壳",
+      "rarity": "R"
+    },
+    "twinRapier": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +1；攻击骰点数与上一次攻击不同时，本次攻击额外 +1",
+      "keywords": [],
+      "name": "双生刺剑",
+      "rarity": "R"
+    },
+    "ultimateWall": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "基础攻击降为一半（向下取整）；防御提升等同于因此降低的攻击值",
+      "keywords": [],
+      "name": "终极之壁",
+      "rarity": "PR"
+    },
+    "undyingKingPlate": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +3；防御永久 +1；本场战斗第一次受到致命伤害时，保留一半生命上限（向上取整）",
+      "keywords": [],
+      "name": "不灭王铠",
+      "rarity": "PR"
+    },
+    "veteransMarchBoots": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "移动骰上限 +1；本场战斗从第 3 回合起，攻击与防御各 +1",
+      "keywords": [],
+      "name": "士兵行军靴",
+      "rarity": "N"
+    },
+    "waningMoonCuirass": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +2；本场战斗第一次受到伤害时，伤害减半（向下取整）",
+      "keywords": [],
+      "name": "残月胸甲",
+      "rarity": "SR"
+    },
+    "warDrumEarring": {
+      "category": "accessory",
+      "categoryName": "饰品",
+      "description": "攻击骰上限 +1；防御骰上限 +1；任一骰掷出 1 时，下一次相反类型的骰点总值 +3",
+      "keywords": [],
+      "name": "战鼓耳坠",
+      "rarity": "SR"
+    },
+    "warcasterPauldron": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 -2；自己攻击时不能使用卷轴，但攻击骰数量 +1",
+      "keywords": [],
+      "name": "魔战肩",
+      "rarity": "SR"
+    },
+    "whetstoneDagger": {
+      "category": "weapon",
+      "categoryName": "武器",
+      "description": "攻击骰上限 +1；每颗攻击骰最低视为 2",
+      "keywords": [],
+      "name": "磨石短匕",
+      "rarity": "N"
+    },
+    "windboundWraps": {
+      "category": "shoes",
+      "categoryName": "鞋具",
+      "description": "移动骰上限 +1；生命上限 +2",
+      "keywords": [],
+      "name": "疾风绑腿",
+      "rarity": "N"
+    },
+    "wornIronArmor": {
+      "category": "armor",
+      "categoryName": "防具",
+      "description": "防御骰上限 +1；每次受到伤害都会减少 1",
+      "keywords": [],
+      "name": "磨损铁甲",
+      "rarity": "R"
+    }
+  },
+  "equipmentCategories": {
+    "names": {
+      "accessory": "饰品",
+      "armor": "防具",
+      "shoes": "鞋具",
+      "weapon": "武器"
+    },
+    "slotLimits": {
+      "accessory": 2,
+      "armor": 1,
+      "shoes": 1,
+      "weapon": 1
+    }
+  },
+  "keywordOrder": [
+    "ignoreDefense",
+    "directDamage",
+    "damageCap",
+    "selfCost",
+    "battleOnly",
+    "eliteOnly",
+    "needsTarget",
+    "replacesMovement",
+    "skipsPath"
+  ],
+  "keywords": {
+    "battleOnly": {
+      "label": "本场战斗限定",
+      "rule": "战斗开始时发到手上，结束时收回；不进常驻手牌，也不会从宝箱或战斗奖励里抽到。"
+    },
+    "damageCap": {
+      "label": "伤害上限",
+      "rule": "单次受到的伤害不会超过这个数，攻防差与掷骰前伤害一并压住。"
+    },
+    "directDamage": {
+      "label": "掷骰前伤害",
+      "rule": "在双方掷骰之前先结算，减去目标当前的防御值，并照常经过受击方的减伤。"
+    },
+    "eliteOnly": {
+      "label": "精英与首领限定",
+      "rule": "只能对精英怪、带词条的漫游怪和阶段首领打出；其他战斗里它根本不进可选列表。"
+    },
+    "ignoreDefense": {
+      "label": "无视防御",
+      "rule": "这份伤害不参与攻防差，直接加进本次结算；但仍会经过受击方的减伤与伤害上限。"
+    },
+    "needsTarget": {
+      "label": "需选目标",
+      "rule": "打出后先选一名其他玩家，效果落在他身上。"
+    },
+    "replacesMovement": {
+      "label": "代替移动",
+      "rule": "用它代替本回合的移动骰，只能在还没掷骰时使用。"
+    },
+    "selfCost": {
+      "label": "自损",
+      "rule": "损失生命不是受到伤害，不触发减伤类效果；战斗里可以把自己扣倒，地图上至少保留 1 点。"
+    },
+    "skipsPath": {
+      "label": "不经沿途",
+      "rule": "只结算落点，途中的营地回血与守关门计次都不会触发。"
+    }
+  },
+  "mapEvents": {
+    "campfire": {
+      "category": "reward",
+      "description": "获得 2 张野味，每张可恢复 5 点生命。",
+      "name": "旅人篝火"
+    },
+    "casinoRoulette": {
+      "category": "casino",
+      "description": "支付金币转动轮盘，可能空手而归、赢回金币、获得卷轴或装备，也可能转出永久属性头奖；可以反复游玩，费用逐次上涨。",
+      "name": "赌场转盘"
+    },
+    "coinRain": {
+      "category": "reward",
+      "description": "掷 1d6，获得点数 × 50 金币。",
+      "name": "金钱雨"
+    },
+    "commerceOutpost": {
+      "category": "reward",
+      "description": "你可以花费 100 金币，移动到当前区域最近的下一个商店格。",
+      "name": "商会驿站"
+    },
+    "doomPossession": {
+      "category": "hazard",
+      "description": "接下来 5 个回合，攻击和防御各 -1。",
+      "name": "厄运附体"
+    },
+    "eliteHunter": {
+      "category": "reward",
+      "description": "传送到最近的下一个精英格。",
+      "name": "精英猎手"
+    },
+    "fallenAdventurer": {
+      "category": "reward",
+      "description": "搜索一具倒毙冒险者的遗物，获得一件随机装备。",
+      "name": "冒险者遗骸"
+    },
+    "fallingRocks": {
+      "category": "hazard",
+      "description": "损失 2 点生命，至少保留 1 点生命。",
+      "name": "山路落石"
+    },
+    "guardianInscription": {
+      "category": "boon",
+      "description": "基础防御永久增加 1 点。",
+      "name": "守护碑铭"
+    },
+    "harmony": {
+      "category": "boon",
+      "description": "你可以将 1 点基础攻击转化为基础防御，或将 1 点基础防御转化为基础攻击。",
+      "name": "调和"
+    },
+    "hotSpring": {
+      "category": "recovery",
+      "description": "掷 1d10，恢复等量生命。",
+      "name": "山涧温泉"
+    },
+    "impulseBuy": {
+      "category": "hazard",
+      "description": "花费 30% 金币买下一件危险但趁手的武器：基础攻击 +1，试用时损失 3 点生命。",
+      "name": "冲动消费"
+    },
+    "lostPurse": {
+      "category": "reward",
+      "description": "获得 50 金币。",
+      "name": "遗失的钱袋"
+    },
+    "mire": {
+      "category": "hazard",
+      "description": "陷入沼泽，下一回合无法移动。",
+      "name": "泥泞沼泽"
+    },
+    "requisition": {
+      "category": "reward",
+      "description": "其余每名玩家各交出一张随机卷轴；手上没牌的人跳过。",
+      "name": "拿来主义"
+    },
+    "roadsideRespite": {
+      "category": "recovery",
+      "description": "恢复 3 点生命。",
+      "name": "山路喘息"
+    },
+    "travelerGift": {
+      "category": "reward",
+      "description": "获得一张随机卷轴。",
+      "name": "旅人馈赠"
+    },
+    "twinSlayer": {
+      "category": "reward",
+      "description": "选择你的一张卷轴，将它的复制品加入你的手牌。",
+      "name": "双子杀手"
+    },
+    "veteranGuidance": {
+      "category": "boon",
+      "description": "基础攻击永久增加 1 点。",
+      "name": "武者指点"
+    },
+    "weaponCollector": {
+      "category": "reward",
+      "description": "你可以将一件装备交给收藏家，使基础防御 +1。",
+      "name": "武器收藏家"
+    },
+    "weaponInStone": {
+      "category": "reward",
+      "description": "拔出嵌在巨石中的武器，获得一件高品质概率提升的武器。",
+      "name": "石中武器"
+    }
+  },
+  "rarities": [
+    "N",
+    "R",
+    "SR",
+    "PR"
+  ],
+  "ruleTerms": {
+    "attackDiceCount": {
+      "aliases": [],
+      "group": "die",
+      "label": "攻击骰数量",
+      "rule": "一次攻击要投几颗骰子。多颗攻击骰的点数相加后参与攻防结算。"
+    },
+    "attackDie": {
+      "aliases": [],
+      "group": "die",
+      "label": "攻击骰",
+      "rule": "攻击方在一次攻击中投掷的骰子。骰点总值再加攻击等修正，与对方防御比较。"
+    },
+    "attackDieLimit": {
+      "aliases": [
+        "攻击骰面上限"
+      ],
+      "group": "die",
+      "label": "攻击骰上限",
+      "rule": "攻击骰能掷出的最高点数，也就是 D 后面的数字；例如上限 7 表示使用 D7。"
+    },
+    "combatDieLimit": {
+      "aliases": [
+        "战斗骰面上限",
+        "骰面上限"
+      ],
+      "group": "die",
+      "label": "战斗骰上限",
+      "rule": "本次攻击骰或防御骰能掷出的最高点数，也就是投掷结果里的最高面。"
+    },
+    "defenseDiceCount": {
+      "aliases": [],
+      "group": "die",
+      "label": "防御骰数量",
+      "rule": "一次防御要投几颗骰子。多颗防御骰的点数相加后参与攻防结算。"
+    },
+    "defenseDie": {
+      "aliases": [],
+      "group": "die",
+      "label": "防御骰",
+      "rule": "防守方在一次攻击中投掷的骰子。骰点总值再加防御等修正，用来抵消攻击。"
+    },
+    "defenseDieLimit": {
+      "aliases": [
+        "防御骰面上限"
+      ],
+      "group": "die",
+      "label": "防御骰上限",
+      "rule": "防御骰能掷出的最高点数，也就是 D 后面的数字；例如上限 8 表示使用 D8。"
+    },
+    "highestFace": {
+      "aliases": [],
+      "group": "result",
+      "label": "最高面",
+      "rule": "骰子当前能掷出的最大点数。它会随骰面上限变化，不固定等于 6。"
+    },
+    "initiativeDie": {
+      "aliases": [],
+      "group": "die",
+      "label": "先攻骰",
+      "rule": "战斗开始时双方用来决定第一次攻击方的骰子；之后双方轮流攻击。"
+    },
+    "initiativeDieLimit": {
+      "aliases": [
+        "先攻骰面上限"
+      ],
+      "group": "die",
+      "label": "先攻骰上限",
+      "rule": "先攻骰能掷出的最高点数。先攻只决定战斗第一次由哪一方攻击。"
+    },
+    "maxHp": {
+      "aliases": [],
+      "group": "stat",
+      "label": "生命上限",
+      "rule": "角色可以恢复到的最高生命值。提高生命上限不一定同时恢复当前生命。"
+    },
+    "movementDiceCount": {
+      "aliases": [
+        "地图移动骰数量"
+      ],
+      "group": "die",
+      "label": "移动骰数量",
+      "rule": "地图移动时投几颗骰子；多颗移动骰的点数相加，作为本次移动距离。"
+    },
+    "movementDie": {
+      "aliases": [
+        "地图移动骰"
+      ],
+      "group": "die",
+      "label": "移动骰",
+      "rule": "地图阶段用于决定移动距离的骰子，与战斗中的攻击骰、防御骰分开计算。"
+    },
+    "movementDieLimit": {
+      "aliases": [
+        "地图移动骰上限",
+        "移动骰面上限",
+        "地图移动骰面上限"
+      ],
+      "group": "die",
+      "label": "移动骰上限",
+      "rule": "地图移动骰能掷出的最高点数。它改变可随机走出的最远距离，不直接增加每次移动结果。"
+    },
+    "rollTotal": {
+      "aliases": [
+        "攻击骰点数之和",
+        "防御骰点数之和",
+        "骰点数之和",
+        "骰子点数之和",
+        "点数之和",
+        "骰子总值"
+      ],
+      "group": "result",
+      "label": "骰点总值",
+      "rule": "本次所有骰子的点数之和；固定攻击、防御与其他加值不包含在内。"
+    }
+  },
+  "schemaVersion": 1,
+  "scrollCategories": {
+    "names": {
+      "attack": "攻击牌",
+      "defense": "防守牌",
+      "healing": "疗牌",
+      "universal": "通用牌"
+    },
+    "sigils": {
+      "attack": "攻",
+      "defense": "防",
+      "healing": "疗",
+      "universal": "通"
+    }
+  },
+  "scrolls": {
+    "anywhereDoor": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "地图阶段使用：直接传送至当前阶段地图上的任意一格，不触发沿途任何效果",
+      "drawable": true,
+      "group": "movement",
+      "keywords": [
+        "replacesMovement",
+        "skipsPath"
+      ],
+      "name": "任意门",
+      "needsTarget": false,
+      "rarity": "PR",
+      "timings": [
+        "map"
+      ]
+    },
+    "battlefieldMedicine": {
+      "category": "healing",
+      "categoryName": "疗牌",
+      "categorySigil": "疗",
+      "description": "恢复 5 点生命；地图使用时放弃本回合移动，战斗中使用时下次无法移动",
+      "drawable": true,
+      "group": "recovery",
+      "keywords": [],
+      "name": "战地药剂",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "map",
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "bodySwap": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "代替本次掷骰：与同区域内的一名玩家交换位置，只有你会结算换到的新格子",
+      "drawable": true,
+      "group": "interference",
+      "keywords": [
+        "needsTarget",
+        "replacesMovement",
+        "skipsPath"
+      ],
+      "name": "移形换影",
+      "needsTarget": true,
+      "rarity": "SR",
+      "timings": [
+        "map"
+      ]
+    },
+    "breachDrum": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次攻击额外投 1 个攻击骰，结果求和",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "破阵战鼓",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "caltrop": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "选择一名其他玩家，他下一次掷骰移动结果 -2，最低为 1",
+      "drawable": true,
+      "group": "interference",
+      "keywords": [
+        "needsTarget"
+      ],
+      "name": "绊马索",
+      "needsTarget": true,
+      "rarity": "N",
+      "timings": [
+        "map"
+      ]
+    },
+    "composure": {
+      "category": "defense",
+      "categoryName": "防守牌",
+      "categorySigil": "防",
+      "description": "本次每颗防御骰投掷两次，取较高结果",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "沉稳",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeDefenseRoll"
+      ]
+    },
+    "crackedDieFaceLock": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "本次攻或防的第一颗骰直接定为 4",
+      "drawable": false,
+      "group": "diceBoost",
+      "keywords": [
+        "battleOnly"
+      ],
+      "name": "裂纹骰面",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "decapitationOrder": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次攻击额外造成 3 点伤害",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [
+        "ignoreDefense",
+        "eliteOnly"
+      ],
+      "name": "斩首命令",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "defenseDrum": {
+      "category": "defense",
+      "categoryName": "防守牌",
+      "categorySigil": "防",
+      "description": "本次防御额外投 1 个防御骰，结果求和",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "守阵战鼓",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeDefenseRoll"
+      ]
+    },
+    "disarm": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "选择一名持有卷轴的其他玩家，由他自选弃掉一张卷轴",
+      "drawable": true,
+      "group": "interference",
+      "keywords": [
+        "needsTarget"
+      ],
+      "name": "缴械",
+      "needsTarget": true,
+      "rarity": "SR",
+      "timings": [
+        "map"
+      ]
+    },
+    "dodge": {
+      "category": "defense",
+      "categoryName": "防守牌",
+      "categorySigil": "防",
+      "description": "本次攻防结算的最终伤害减少 3，最低减至 0",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "闪避卷轴",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeDefenseRoll"
+      ]
+    },
+    "dragonStrike": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "造成 10 点伤害，减去其当前防御",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [
+        "directDamage"
+      ],
+      "name": "巨龙打击",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "duelContract": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "地图阶段使用：代替本次移动，选择一名其他玩家立即发起战斗；双方位置不变",
+      "drawable": true,
+      "group": "interference",
+      "keywords": [
+        "needsTarget",
+        "replacesMovement"
+      ],
+      "name": "决斗契约",
+      "needsTarget": true,
+      "rarity": "R",
+      "timings": [
+        "map"
+      ]
+    },
+    "extortion": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "选定一名其他玩家，抢走他 100 金币",
+      "drawable": true,
+      "group": "interference",
+      "keywords": [
+        "needsTarget"
+      ],
+      "name": "勒索信",
+      "needsTarget": true,
+      "rarity": "R",
+      "timings": [
+        "map"
+      ]
+    },
+    "fate": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "本次攻击或防御骰改为 D20",
+      "drawable": true,
+      "group": "diceBoost",
+      "keywords": [],
+      "name": "D20",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "fateCrownDecree": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "本次攻或防的第一颗骰直接视为最高面",
+      "drawable": false,
+      "group": "diceBoost",
+      "keywords": [
+        "battleOnly"
+      ],
+      "name": "命运王冠",
+      "needsTarget": false,
+      "rarity": "PR",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "firstAidBandage": {
+      "category": "healing",
+      "categoryName": "疗牌",
+      "categorySigil": "疗",
+      "description": "恢复 3 点生命",
+      "drawable": true,
+      "group": "recovery",
+      "keywords": [],
+      "name": "急救绷带",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "map",
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "frenzy": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次每颗攻击骰投掷两次，取较高结果",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "狂暴卷轴",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "frostNail": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次攻击 +2；对方下一次攻击骰面上限 -2",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "寒霜钉",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "gameMeat": {
+      "category": "healing",
+      "categoryName": "疗牌",
+      "categorySigil": "疗",
+      "description": "恢复 5 点生命",
+      "drawable": false,
+      "group": "recovery",
+      "keywords": [],
+      "name": "野味",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "map",
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "guard": {
+      "category": "defense",
+      "categoryName": "防守牌",
+      "categorySigil": "防",
+      "description": "本次防御 +3",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "护盾卷轴",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "beforeDefenseRoll"
+      ]
+    },
+    "headhuntOrder": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次攻击额外造成 5 点伤害",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [
+        "ignoreDefense",
+        "eliteOnly"
+      ],
+      "name": "猎头令",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "heavyStrike": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "造成 6 点伤害，减去其当前防御",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [
+        "directDamage"
+      ],
+      "name": "痛击",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "ironWallOrder": {
+      "category": "defense",
+      "categoryName": "防守牌",
+      "categorySigil": "防",
+      "description": "本次防御中，每颗防御骰最低视为 3",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "铁壁令",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "beforeDefenseRoll"
+      ]
+    },
+    "lastBastion": {
+      "category": "defense",
+      "categoryName": "防守牌",
+      "categorySigil": "防",
+      "description": "本次受到的最终伤害最多为 1；下一次轮到你主动攻击时跳过该攻击",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "最后壁垒",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "beforeDefenseRoll"
+      ]
+    },
+    "leapForward": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "地图阶段使用：不掷骰，直接前进 4 格，落点触发",
+      "drawable": true,
+      "group": "movement",
+      "keywords": [
+        "replacesMovement"
+      ],
+      "name": "跃进",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "map"
+      ]
+    },
+    "lightStrike": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "造成 4 点伤害，减去其当前防御",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [
+        "directDamage"
+      ],
+      "name": "轻击",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "limitBreak": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "本次攻击或防御骰面上限 +3；本轮结算后损失 2 点生命",
+      "drawable": true,
+      "group": "diceBoost",
+      "keywords": [],
+      "name": "极限突破",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "loadedDicePool": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "本次攻或防额外投 2 个骰子，结果求和",
+      "drawable": true,
+      "group": "diceBoost",
+      "keywords": [],
+      "name": "满载骰池",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "lureHornTaunt": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "令对方下一次攻击骰结果 -2",
+      "drawable": false,
+      "group": "combatSwing",
+      "keywords": [
+        "battleOnly"
+      ],
+      "name": "诱敌号角",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "might": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次攻击 +3",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "力量卷轴",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "mithrilDieSeal": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "本次攻击或防御骰改为 D10",
+      "drawable": true,
+      "group": "diceBoost",
+      "keywords": [],
+      "name": "D10",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "moonwalk": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "选定一名其他玩家，让他沿环路后退 2 格",
+      "drawable": true,
+      "group": "interference",
+      "keywords": [
+        "needsTarget"
+      ],
+      "name": "太空步",
+      "needsTarget": true,
+      "rarity": "R",
+      "timings": [
+        "map"
+      ]
+    },
+    "mutualDestruction": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "双方各受到 4 点伤害，减去其当前防御；同时倒下时你判负",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [
+        "directDamage"
+      ],
+      "name": "同归于尽",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "octahedralDieSeal": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "本次攻击或防御骰改为 D8",
+      "drawable": true,
+      "group": "diceBoost",
+      "keywords": [],
+      "name": "八面骰印",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "plunder": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "选择一名持有卷轴的其他玩家，随机抽走他一张卷轴",
+      "drawable": true,
+      "group": "interference",
+      "keywords": [
+        "needsTarget"
+      ],
+      "name": "搜刮",
+      "needsTarget": true,
+      "rarity": "R",
+      "timings": [
+        "map"
+      ]
+    },
+    "precision": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次攻击中，每颗攻击骰最低视为 4",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "精准卷轴",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "recklessGamble": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次攻击额外投 2 个骰子；立即损失 2 点生命",
+      "drawable": true,
+      "group": "diceBoost",
+      "keywords": [],
+      "name": "孤注一掷",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "regenerativeTonic": {
+      "category": "healing",
+      "categoryName": "疗牌",
+      "categorySigil": "疗",
+      "description": "恢复 7 点生命",
+      "drawable": true,
+      "group": "recovery",
+      "keywords": [],
+      "name": "再生秘药",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "map",
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "remoteDice": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "地图阶段使用：指定本回合的移动点数（不超过当前移动骰上限）",
+      "drawable": true,
+      "group": "movement",
+      "keywords": [
+        "replacesMovement"
+      ],
+      "name": "灵活行动",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "map"
+      ]
+    },
+    "retrace": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "代替本次移动：回到上一次停留的同阶段格子，并重新触发落点",
+      "drawable": true,
+      "group": "movement",
+      "keywords": [
+        "replacesMovement"
+      ],
+      "name": "折返",
+      "needsTarget": false,
+      "rarity": "R",
+      "timings": [
+        "map"
+      ]
+    },
+    "reverseScale": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次攻击额外投 2 个骰子，第一颗骰直接视为最高面",
+      "drawable": true,
+      "group": "diceBoost",
+      "keywords": [],
+      "name": "逆鳞",
+      "needsTarget": false,
+      "rarity": "PR",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "rewriteFate": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "本次攻或防额外投 1 个骰子，第一颗骰直接视为最高面",
+      "drawable": true,
+      "group": "diceBoost",
+      "keywords": [],
+      "name": "突破",
+      "needsTarget": false,
+      "rarity": "PR",
+      "timings": [
+        "beforeAttackRoll",
+        "beforeDefenseRoll"
+      ]
+    },
+    "scavengersSatchelGuard": {
+      "category": "defense",
+      "categoryName": "防守牌",
+      "categorySigil": "防",
+      "description": "本次防御 +2",
+      "drawable": false,
+      "group": "combatSwing",
+      "keywords": [
+        "battleOnly"
+      ],
+      "name": "拾荒者背袋",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "beforeDefenseRoll"
+      ]
+    },
+    "shortRangeTeleportCharm": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "地图阶段使用：直接跃至前方至多 3 格处；途中的营地回血与守关门计次都不会触发",
+      "drawable": true,
+      "group": "movement",
+      "keywords": [
+        "replacesMovement",
+        "skipsPath"
+      ],
+      "name": "短程传送符",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "map"
+      ]
+    },
+    "somersault": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "地图阶段使用：不掷骰，直接前进 2 格，落点触发",
+      "drawable": true,
+      "group": "movement",
+      "keywords": [
+        "replacesMovement"
+      ],
+      "name": "翻跟头",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "map"
+      ]
+    },
+    "steadfast": {
+      "category": "defense",
+      "categoryName": "防守牌",
+      "categorySigil": "防",
+      "description": "本次防御中，每颗防御骰最低视为 4",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "坚守卷轴",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "beforeDefenseRoll"
+      ]
+    },
+    "thickArmor": {
+      "category": "defense",
+      "categoryName": "防守牌",
+      "categorySigil": "防",
+      "description": "本次攻防结算的最终伤害减少 5，最低减至 0",
+      "drawable": true,
+      "group": "combatSwing",
+      "keywords": [],
+      "name": "厚甲",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "beforeDefenseRoll"
+      ]
+    },
+    "throneBreakerStrike": {
+      "category": "attack",
+      "categoryName": "攻击牌",
+      "categorySigil": "攻",
+      "description": "本次攻击额外投 2 个骰子，结果求和",
+      "drawable": false,
+      "group": "diceBoost",
+      "keywords": [
+        "battleOnly"
+      ],
+      "name": "王座破坏者",
+      "needsTarget": false,
+      "rarity": "PR",
+      "timings": [
+        "beforeAttackRoll"
+      ]
+    },
+    "townPortal": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "代替本次移动：传送回当前阶段营地并计为完成一圈",
+      "drawable": true,
+      "group": "movement",
+      "keywords": [
+        "replacesMovement"
+      ],
+      "name": "回城卷轴",
+      "needsTarget": false,
+      "rarity": "SR",
+      "timings": [
+        "map"
+      ]
+    },
+    "tripwire": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "选定一名其他玩家，他下一次掷骰移动只能走 1 格",
+      "drawable": true,
+      "group": "interference",
+      "keywords": [
+        "needsTarget"
+      ],
+      "name": "绊索",
+      "needsTarget": true,
+      "rarity": "N",
+      "timings": [
+        "map"
+      ]
+    },
+    "withinReach": {
+      "category": "universal",
+      "categoryName": "通用牌",
+      "categorySigil": "通",
+      "description": "地图阶段使用：直接前进 1 格，代替正常移动",
+      "drawable": true,
+      "group": "movement",
+      "keywords": [
+        "replacesMovement",
+        "skipsPath"
+      ],
+      "name": "触手可得",
+      "needsTarget": false,
+      "rarity": "N",
+      "timings": [
+        "map"
+      ]
+    }
+  }
+}

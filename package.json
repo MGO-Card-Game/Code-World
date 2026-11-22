@@ -8,6 +8,7 @@
     "dev:server": "tsx watch server/index.ts",
     "build": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && vite build",
     "start": "tsx server/index.ts",
+    "export:godot-catalog": "tsx scripts/export-godot-catalog.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -19,6 +19,7 @@ const Playback = preload("res://scripts/anim/playback_controller.gd")
 const Battle = preload("res://scripts/ui/battle_panel.gd")
 const Outcome = preload("res://scripts/ui/outcome_overlay.gd")
 const Trade = preload("res://scripts/ui/trade_overlay.gd")
+const ShopCasino = preload("res://scripts/ui/shop_casino_overlay.gd")
 
 @onready var connection_status: Label = $Margin/Root/Topbar/ConnectionStatus
 @onready var notice: Label = $Margin/Root/Notice
@@ -45,6 +46,7 @@ const Trade = preload("res://scripts/ui/trade_overlay.gd")
 @onready var battle_panel: Battle = $OverlayHost/BattlePanel
 @onready var outcome_overlay: Outcome = $OverlayHost/OutcomeOverlay
 @onready var trade_overlay: Trade = $OverlayHost/TradeOverlay
+@onready var shop_casino_overlay: ShopCasino = $OverlayHost/ShopCasinoOverlay
 
 var _current_room: Dictionary = {}
 var playback := Playback.new()
@@ -72,6 +74,9 @@ func _ready() -> void:
 	battle_panel.action_requested.connect(router.dispatch_action)
 	outcome_overlay.action_requested.connect(router.dispatch_action)
 	trade_overlay.action_requested.connect(router.dispatch_action)
+	shop_casino_overlay.action_requested.connect(router.dispatch_action)
+	router.camp_shop_requested.connect(_set_camp_shop_open.bind(true))
+	shop_casino_overlay.camp_exit_requested.connect(_set_camp_shop_open.bind(false))
 
 	GameClient.status_changed.connect(_on_status_changed)
 	GameClient.room_changed.connect(_on_room_changed)
@@ -220,7 +225,16 @@ func _show_game(state: Dictionary) -> void:
 	battle_panel.set_game_state(state, viewer, playback)
 	outcome_overlay.set_game_state(state, viewer, playback, router, viewer == _current_room.get("hostSeat", ""))
 	trade_overlay.set_game_state(state, viewer, playback)
-	_set_overlay_visible(battle_panel.visible or outcome_overlay.visible or trade_overlay.visible)
+	shop_casino_overlay.set_game_state(state, viewer, playback)
+	_set_overlay_visible(battle_panel.visible or outcome_overlay.visible or trade_overlay.visible or shop_casino_overlay.visible)
+
+
+func _set_camp_shop_open(open: bool) -> void:
+	if open:
+		shop_casino_overlay.open_camp_shop(_current_room.state)
+	else:
+		shop_casino_overlay.close_camp_shop()
+	_show_game(_current_room.state)
 
 
 func _set_overlay_visible(is_open: bool) -> void:
@@ -233,6 +247,7 @@ func _reset_presentation() -> void:
 	battle_panel.set_game_state({}, "", playback)
 	outcome_overlay.set_game_state({}, "", playback, router)
 	trade_overlay.set_game_state({}, "", playback)
+	shop_casino_overlay.set_game_state({}, "", playback)
 	_set_overlay_visible(false)
 
 

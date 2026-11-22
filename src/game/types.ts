@@ -950,10 +950,23 @@ export interface PvpPenaltyAmountsView {
   hp: number;
 }
 
+export interface PlayerDerivedView {
+  attack: number;
+  defense: number;
+  blessingCapacity: number;
+  movementSides: number;
+  movementDiceCount: number;
+}
+
 /** 发给某一名玩家的状态视图 */
 export type GameStateView = Omit<GameState, "players"> & {
   players: Record<string, PlayerView>;
   viewerPlayableScrollIds?: ViewerPlayableScrollIds;
   battleEnemy?: BattleEnemyView;
   pvpPenaltyAmounts?: PvpPenaltyAmountsView;
+  playerDerived?: Record<string, PlayerDerivedView>;
+  canOpenBossGate?: boolean;
+  canUseCampShop?: boolean;
+  bossGateKeyPrice?: number;
+  casinoSpinPrice?: number;
 };

@@ -25,6 +25,7 @@ func run() -> void:
 	main.router.dispatch_callable = _capture
 	state.players.player3 = state.players.player2.merged({"id": "player3", "name": "白云"}, true)
 	state.turnOrder.append("player3")
+	state.playerDerived.player3 = state.playerDerived.player2.duplicate()
 	for id: String in state.turnOrder:
 		room.members.append({"seat": id, "name": state.players[id].name, "connected": true})
 	_broadcast()

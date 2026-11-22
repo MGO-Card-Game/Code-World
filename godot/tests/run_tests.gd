@@ -9,6 +9,7 @@ const AnimTests = preload("res://tests/test_anim_playback.gd")
 const BattleTests = preload("res://tests/test_battle_pve.gd")
 const PvpTests = preload("res://tests/test_battle_pvp.gd")
 const M3aTests = preload("res://tests/test_m3a_phases.gd")
+const M3bTests = preload("res://tests/test_m3b_phases.gd")
 const EngineErrors = preload("res://tests/engine_errors.gd")
 
 var _checks := 0
@@ -41,6 +42,7 @@ func _run() -> void:
 		await BattleTests.new(_check, main, _game_state()).run()
 		PvpTests.new(_check, main, _game_state()).run()
 		M3aTests.new(_check, main, _game_state()).run()
+		M3bTests.new(_check, main, _game_state()).run()
 		main.queue_free()
 	await process_frame
 	await process_frame
@@ -48,7 +50,7 @@ func _run() -> void:
 	var orphans := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
 	_check(orphans == 0, "absolute orphan node count after cleanup")
 	OS.remove_logger(_errors)
-	print("Godot M3a: %d checks, %d failed, %d runtime errors during tests, %d orphan nodes" % [_checks, _failures, _errors.count, orphans])
+	print("Godot M3b: %d checks, %d failed, %d runtime errors during tests, %d orphan nodes" % [_checks, _failures, _errors.count, orphans])
 	quit(0 if _failures == 0 and _errors.count == 0 else 1)
 
 
@@ -112,6 +114,10 @@ func _game_state() -> Dictionary:
 				"scrolls": [], "equipment": [], "blessings": []},
 		},
 		"activePlayerId": "player1", "turnOrder": ["player1", "player2"], "unavailablePlayerIds": [],
+		"playerDerived": {
+			"player1": {"attack": 4, "defense": 2, "blessingCapacity": 1, "movementSides": 6, "movementDiceCount": 1},
+			"player2": {"attack": 4, "defense": 2, "blessingCapacity": 1, "movementSides": 6, "movementDiceCount": 1},
+		},
 		"turn": 3, "phase": {"kind": "awaitingRoll"}, "message": {"text": "准备登山"},
 		"startingPlayerId": "player1", "rngSeed": 42, "nextInstanceId": 6, "nextEventId": 1, "history": [],
 		"viewerPlayableScrollIds": {"map": ["s-1", "s-2"]}, "lastEvents": [],
@@ -169,6 +175,7 @@ func _test_board(board: Board, state: Dictionary) -> void:
 	_check(boss.text.contains("山匪头目") and boss.text.contains("1/2"), "initial boss")
 	state.players.player1.position = 1
 	state.players.player1.stageProgress.foothill.bossDefeated = true
+	state.playerDerived.player1.blessingCapacity = 2
 	state.map.tiles[0].label = "空关门"
 	state.map.tiles[0].type = "event"
 	board.set_game_state(state.duplicate(true), "foothill")

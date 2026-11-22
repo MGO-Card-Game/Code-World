@@ -1,6 +1,11 @@
+import { blessingCapacity } from "./blessings";
+import { casinoSpinPrice } from "./casino";
 import { SCROLLS } from "./content/scrolls";
-import { pvpGoldTransferAmount } from "./economy";
-import { enemyStats, playableScrolls, pvpHpTransferAmount } from "./selectors";
+import { bossKeyPrice, canUseShop, pvpGoldTransferAmount } from "./economy";
+import {
+  enemyStats, getAttack, getDefense, getDiceCountBonus, getDieSidesBonus, playableScrolls, pvpHpTransferAmount,
+} from "./selectors";
+import { canOpenBossGate } from "./stages";
 import type {
   CombatSide,
   GameAction,
@@ -9,6 +14,7 @@ import type {
   GameState,
   GameStateView,
   LogEntry,
+  PlayerDerivedView,
   PlayerId,
   PlayerView,
   ScrollChoice,
@@ -423,8 +429,16 @@ function redactPhase(phase: GamePhase, viewer: PlayerId): GamePhase {
  */
 export function viewFor(state: GameState, viewer: PlayerId): GameStateView {
   const players: Record<string, PlayerView> = {};
+  const playerDerived: Record<string, PlayerDerivedView> = {};
   for (const id of state.turnOrder) {
     const player = state.players[id];
+    playerDerived[id] = {
+      attack: getAttack(player),
+      defense: getDefense(player),
+      blessingCapacity: blessingCapacity(player),
+      movementSides: Math.max(2, 6 + getDieSidesBonus(player, "movement")),
+      movementDiceCount: Math.max(1, 1 + getDiceCountBonus(player, "movement")),
+    };
     players[id] = {
       ...player,
       scrolls: redactScrolls(player.scrolls, id !== viewer),
@@ -433,6 +447,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameStateView {
 
   const { phase } = state;
   const viewerPlayer = state.players[viewer];
+  const activeViewer = viewer === state.activePlayerId;
   let viewerPlayableScrollIds: ViewerPlayableScrollIds | undefined;
   let battleEnemy: GameStateView["battleEnemy"];
   let pvpPenaltyAmounts: GameStateView["pvpPenaltyAmounts"];
@@ -459,6 +474,11 @@ export function viewFor(state: GameState, viewer: PlayerId): GameStateView {
   return {
     ...state,
     players,
+    playerDerived,
+    ...(phase.kind === "awaitingRoll" && activeViewer && canOpenBossGate(state, viewerPlayer) && { canOpenBossGate: true }),
+    ...(phase.kind === "turnComplete" && activeViewer && canUseShop(state, viewerPlayer) && { canUseCampShop: true }),
+    ...(phase.kind === "bossGateChoice" && { bossGateKeyPrice: bossKeyPrice(state.map, phase.choice.stageId) }),
+    ...(phase.kind === "casino" && { casinoSpinPrice: casinoSpinPrice(phase.casino.spins) }),
     ...(viewerPlayableScrollIds && { viewerPlayableScrollIds }),
     ...(battleEnemy && { battleEnemy }),
     ...(pvpPenaltyAmounts && { pvpPenaltyAmounts }),

@@ -46,6 +46,11 @@
       "name": "逐风者"
     }
   },
+  "campShop": {
+    "healingAmount": 5,
+    "healingPrice": 40,
+    "scrollPrice": 100
+  },
   "eliteAffixes": {
     "agile": {
       "description": "防御骰上限 +2",
@@ -109,7 +114,11 @@
         }
       ],
       "attack": 6,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 3,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 28,
       "name": "山匪头目",
       "tier": "boss",
@@ -126,7 +135,11 @@
         }
       ],
       "attack": 3,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 1,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 12,
       "name": "生化蛞蝓",
       "tier": "roaming",
@@ -135,7 +148,11 @@
     "caveBats": {
       "abilities": [],
       "attack": 2,
+      "attackDice": 1,
+      "attackSides": 7,
       "defense": 0,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 8,
       "name": "岩穴蝠群",
       "tier": "roaming",
@@ -150,7 +167,11 @@
         }
       ],
       "attack": 6,
+      "attackDice": 1,
+      "attackSides": 8,
       "defense": 3,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 28,
       "name": "断崖巨魔",
       "tier": "elite",
@@ -177,7 +198,11 @@
         }
       ],
       "attack": 8,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 6,
+      "defenseDice": 1,
+      "defenseSides": 8,
       "maxHp": 75,
       "name": "峰顶巨龙",
       "tier": "boss",
@@ -197,7 +222,11 @@
         }
       ],
       "attack": 8,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 5,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 40,
       "name": "霜牙巨兽",
       "tier": "boss",
@@ -212,7 +241,11 @@
         }
       ],
       "attack": 6,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 4,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 24,
       "name": "霜幕怨灵",
       "tier": "elite",
@@ -221,7 +254,11 @@
     "golem": {
       "abilities": [],
       "attack": 3,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 2,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 16,
       "name": "石像守卫",
       "tier": "roaming",
@@ -230,7 +267,11 @@
     "iceShellLizard": {
       "abilities": [],
       "attack": 2,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 4,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 18,
       "name": "冰壳蜥",
       "tier": "roaming",
@@ -247,7 +288,11 @@
         }
       ],
       "attack": 4,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 2,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 20,
       "name": "腐沼巫兽",
       "tier": "elite",
@@ -264,7 +309,11 @@
         }
       ],
       "attack": 3,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 1,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 14,
       "name": "雾毒蜘蛛",
       "tier": "roaming",
@@ -281,7 +330,11 @@
         }
       ],
       "attack": 6,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 6,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 36,
       "name": "黑曜镇守者",
       "tier": "elite",
@@ -296,7 +349,11 @@
         }
       ],
       "attack": 1,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 6,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 20,
       "name": "愤怒的熊",
       "tier": "roaming",
@@ -311,7 +368,11 @@
         }
       ],
       "attack": 4,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 2,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 18,
       "name": "刃脊头狼",
       "tier": "elite",
@@ -320,7 +381,11 @@
     "slime": {
       "abilities": [],
       "attack": 1,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 0,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 8,
       "name": "史莱姆",
       "tier": "roaming",
@@ -329,7 +394,11 @@
     "thornbackBoar": {
       "abilities": [],
       "attack": 1,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 2,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 12,
       "name": "荆背野猪",
       "tier": "roaming",
@@ -338,7 +407,11 @@
     "thunderEagle": {
       "abilities": [],
       "attack": 5,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 1,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 14,
       "name": "雷羽鹰",
       "tier": "roaming",
@@ -355,7 +428,11 @@
         }
       ],
       "attack": 8,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 3,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 30,
       "name": "撼雷鹏",
       "tier": "elite",
@@ -370,7 +447,11 @@
         }
       ],
       "attack": 3,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 4,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 100,
       "name": "诡异肉块",
       "tier": "roaming",
@@ -385,7 +466,11 @@
         }
       ],
       "attack": 5,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 4,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 30,
       "name": "看守者飞龙",
       "tier": "elite",
@@ -394,7 +479,11 @@
     "wolf": {
       "abilities": [],
       "attack": 2,
+      "attackDice": 1,
+      "attackSides": 6,
       "defense": 1,
+      "defenseDice": 1,
+      "defenseSides": 6,
       "maxHp": 10,
       "name": "山狼",
       "tier": "roaming",
@@ -1290,14 +1379,20 @@
       "categorySigil": "通",
       "description": "地图阶段使用：直接传送至当前阶段地图上的任意一格，不触发沿途任何效果",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "movement",
+      "healsHp": false,
       "keywords": [
         "replacesMovement",
         "skipsPath"
       ],
+      "mapConfig": "teleportAnywhere",
       "name": "任意门",
       "needsTarget": false,
       "rarity": "PR",
+      "replacesMovement": true,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1308,11 +1403,17 @@
       "categorySigil": "疗",
       "description": "恢复 5 点生命；地图使用时放弃本回合移动，战斗中使用时下次无法移动",
       "drawable": true,
+      "forfeitsMovement": true,
       "group": "recovery",
+      "healsHp": true,
       "keywords": [],
+      "mapConfig": "none",
       "name": "战地药剂",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map",
         "beforeAttackRoll",
@@ -1325,15 +1426,21 @@
       "categorySigil": "通",
       "description": "代替本次掷骰：与同区域内的一名玩家交换位置，只有你会结算换到的新格子",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "interference",
+      "healsHp": false,
       "keywords": [
         "needsTarget",
         "replacesMovement",
         "skipsPath"
       ],
+      "mapConfig": "none",
       "name": "移形换影",
       "needsTarget": true,
       "rarity": "SR",
+      "replacesMovement": true,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1344,11 +1451,17 @@
       "categorySigil": "攻",
       "description": "本次攻击额外投 1 个攻击骰，结果求和",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "破阵战鼓",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1359,13 +1472,19 @@
       "categorySigil": "通",
       "description": "选择一名其他玩家，他下一次掷骰移动结果 -2，最低为 1",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "interference",
+      "healsHp": false,
       "keywords": [
         "needsTarget"
       ],
+      "mapConfig": "none",
       "name": "绊马索",
       "needsTarget": true,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1376,11 +1495,17 @@
       "categorySigil": "防",
       "description": "本次每颗防御骰投掷两次，取较高结果",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "沉稳",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeDefenseRoll"
       ]
@@ -1391,13 +1516,19 @@
       "categorySigil": "通",
       "description": "本次攻或防的第一颗骰直接定为 4",
       "drawable": false,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [
         "battleOnly"
       ],
+      "mapConfig": "none",
       "name": "裂纹骰面",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1409,14 +1540,20 @@
       "categorySigil": "攻",
       "description": "本次攻击额外造成 3 点伤害",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [
         "ignoreDefense",
         "eliteOnly"
       ],
+      "mapConfig": "none",
       "name": "斩首命令",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1427,11 +1564,17 @@
       "categorySigil": "防",
       "description": "本次防御额外投 1 个防御骰，结果求和",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "守阵战鼓",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeDefenseRoll"
       ]
@@ -1442,13 +1585,19 @@
       "categorySigil": "通",
       "description": "选择一名持有卷轴的其他玩家，由他自选弃掉一张卷轴",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "interference",
+      "healsHp": false,
       "keywords": [
         "needsTarget"
       ],
+      "mapConfig": "none",
       "name": "缴械",
       "needsTarget": true,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1459,11 +1608,17 @@
       "categorySigil": "防",
       "description": "本次攻防结算的最终伤害减少 3，最低减至 0",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "闪避卷轴",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeDefenseRoll"
       ]
@@ -1474,13 +1629,19 @@
       "categorySigil": "通",
       "description": "造成 10 点伤害，减去其当前防御",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [
         "directDamage"
       ],
+      "mapConfig": "none",
       "name": "巨龙打击",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1492,14 +1653,20 @@
       "categorySigil": "通",
       "description": "地图阶段使用：代替本次移动，选择一名其他玩家立即发起战斗；双方位置不变",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "interference",
+      "healsHp": false,
       "keywords": [
         "needsTarget",
         "replacesMovement"
       ],
+      "mapConfig": "none",
       "name": "决斗契约",
       "needsTarget": true,
       "rarity": "R",
+      "replacesMovement": true,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1510,13 +1677,19 @@
       "categorySigil": "通",
       "description": "选定一名其他玩家，抢走他 100 金币",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "interference",
+      "healsHp": false,
       "keywords": [
         "needsTarget"
       ],
+      "mapConfig": "none",
       "name": "勒索信",
       "needsTarget": true,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1527,11 +1700,17 @@
       "categorySigil": "通",
       "description": "本次攻击或防御骰改为 D20",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "D20",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1543,13 +1722,19 @@
       "categorySigil": "通",
       "description": "本次攻或防的第一颗骰直接视为最高面",
       "drawable": false,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [
         "battleOnly"
       ],
+      "mapConfig": "none",
       "name": "命运王冠",
       "needsTarget": false,
       "rarity": "PR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1561,11 +1746,17 @@
       "categorySigil": "疗",
       "description": "恢复 3 点生命",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "recovery",
+      "healsHp": true,
       "keywords": [],
+      "mapConfig": "none",
       "name": "急救绷带",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map",
         "beforeAttackRoll",
@@ -1578,11 +1769,17 @@
       "categorySigil": "攻",
       "description": "本次每颗攻击骰投掷两次，取较高结果",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "狂暴卷轴",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1593,11 +1790,17 @@
       "categorySigil": "攻",
       "description": "本次攻击 +2；对方下一次攻击骰面上限 -2",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "寒霜钉",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1608,11 +1811,17 @@
       "categorySigil": "疗",
       "description": "恢复 5 点生命",
       "drawable": false,
+      "forfeitsMovement": false,
       "group": "recovery",
+      "healsHp": true,
       "keywords": [],
+      "mapConfig": "none",
       "name": "野味",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map",
         "beforeAttackRoll",
@@ -1625,11 +1834,17 @@
       "categorySigil": "防",
       "description": "本次防御 +3",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "护盾卷轴",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeDefenseRoll"
       ]
@@ -1640,14 +1855,20 @@
       "categorySigil": "攻",
       "description": "本次攻击额外造成 5 点伤害",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [
         "ignoreDefense",
         "eliteOnly"
       ],
+      "mapConfig": "none",
       "name": "猎头令",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1658,13 +1879,19 @@
       "categorySigil": "攻",
       "description": "造成 6 点伤害，减去其当前防御",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [
         "directDamage"
       ],
+      "mapConfig": "none",
       "name": "痛击",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1675,11 +1902,17 @@
       "categorySigil": "防",
       "description": "本次防御中，每颗防御骰最低视为 3",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "铁壁令",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeDefenseRoll"
       ]
@@ -1690,11 +1923,17 @@
       "categorySigil": "防",
       "description": "本次受到的最终伤害最多为 1；下一次轮到你主动攻击时跳过该攻击",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "最后壁垒",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeDefenseRoll"
       ]
@@ -1705,13 +1944,19 @@
       "categorySigil": "通",
       "description": "地图阶段使用：不掷骰，直接前进 4 格，落点触发",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "movement",
+      "healsHp": false,
       "keywords": [
         "replacesMovement"
       ],
+      "mapConfig": "none",
       "name": "跃进",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": true,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1722,13 +1967,19 @@
       "categorySigil": "攻",
       "description": "造成 4 点伤害，减去其当前防御",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [
         "directDamage"
       ],
+      "mapConfig": "none",
       "name": "轻击",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1739,11 +1990,17 @@
       "categorySigil": "通",
       "description": "本次攻击或防御骰面上限 +3；本轮结算后损失 2 点生命",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "极限突破",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1755,11 +2012,17 @@
       "categorySigil": "通",
       "description": "本次攻或防额外投 2 个骰子，结果求和",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "满载骰池",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1771,13 +2034,19 @@
       "categorySigil": "通",
       "description": "令对方下一次攻击骰结果 -2",
       "drawable": false,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [
         "battleOnly"
       ],
+      "mapConfig": "none",
       "name": "诱敌号角",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1789,11 +2058,17 @@
       "categorySigil": "攻",
       "description": "本次攻击 +3",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "力量卷轴",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1804,11 +2079,17 @@
       "categorySigil": "通",
       "description": "本次攻击或防御骰改为 D10",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "D10",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1820,13 +2101,19 @@
       "categorySigil": "通",
       "description": "选定一名其他玩家，让他沿环路后退 2 格",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "interference",
+      "healsHp": false,
       "keywords": [
         "needsTarget"
       ],
+      "mapConfig": "none",
       "name": "太空步",
       "needsTarget": true,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1837,13 +2124,19 @@
       "categorySigil": "攻",
       "description": "双方各受到 4 点伤害，减去其当前防御；同时倒下时你判负",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [
         "directDamage"
       ],
+      "mapConfig": "none",
       "name": "同归于尽",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1854,11 +2147,17 @@
       "categorySigil": "通",
       "description": "本次攻击或防御骰改为 D8",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "八面骰印",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1870,13 +2169,19 @@
       "categorySigil": "通",
       "description": "选择一名持有卷轴的其他玩家，随机抽走他一张卷轴",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "interference",
+      "healsHp": false,
       "keywords": [
         "needsTarget"
       ],
+      "mapConfig": "none",
       "name": "搜刮",
       "needsTarget": true,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1887,11 +2192,17 @@
       "categorySigil": "攻",
       "description": "本次攻击中，每颗攻击骰最低视为 4",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "精准卷轴",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1902,11 +2213,17 @@
       "categorySigil": "攻",
       "description": "本次攻击额外投 2 个骰子；立即损失 2 点生命",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "孤注一掷",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1917,11 +2234,17 @@
       "categorySigil": "疗",
       "description": "恢复 7 点生命",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "recovery",
+      "healsHp": true,
       "keywords": [],
+      "mapConfig": "none",
       "name": "再生秘药",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map",
         "beforeAttackRoll",
@@ -1934,13 +2257,19 @@
       "categorySigil": "通",
       "description": "地图阶段使用：指定本回合的移动点数（不超过当前移动骰上限）",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "movement",
+      "healsHp": false,
       "keywords": [
         "replacesMovement"
       ],
+      "mapConfig": "chooseMovement",
       "name": "灵活行动",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": true,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1951,13 +2280,19 @@
       "categorySigil": "通",
       "description": "代替本次移动：回到上一次停留的同阶段格子，并重新触发落点",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "movement",
+      "healsHp": false,
       "keywords": [
         "replacesMovement"
       ],
+      "mapConfig": "none",
       "name": "折返",
       "needsTarget": false,
       "rarity": "R",
+      "replacesMovement": true,
+      "retracesPosition": true,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -1968,11 +2303,17 @@
       "categorySigil": "攻",
       "description": "本次攻击额外投 2 个骰子，第一颗骰直接视为最高面",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "逆鳞",
       "needsTarget": false,
       "rarity": "PR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -1983,11 +2324,17 @@
       "categorySigil": "通",
       "description": "本次攻或防额外投 1 个骰子，第一颗骰直接视为最高面",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "突破",
       "needsTarget": false,
       "rarity": "PR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll",
         "beforeDefenseRoll"
@@ -1999,13 +2346,19 @@
       "categorySigil": "防",
       "description": "本次防御 +2",
       "drawable": false,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [
         "battleOnly"
       ],
+      "mapConfig": "none",
       "name": "拾荒者背袋",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeDefenseRoll"
       ]
@@ -2016,14 +2369,20 @@
       "categorySigil": "通",
       "description": "地图阶段使用：直接跃至前方至多 3 格处；途中的营地回血与守关门计次都不会触发",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "movement",
+      "healsHp": false,
       "keywords": [
         "replacesMovement",
         "skipsPath"
       ],
+      "mapConfig": "teleport",
       "name": "短程传送符",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": true,
+      "retracesPosition": false,
+      "teleportMaxDistance": 3,
       "timings": [
         "map"
       ]
@@ -2034,13 +2393,19 @@
       "categorySigil": "通",
       "description": "地图阶段使用：不掷骰，直接前进 2 格，落点触发",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "movement",
+      "healsHp": false,
       "keywords": [
         "replacesMovement"
       ],
+      "mapConfig": "none",
       "name": "翻跟头",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": true,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -2051,11 +2416,17 @@
       "categorySigil": "防",
       "description": "本次防御中，每颗防御骰最低视为 4",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "坚守卷轴",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeDefenseRoll"
       ]
@@ -2066,11 +2437,17 @@
       "categorySigil": "防",
       "description": "本次攻防结算的最终伤害减少 5，最低减至 0",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "combatSwing",
+      "healsHp": false,
       "keywords": [],
+      "mapConfig": "none",
       "name": "厚甲",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeDefenseRoll"
       ]
@@ -2081,13 +2458,19 @@
       "categorySigil": "攻",
       "description": "本次攻击额外投 2 个骰子，结果求和",
       "drawable": false,
+      "forfeitsMovement": false,
       "group": "diceBoost",
+      "healsHp": false,
       "keywords": [
         "battleOnly"
       ],
+      "mapConfig": "none",
       "name": "王座破坏者",
       "needsTarget": false,
       "rarity": "PR",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "beforeAttackRoll"
       ]
@@ -2098,13 +2481,19 @@
       "categorySigil": "通",
       "description": "代替本次移动：传送回当前阶段营地并计为完成一圈",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "movement",
+      "healsHp": false,
       "keywords": [
         "replacesMovement"
       ],
+      "mapConfig": "none",
       "name": "回城卷轴",
       "needsTarget": false,
       "rarity": "SR",
+      "replacesMovement": true,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -2115,13 +2504,19 @@
       "categorySigil": "通",
       "description": "选定一名其他玩家，他下一次掷骰移动只能走 1 格",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "interference",
+      "healsHp": false,
       "keywords": [
         "needsTarget"
       ],
+      "mapConfig": "none",
       "name": "绊索",
       "needsTarget": true,
       "rarity": "N",
+      "replacesMovement": false,
+      "retracesPosition": false,
+      "teleportMaxDistance": null,
       "timings": [
         "map"
       ]
@@ -2132,17 +2527,40 @@
       "categorySigil": "通",
       "description": "地图阶段使用：直接前进 1 格，代替正常移动",
       "drawable": true,
+      "forfeitsMovement": false,
       "group": "movement",
+      "healsHp": false,
       "keywords": [
         "replacesMovement",
         "skipsPath"
       ],
+      "mapConfig": "teleport",
       "name": "触手可得",
       "needsTarget": false,
       "rarity": "N",
+      "replacesMovement": true,
+      "retracesPosition": false,
+      "teleportMaxDistance": 1,
       "timings": [
         "map"
       ]
+    }
+  },
+  "statGrowth": {
+    "attack": {
+      "description": "永久提高攻击，每一次出手都更疼。",
+      "name": "攻击 +1",
+      "value": 1
+    },
+    "defense": {
+      "description": "永久提高防御，挨打时少扣一点。",
+      "name": "防御 +1",
+      "value": 1
+    },
+    "maxHp": {
+      "description": "永久提高生命上限，并立即补上这 5 点。",
+      "name": "生命上限 +5",
+      "value": 5
     }
   }
 }

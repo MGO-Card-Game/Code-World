@@ -59,6 +59,14 @@ static func blessing_info(kind: String) -> Dictionary:
 	return _info("blessings", kind)
 
 
+static func stat_growth_info(option: String) -> Dictionary:
+	return _info("statGrowth", option)
+
+
+static func camp_shop_info() -> Dictionary:
+	return load_catalog().campShop
+
+
 static func map_event_info(kind: String) -> Dictionary:
 	return _info("mapEvents", kind)
 

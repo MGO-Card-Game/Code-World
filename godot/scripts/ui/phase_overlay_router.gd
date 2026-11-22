@@ -2,6 +2,7 @@ class_name PhaseOverlayRouter
 extends PanelContainer
 
 signal skip_requested
+signal camp_shop_requested
 
 const THEME_FACTORY = preload("res://scripts/ui/ui_theme.gd")
 const Playback = preload("res://scripts/anim/playback_controller.gd")
@@ -41,6 +42,8 @@ const INTENTS := {"trade": "提出交易", "greet": "友好招呼", "battle": "�
 @onready var choices: HBoxContainer = $Margin/Content/TargetChoices
 @onready var guidance: Label = $Margin/Content/ActionRow/Guidance
 @onready var primary_action: Button = $Margin/Content/ActionRow/PrimaryAction
+@onready var boss_gate: Button = $Margin/Content/ActionRow/BossGate
+@onready var camp_shop: Button = $Margin/Content/ActionRow/CampShop
 @onready var skip_playback: Button = $Margin/Content/ActionRow/SkipPlayback
 @onready var sigil: Label = $Margin/Content/ActionRow/ActionSigil
 
@@ -57,6 +60,12 @@ func _ready() -> void:
 	if not dispatch_callable.is_valid():
 		dispatch_callable = get_node("/root/GameClient").dispatch
 	primary_action.pressed.connect(_on_primary_pressed)
+	boss_gate.pressed.connect(func() -> void:
+		if boss_gate.is_visible_in_tree():
+			dispatch_action({"type": "openBossGate"}))
+	camp_shop.pressed.connect(func() -> void:
+		if camp_shop.is_visible_in_tree():
+			camp_shop_requested.emit())
 	skip_playback.pressed.connect(skip_requested.emit)
 	var primary_normal: StyleBoxFlat = THEME_FACTORY.primary_button_style()
 	var primary_hover: StyleBoxFlat = primary_normal.duplicate()
@@ -99,12 +108,19 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback = null
 	guidance.text = PHASE_GUIDANCE.get(kind, kind)
 	sigil.text = _phase_sigil(kind)
 	_primary_type = ""
+	boss_gate.visible = kind == "awaitingRoll" and viewer == active and not playing and state.get("canOpenBossGate", false)
+	camp_shop.visible = kind == "turnComplete" and viewer == active and not playing and state.get("canUseCampShop", false)
 
 	match kind:
 		"awaitingRoll", "turnComplete":
 			key.append_array([turn, active])
 			_primary_type = "rollMovement" if kind == "awaitingRoll" else "endTurn"
-			primary_action.text = "投掷移动骰" if kind == "awaitingRoll" else "结束当前回合"
+			if kind == "awaitingRoll":
+				var dice: Dictionary = state.playerDerived[active]
+				var count_text := "%d" % dice.movementDiceCount if dice.movementDiceCount > 1 else ""
+				primary_action.text = "投掷 %sD%d" % [count_text, dice.movementSides]
+			else:
+				primary_action.text = "结束当前回合"
 		"scrollTargetChoice":
 			var ids: Array = choice.get("candidateIds", [])
 			key.append_array([turn, choice.get("playerId"), choice.get("scrollKind"), choice.get("effectIndex"), choice.get("resume"), ids])
@@ -138,7 +154,8 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback = null
 					labels.append(INTENTS[intent])
 			else:
 				guidance.text += " · 等待相遇双方决定"
-		"battle", "pveReward", "equipmentChoice", "pvpPenalty", "tradeOffer", "tradeConfirmation", "scrollDiscardChoice", "statGrowthChoice", "gameOver":
+		"battle", "pveReward", "equipmentChoice", "pvpPenalty", "tradeOffer", "tradeConfirmation", "scrollDiscardChoice", "statGrowthChoice", "gameOver", \
+		"bossGateChoice", "blessingChoice", "blessingReward", "treasureReward", "shop", "casino":
 			pass # The mounted modal owns these actions.
 		_:
 			guidance.text += " · 当前版本仅展示此阶段"

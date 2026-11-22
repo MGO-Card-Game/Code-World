@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { casinoSpinPrice } from "../../casino";
 import { pvpGoldTransferAmount } from "../../economy";
 import { createInitialGame, gameReducer } from "../../engine";
 import { canAct, isHiddenScroll, viewFor } from "../../multiplayer";
@@ -624,5 +625,73 @@ describe("相遇战代价视图", () => {
     expect(viewFor(state, "player1")).not.toHaveProperty("pvpPenaltyAmounts");
     state.phase = { kind: "pvpPenalty", penalty: { ...penalty, waived: true } };
     expect(viewFor(state, "player1")).not.toHaveProperty("pvpPenaltyAmounts");
+  });
+});
+
+describe("M3 公开派生视图", () => {
+  it("各座位共享公开攻防、槽位及移动骰，暗牌变化不影响派生值", () => {
+    const state = createInitialGame(42, {}, ["player1", "player2", "player3"]);
+    const p = state.players.player1;
+    p.equipment = [{ instanceId: "boot", kind: "postRoadBoots" }, { instanceId: "bracelet", kind: "inkBambooBracelet" }];
+    p.stageProgress.foothill.bossDefeated = true;
+    p.blessings = [{ instanceId: "b1", kind: "giantStrength" }, { instanceId: "b2", kind: "dragonScale" }];
+    p.scrolls = [{ instanceId: "secret", kind: "bodySwap" }];
+    const derived = viewFor(state, p.id).playerDerived!;
+    expect(Object.keys(derived)).toEqual(state.turnOrder);
+    expect(derived[p.id]).toEqual({ attack: p.baseAttack + 2, defense: p.baseDefense + 2,
+      blessingCapacity: 2, movementDiceCount: 2, movementSides: 8 });
+    state.phase = { kind: "battle", battle: makeBattle({ kind: "pvp", aPlayerId: p.id, bPlayerId: "player2" }) };
+    for (const viewer of ["player2", "player3"] as const) {
+      const view = viewFor(state, viewer);
+      expect(view.playerDerived).toEqual(derived);
+      expect(view.players[p.id].scrolls).toEqual([{ instanceId: "secret", hidden: true }]);
+      expect(allText(view)).not.toContain("bodySwap");
+    }
+    p.scrolls = [];
+    expect(viewFor(state, p.id).playerDerived).toEqual(derived);
+  });
+
+  it("只向有资格的行动座位提供入口和营地按钮", () => {
+    const state = createInitialGame(42, {}, ["player1", "player2", "player3"]);
+    state.activePlayerId = "player1";
+    const p = state.players.player1;
+    const region = state.map.regions[0];
+    p.position = region.gateIndex;
+    expect(viewFor(state, p.id)).not.toHaveProperty("canOpenBossGate");
+    for (const requirement of region.requirements) p.stageProgress[region.id][requirement.type] = requirement.target;
+    expect(viewFor(state, p.id).canOpenBossGate).toBe(true);
+    expect(viewFor(state, p.id)).not.toHaveProperty("canUseCampShop");
+    for (const viewer of ["player2", "player3"] as const) expect(viewFor(state, viewer)).not.toHaveProperty("canOpenBossGate");
+    p.position = region.entryIndex;
+    expect(viewFor(state, p.id)).not.toHaveProperty("canOpenBossGate");
+    state.phase = { kind: "turnComplete" };
+    expect(viewFor(state, p.id).canUseCampShop).toBe(true);
+    expect(viewFor(state, p.id)).not.toHaveProperty("canOpenBossGate");
+    for (const viewer of ["player2", "player3"] as const) expect(viewFor(state, viewer)).not.toHaveProperty("canUseCampShop");
+    p.position = state.map.tiles.findIndex((tile) => tile.type === "shop");
+    expect(viewFor(state, p.id)).not.toHaveProperty("canUseCampShop");
+  });
+
+  it("所有座位只在对应阶段收到钥匙价格或转盘价格", () => {
+    const state = createInitialGame(42);
+    for (const viewer of state.turnOrder) {
+      state.phase = { kind: "awaitingRoll" };
+      expect(viewFor(state, viewer)).not.toHaveProperty("bossGateKeyPrice");
+      expect(viewFor(state, viewer)).not.toHaveProperty("casinoSpinPrice");
+      const region = state.map.regions[1];
+      state.phase = { kind: "bossGateChoice", choice: { playerId: state.activePlayerId, stageId: region.id,
+        gateTileIndex: region.gateIndex, bossEnemyId: region.bossEnemyId, source: "standing" } };
+      const gate = viewFor(state, viewer);
+      expect(gate.bossGateKeyPrice).toBe(200);
+      expect(gate).not.toHaveProperty("casinoSpinPrice");
+      expect(gate.phase).toEqual(state.phase);
+      for (const spins of [0, 2]) {
+        state.phase = { kind: "casino", casino: { playerId: state.activePlayerId, tileIndex: 3, spins } };
+        const casino = viewFor(state, viewer);
+        expect(casino.casinoSpinPrice).toBe(casinoSpinPrice(spins));
+        expect(casino).not.toHaveProperty("bossGateKeyPrice");
+        expect(casino.phase).toEqual(state.phase);
+      }
+    }
   });
 });

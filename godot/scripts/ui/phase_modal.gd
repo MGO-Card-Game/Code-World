@@ -13,6 +13,39 @@ var body_scroll := ScrollContainer.new()
 var body := VBoxContainer.new()
 
 
+## A key identifies one action (including its arguments) across RoomView updates.
+class ActionList extends VBoxContainer:
+	signal chosen(action: Dictionary)
+	var buttons: Dictionary[String, Button] = {}
+	var locked := false
+
+	func set_action(key: String, label: String, action: Dictionary, unavailable := false) -> void:
+		if key not in buttons:
+			var button := Button.new()
+			button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			button.pressed.connect(_submit.bind(button, action))
+			add_child(button)
+			buttons[key] = button
+		buttons[key].text = label
+		buttons[key].disabled = locked or unavailable
+
+	func keep_order(keys: Array) -> void:
+		for key: String in buttons.keys():
+			if key not in keys:
+				var button := buttons[key]
+				remove_child(button)
+				button.queue_free()
+				buttons.erase(key)
+		for index in keys.size():
+			var button := buttons[keys[index]]
+			if button.get_index() != index:
+				move_child(button, index)
+
+	func _submit(button: Button, action: Dictionary) -> void:
+		if button.is_visible_in_tree() and not button.disabled:
+			chosen.emit(action)
+
+
 func _init() -> void:
 	var style := Palette.panel_style(Palette.BORDER_WARM)
 	for edge in [SIDE_LEFT, SIDE_RIGHT, SIDE_TOP, SIDE_BOTTOM]:

@@ -34,12 +34,14 @@ func _init(check_fn: Callable, scene: Node, fixture: Dictionary) -> void:
 	state = fixture
 	state.players[A].scrolls = [{"kind": "might", "instanceId": "scroll-1"}, {"kind": "plunder", "instanceId": "scroll-2"}]
 	state.players[A].equipment = [{"kind": "sword", "instanceId": "equipment-1"}]
+	state.playerDerived[A].attack = 5
 	state.players[B].scrolls = [
 		{"kind": "guard", "instanceId": "scroll-3"}, {"kind": "guard", "instanceId": "scroll-4"},
 		{"kind": "heavyStrike", "instanceId": "scroll-5"},
 	]
 	state.players[C] = state.players[B].merged({"id": C, "name": "白云", "scrolls": [], "position": 0}, true)
 	state.turnOrder.append(C)
+	state.playerDerived[C] = state.playerDerived[B].duplicate()
 	state.phase = {"kind": "battle", "battle": battle}
 	state.erase("viewerPlayableScrollIds")
 	var members := []
@@ -228,6 +230,7 @@ func _test_penalty_options() -> void:
 	state.players[A].gold = 0
 	state.players[A].scrolls = []
 	state.players[A].equipment = []
+	state.playerDerived[A].attack = 4
 	state.phase.penalty.merge({"waived": true, "waiveReason": "noPayable"})
 	state.erase("pvpPenaltyAmounts")
 	_broadcast(A)

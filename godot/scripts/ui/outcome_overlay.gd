@@ -5,12 +5,12 @@ const Playback = preload("res://scripts/anim/playback_controller.gd")
 const Router = preload("res://scripts/ui/phase_overlay_router.gd")
 const SOURCES := {"battle": "战斗奖励", "affix": "词条额外奖励", "elite": "精英额外奖励", "boss": "首领战利品", "blessing": "战争财阀"}
 const RESOURCES := {"scroll": "卷轴", "equipment": "装备", "gold": "金币"}
+const TREASURE_SOURCES := {"treasure": "宝箱收获", "blessing": "宝物猎人"}
 
 var details := Label.new()
 var waiting := Label.new()
-var options := VBoxContainer.new()
+var options := ActionList.new()
 var _phase_key: Array = []
-var _buttons: Dictionary[String, Button] = {}
 
 
 func _ready() -> void:
@@ -20,6 +20,7 @@ func _ready() -> void:
 	waiting.add_theme_color_override("font_color", Palette.MUTED)
 	body.add_child(waiting)
 	body.add_child(options)
+	options.chosen.connect(action_requested.emit)
 
 
 func set_game_state(state: Dictionary, viewer: String, playback: Playback, router: Router, can_restart: bool = false) -> void:
@@ -45,6 +46,20 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback, route
 			owner = decision.playerId
 			key = [kind, state.turn, owner, decision.offered.instanceId, viewer]
 			ready_to_show = router.presentation_ready(decision.get("revealAfterEventId"))
+		"bossGateChoice":
+			decision = state.phase.choice
+			owner = decision.playerId
+			key = [kind, state.turn, owner, decision.stageId, viewer]
+			ready_to_show = not playing
+		"blessingChoice":
+			decision = state.phase.choice
+			owner = decision.winnerId
+			key = [kind, state.turn, owner, decision.offered.instanceId, viewer]
+		"blessingReward", "treasureReward":
+			decision = state.phase.notice
+			owner = decision.playerId
+			key = [kind, state.turn, owner, viewer]
+			ready_to_show = router.presentation_ready(decision.get("revealAfterEventId"))
 		"scrollDiscardChoice":
 			decision = state.phase.choice
 			owner = decision.targetPlayerId
@@ -64,6 +79,7 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback, route
 	var player: Dictionary = state.players[owner]
 	var mine := can_restart if kind == "gameOver" else owner == viewer
 	options.visible = mine
+	options.locked = playing and kind != "gameOver"
 	waiting.visible = not mine
 	skip.visible = playing and kind != "gameOver" and (kind != "statGrowthChoice" or mine)
 	match kind:
@@ -75,6 +91,20 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback, route
 			_show_equipment(decision, player, player.name, mine)
 		"scrollDiscardChoice":
 			_show_discard(decision, player, mine)
+		"bossGateChoice":
+			_show_gate(decision, state, player, mine)
+		"blessingChoice":
+			_show_blessing_choice(decision, state, player, mine)
+		"blessingReward":
+			var blessing := Catalog.blessing_info(decision.blessing.kind)
+			kicker.text = "获得赐福"
+			title.text = "%s在%s获得了%s" % [player.name, decision.tileLabel, blessing.name]
+			details.text = blessing.description
+			waiting.text = "等待%s确认新赐福……" % player.name
+			if mine:
+				options.set_action("acknowledge", "确认赐福", {"type": "acknowledgeBlessingReward"})
+		"treasureReward":
+			_show_treasure(decision, player.name, mine)
 		"statGrowthChoice":
 			_show_growth(decision, state.map.regions, player, mine)
 		"gameOver":
@@ -83,9 +113,70 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback, route
 			details.text = "巨龙已经倒下，山巅见证了新的冠军。"
 			waiting.text = "等待房主重新开局……"
 			if can_restart:
-				_action_button("restart", "再来一局", {"type": "restart"})
-	for button: Button in _buttons.values():
-		button.disabled = playing and kind != "gameOver"
+				options.set_action("restart", "再来一局", {"type": "restart"})
+
+
+func _show_gate(choice: Dictionary, state: Dictionary, player: Dictionary, mine: bool) -> void:
+	var progress: Dictionary = player.stageProgress[choice.stageId]
+	var purchased: bool = progress.bossKeyPurchased
+	var boss := Catalog.enemy_name(choice.bossEnemyId)
+	var lines := PackedStringArray(["已购钥匙" if purchased else "尚未购买钥匙"])
+	for region: Dictionary in state.map.regions:
+		if region.id == choice.stageId:
+			kicker.text = "%s · 守关挑战" % region.name
+			for req: Dictionary in region.requirements:
+				lines.append("%s · %d/%d" % [req.label, mini(progress[req.type], req.target), req.target])
+			break
+	title.text = "%s正在门后等待" % boss
+	details.text = "\n".join(lines)
+	waiting.text = "等待%s处理首领入口……" % player.name
+	if not mine:
+		return
+	if purchased:
+		options.set_action("challenge", "挑战%s" % boss, {"type": "chooseBossChallenge", "challenge": true})
+	else:
+		var price: int = state.bossGateKeyPrice
+		var label := "金币不足 · 需要 %d" % price if player.gold < price else "购买钥匙 · %d 金币" % price
+		options.set_action("buy", label, {"type": "buyBossKey"}, player.gold < price)
+	options.set_action("decline", "暂不进入" if purchased else "暂不购买", {"type": "chooseBossChallenge", "challenge": false})
+	options.keep_order(["challenge" if purchased else "buy", "decline"])
+
+
+func _show_blessing_choice(choice: Dictionary, state: Dictionary, winner: Dictionary, mine: bool) -> void:
+	kicker.text = "赐福抉择"
+	if choice.source == "pvp":
+		title.text = "%s夺得了%s的赐福" % [winner.name, state.players[choice.loserId].name]
+	else:
+		title.text = "%s在%s发现新的赐福" % [winner.name, choice.tileLabel]
+	waiting.text = "等待%s选择赐福……" % winner.name
+	var lines := PackedStringArray(["当前赐福槽位 %d/%d" % [winner.blessings.size(), state.playerDerived[choice.winnerId].blessingCapacity]])
+	var keys := ["decline"]
+	if mine:
+		options.set_action("decline", "放弃新赐福", {"type": "chooseBlessing", "replace": false})
+	for current: Dictionary in winner.blessings:
+		var info := Catalog.blessing_info(current.kind)
+		lines.append("已有赐福 · %s\n%s" % [info.name, info.description])
+		if mine:
+			keys.append(current.instanceId)
+			options.set_action(current.instanceId, "替换%s" % info.name,
+				{"type": "chooseBlessing", "replace": true, "replaceInstanceId": current.instanceId})
+	var offered := Catalog.blessing_info(choice.offered.kind)
+	lines.append("新赐福 · %s\n%s" % [offered.name, offered.description])
+	details.text = "\n".join(lines)
+	if mine:
+		options.keep_order(keys)
+
+
+func _show_treasure(notice: Dictionary, player_name: String, mine: bool) -> void:
+	kicker.text = "空宝箱" if notice.empty else "宝箱已开启"
+	title.text = "%s打开了%s" % [player_name, notice.tileLabel]
+	var lines := PackedStringArray()
+	for reward: Dictionary in notice.rewards:
+		lines.append("%s · %s · %s" % [TREASURE_SOURCES[reward.source], reward.name, RESOURCES[reward.resourceType]])
+	details.text = "箱子里空空如也。" if notice.empty else "\n".join(lines)
+	waiting.text = "等待%s确认开箱结果……" % player_name
+	if mine:
+		options.set_action("acknowledge", "收下奖励", {"type": "acknowledgeTreasureReward"})
 
 
 func _show_discard(choice: Dictionary, target: Dictionary, mine: bool) -> void:
@@ -100,9 +191,9 @@ func _show_discard(choice: Dictionary, target: Dictionary, mine: bool) -> void:
 		if not scroll.get("hidden", false) and scroll.instanceId in choice.candidateIds:
 			var info := Catalog.scroll_info(scroll.kind)
 			keys.append(scroll.instanceId)
-			_action_button(scroll.instanceId, "弃掉%s\n%s" % [info.name, card_description(info)],
+			options.set_action(scroll.instanceId, "弃掉%s\n%s" % [info.name, card_description(info)],
 				{"type": "chooseScrollDiscard", "instanceId": scroll.instanceId})
-	_sync_option_order(keys)
+	options.keep_order(keys)
 
 
 func _show_growth(choice: Dictionary, regions: Array, player: Dictionary, mine: bool) -> void:
@@ -121,7 +212,7 @@ func _show_growth(choice: Dictionary, regions: Array, player: Dictionary, mine: 
 		"maxHp": "生命上限 +5\n永久提高生命上限，并立即补上这 5 点。\n当前 %d/%d" % [player.hp, player.maxHp],
 	}
 	for option: String in labels:
-		_action_button(option, labels[option], {"type": "chooseStatGrowth", "option": option})
+		options.set_action(option, labels[option], {"type": "chooseStatGrowth", "option": option})
 
 
 func _show_reward(notice: Dictionary, player_name: String, mine: bool) -> void:
@@ -136,7 +227,7 @@ func _show_reward(notice: Dictionary, player_name: String, mine: bool) -> void:
 	waiting.text = "等待%s确认奖励……" % player_name
 	if mine:
 		var label := "收下奖励并加点" if notice.get("statGrowth", false) else "收下奖励"
-		_action_button("acknowledge", label, {"type": "acknowledgePveReward"})
+		options.set_action("acknowledge", label, {"type": "acknowledgePveReward"})
 
 
 func _show_equipment(choice: Dictionary, player: Dictionary, player_name: String, mine: bool) -> void:
@@ -153,10 +244,10 @@ func _show_equipment(choice: Dictionary, player: Dictionary, player_name: String
 		if owned.get("category") == info.category:
 			var key := "replace-" + str(item.instanceId)
 			keys.append(key)
-			_action_button(key, "替换%s" % owned.name, {"type": "chooseEquipment", "replaceInstanceId": item.instanceId})
+			options.set_action(key, "替换%s" % owned.name, {"type": "chooseEquipment", "replaceInstanceId": item.instanceId})
 	keys.append("decline")
-	_action_button("decline", "放弃新装备", {"type": "chooseEquipment"})
-	_sync_option_order(keys)
+	options.set_action("decline", "放弃新装备", {"type": "chooseEquipment"})
+	options.keep_order(keys)
 
 
 func _show_penalty(loser: Dictionary, winner_name: String, amounts: Dictionary, mine: bool) -> void:
@@ -169,57 +260,24 @@ func _show_penalty(loser: Dictionary, winner_name: String, amounts: Dictionary, 
 	var keys := []
 	if amounts.gold > 0:
 		keys.append("gold")
-		_action_button("gold", "支付 20%% 金币 · %d 金币" % amounts.gold, {"type": "choosePvpPenalty", "choice": "gold"})
+		options.set_action("gold", "支付 20%% 金币 · %d 金币" % amounts.gold, {"type": "choosePvpPenalty", "choice": "gold"})
 	for item: Dictionary in loser.scrolls:
 		if not item.get("hidden", false):
 			keys.append(item.instanceId)
-			_action_button(item.instanceId, "交出卷轴 · %s" % Catalog.scroll_name(item.kind),
+			options.set_action(item.instanceId, "交出卷轴 · %s" % Catalog.scroll_name(item.kind),
 				{"type": "choosePvpPenalty", "choice": "resource", "resourceType": "scroll", "instanceId": item.instanceId})
 	for item: Dictionary in loser.equipment:
 		keys.append(item.instanceId)
-		_action_button(item.instanceId, "交出装备 · %s" % Catalog.equipment_info(item.kind).name,
+		options.set_action(item.instanceId, "交出装备 · %s" % Catalog.equipment_info(item.kind).name,
 			{"type": "choosePvpPenalty", "choice": "resource", "resourceType": "equipment", "instanceId": item.instanceId})
 	if amounts.hp > 0:
 		keys.append("hp")
-		_action_button("hp", "转移生命 · %d 点生命" % amounts.hp, {"type": "choosePvpPenalty", "choice": "hp"})
-	_sync_option_order(keys)
-
-
-func _sync_option_order(keys: Array) -> void:
-	for key: String in _buttons.keys():
-		if key not in keys:
-			_remove_button(key)
-	for index in keys.size():
-		if _buttons[keys[index]].get_index() != index:
-			options.move_child(_buttons[keys[index]], index)
+		options.set_action("hp", "转移生命 · %d 点生命" % amounts.hp, {"type": "choosePvpPenalty", "choice": "hp"})
+	options.keep_order(keys)
 
 
 func _set_phase_key(key: Array) -> void:
-	if _phase_key == key:
-		return
-	for id: String in _buttons.keys():
-		_remove_button(id)
-	_phase_key = key
-	body_scroll.scroll_vertical = 0
-
-
-func _remove_button(key: String) -> void:
-	var button := _buttons[key]
-	options.remove_child(button)
-	button.queue_free()
-	_buttons.erase(key)
-
-
-func _action_button(key: String, label: String, action: Dictionary) -> void:
-	if not _buttons.has(key):
-		var button := Button.new()
-		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		button.pressed.connect(_submit.bind(button, action))
-		options.add_child(button)
-		_buttons[key] = button
-	_buttons[key].text = label
-
-
-func _submit(button: Button, action: Dictionary) -> void:
-	if button.is_visible_in_tree() and not button.disabled:
-		action_requested.emit(action)
+	if _phase_key != key:
+		options.keep_order([])
+		_phase_key = key
+		body_scroll.scroll_vertical = 0

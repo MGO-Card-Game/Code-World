@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/ui/mountain_board.gd" id="2_board"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/ui/battle_panel.gd" id="5_battle"]
 [ext_resource type="Script" path="res://scripts/ui/outcome_overlay.gd" id="6_outcome"]
 [ext_resource type="Script" path="res://scripts/ui/trade_overlay.gd" id="7_trade"]
+[ext_resource type="Script" path="res://scripts/ui/shop_casino_overlay.gd" id="8_shop"]
 
 [sub_resource type="Gradient" id="Gradient_background"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -457,6 +458,16 @@ custom_minimum_size = Vector2(210, 48)
 layout_mode = 2
 text = "投掷移动骰"
 
+[node name="BossGate" type="Button" parent="Margin/Root/Screens/Game/ActionDock/Margin/Content/ActionRow"]
+visible = false
+layout_mode = 2
+text = "首领入口"
+
+[node name="CampShop" type="Button" parent="Margin/Root/Screens/Game/ActionDock/Margin/Content/ActionRow"]
+visible = false
+layout_mode = 2
+text = "旅商补给"
+
 [node name="SkipPlayback" type="Button" parent="Margin/Root/Screens/Game/ActionDock/Margin/Content/ActionRow"]
 visible = false
 layout_mode = 2
@@ -506,3 +517,12 @@ anchor_top = 0.18
 anchor_right = 0.77
 anchor_bottom = 0.82
 script = ExtResource("7_trade")
+
+[node name="ShopCasinoOverlay" type="PanelContainer" parent="OverlayHost"]
+visible = false
+layout_mode = 1
+anchor_left = 0.23
+anchor_top = 0.14
+anchor_right = 0.77
+anchor_bottom = 0.86
+script = ExtResource("8_shop")

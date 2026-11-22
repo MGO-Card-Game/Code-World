@@ -274,6 +274,7 @@ func test_scene(main: Node, state: Dictionary) -> void:
 	hero.maxHp = 24
 	hero.baseAttack = 7
 	hero.baseDefense = 6
+	state.playerDerived.player1.merge({"attack": 7, "defense": 6}, true)
 	hero.position = 0
 	hero.scrolls = [{"kind": "plunder", "instanceId": "transferred"}]
 	state.lastEvents = [

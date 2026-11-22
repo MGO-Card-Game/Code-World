@@ -28,8 +28,10 @@ func _init(check_fn: Callable, scene: Node, fixture: Dictionary) -> void:
 	state.erase("viewerPlayableScrollIds")
 	state.players[C] = state.players[B].merged({"id": C, "name": "白云"}, true)
 	state.turnOrder.append(C)
+	state.playerDerived[C] = state.playerDerived[B].duplicate()
 	state.players[A].position = 1
 	state.players[A].equipment = [OFFER_A.equipment[0], {"instanceId": "e-2", "kind": "shield"}]
+	state.playerDerived[A].merge({"attack": 5, "defense": 3}, true)
 	state.players[B].scrolls = OFFER_B.scrolls.duplicate(true)
 	state.players[B].equipment = OFFER_B.equipment.duplicate(true)
 	var members := []

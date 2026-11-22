@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { BLESSINGS, type BlessingDefinition } from "../src/game/content/blessings";
 import {
-  ELITE_AFFIXES, ENEMIES, ENEMY_TIER_NAMES, type EliteAffixDefinition, type EnemyDefinition,
+  ELITE_AFFIXES, ENEMIES, ENEMY_TIER_NAMES, type EliteAffixDefinition, type EnemyDefinition, type EnemyKind,
 } from "../src/game/content/enemies";
 import {
   EQUIPMENT, EQUIPMENT_CATEGORY_NAMES, EQUIPMENT_SLOT_LIMITS, equipmentKeywords,
@@ -16,9 +16,12 @@ import {
   SCROLL_CATEGORY_NAMES, SCROLL_CATEGORY_SIGILS, SCROLLS_BY_GROUP,
   scrollCategory, scrollKeywords, type ScrollDefinition,
 } from "../src/game/content/scrolls";
+import { ECONOMY } from "../src/game/economy";
+import { STAT_GROWTH } from "../src/game/growth";
+import { enemyDiceCountBonus, enemyDieSidesBonus } from "../src/game/selectors";
 
-function project<T, U>(table: Record<string, T>, fields: (entry: T) => U): Record<string, U> {
-  return Object.fromEntries(Object.entries(table).map(([key, entry]) => [key, fields(entry)]));
+function project<K extends string, T, U>(table: Record<K, T>, fields: (entry: T, key: K) => U): Record<string, U> {
+  return Object.fromEntries((Object.keys(table) as K[]).map((key) => [key, fields(table[key], key)]));
 }
 
 // Copy every dictionary in code-unit order, including records nested inside arrays.
@@ -34,11 +37,19 @@ function sortedCopy(value: unknown): unknown {
 function scrollEntry(def: ScrollDefinition, group: string) {
   const category = scrollCategory(def);
   const keywords = scrollKeywords(def);
+  const movement = def.effects.find((e) =>
+    e.type === "chooseMovement" || e.type === "teleport" || e.type === "teleportAnywhere");
   return {
     name: def.name, description: def.description, rarity: def.rarity,
     category, categoryName: SCROLL_CATEGORY_NAMES[category], categorySigil: SCROLL_CATEGORY_SIGILS[category],
     timings: def.timings, group, keywords, drawable: def.drawable !== false,
     needsTarget: keywords.includes("needsTarget"),
+    mapConfig: movement?.type ?? "none",
+    teleportMaxDistance: movement?.type === "teleport" ? movement.maxDistance : null,
+    healsHp: def.effects.some((e) => e.type === "heal" && e.amount > 0),
+    forfeitsMovement: def.effects.some((e) => e.type === "forfeitMovement"),
+    replacesMovement: keywords.includes("replacesMovement"),
+    retracesPosition: def.effects.some((e) => e.type === "returnToPreviousPosition"),
   };
 }
 
@@ -48,6 +59,12 @@ export function buildGodotContentCatalog() {
   ));
   return sortedCopy({
     schemaVersion: 1,
+    statGrowth: STAT_GROWTH,
+    campShop: {
+      scrollPrice: ECONOMY.shop.scroll.price,
+      healingPrice: ECONOMY.shop.healing.price,
+      healingAmount: ECONOMY.shop.healing.amount,
+    },
     rarities: CARD_RARITY_ORDER,
     keywordOrder: Object.keys(KEYWORDS),
     keywords: project(KEYWORDS, ({ label, rule }) => ({ label, rule })),
@@ -56,9 +73,13 @@ export function buildGodotContentCatalog() {
     equipmentCategories: { names: EQUIPMENT_CATEGORY_NAMES, slotLimits: EQUIPMENT_SLOT_LIMITS },
     enemyTiers: ENEMY_TIER_NAMES,
     scrolls,
-    enemies: project(ENEMIES, (def: EnemyDefinition) => ({
+    enemies: project(ENEMIES, (def: EnemyDefinition, kind: EnemyKind) => ({
       name: def.name, tier: def.tier, tierName: ENEMY_TIER_NAMES[def.tier],
       maxHp: def.maxHp, attack: def.attack, defense: def.defense,
+      attackDice: 1 + enemyDiceCountBonus(kind, undefined, "attack"),
+      attackSides: 6 + enemyDieSidesBonus(kind, undefined, "attack"),
+      defenseDice: 1 + enemyDiceCountBonus(kind, undefined, "defense"),
+      defenseSides: 6 + enemyDieSidesBonus(kind, undefined, "defense"),
       abilities: (def.abilities ?? []).map(({ name, description, keywords }) => ({
         name, description, keywords: orderKeywords(keywords ?? []),
       })),

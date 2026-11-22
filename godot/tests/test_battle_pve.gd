@@ -18,13 +18,15 @@ func _init(check: Callable, scene: Node, fixture: Dictionary) -> void:
 	panel = main.battle_panel
 	outcome = main.outcome_overlay
 	state = fixture
-	room = {"code": "TEST3", "status": "playing", "seat": "player1", "state": state}
+	room = {"code": "TEST3", "status": "playing", "seat": "player1", "hostSeat": "player1", "capacity": 3, "members": [], "state": state}
 
 
 func run() -> void:
 	main.router.dispatch_callable = _capture
-	state.players.player3 = {"id": "player3", "name": "白云", "scrolls": []}
+	state.players.player3 = state.players.player2.merged({"id": "player3", "name": "白云"}, true)
 	state.turnOrder.append("player3")
+	for id: String in state.turnOrder:
+		room.members.append({"seat": id, "name": state.players[id].name, "connected": true})
 	_broadcast()
 	_check.call(not main.overlay_host.is_visible_in_tree(), "idle overlay leaves the board accessible")
 	_test_hand()
@@ -48,7 +50,12 @@ func _press(button: Button, expected: Dictionary) -> void:
 
 func _broadcast() -> void:
 	# Match the fresh objects and JSON numbers delivered by a real roomState.
-	main.get_node("/root/GameClient").room_changed.emit(JSON.parse_string(JSON.stringify(room)))
+	var view: Dictionary = JSON.parse_string(JSON.stringify(room))
+	for id: String in state.turnOrder:
+		if id != room.seat:
+			view.state.players[id].scrolls = state.players[id].scrolls.map(func(card: Dictionary) -> Dictionary:
+				return {"instanceId": card.instanceId, "hidden": true})
+	main.get_node("/root/GameClient").room_changed.emit(view)
 
 
 func _step() -> void:
@@ -59,6 +66,7 @@ func _battle() -> Dictionary:
 	return {
 		"kind": "pve", "aPlayerId": "player1", "enemyId": "uncannyFlesh",
 		"attacker": "a", "round": 1, "hpA": 16, "hpB": 5, "initiativeA": 6, "initiativeB": 3,
+		"scrollsUsedA": 0, "scrollsUsedB": 0, "enemyAttacksPerformed": 0, "nextPlayerAttackPenalty": 0,
 		"choiceA": {"status": "pending"}, "choiceB": {"status": "declined"},
 		"log": ["遭遇诡异肉块", "青岚取得先攻"],
 	}
@@ -67,17 +75,17 @@ func _battle() -> Dictionary:
 func _test_hand() -> void:
 	var battle := _battle()
 	state.phase = {"kind": "battle", "battle": battle}
+	state.battleEnemy = {"name": "诡异肉块", "maxHp": 100, "attack": 3, "defense": 4}
 	state.players.player1.scrolls = [
 		{"kind": "might", "instanceId": "blade"}, {"kind": "battlefieldMedicine", "instanceId": "med"},
 		{"kind": "decapitationOrder", "instanceId": "elite"}, {"kind": "guard", "instanceId": "shield"},
-		{"instanceId": "back", "hidden": true},
 	]
-	state.viewerPlayableScrollIds = {"beforeAttackRoll": ["blade", "med", "back", "absent"], "beforeDefenseRoll": ["med", "shield"]}
+	state.viewerPlayableScrollIds = {"beforeAttackRoll": ["blade", "med"], "beforeDefenseRoll": ["med", "shield"]}
 	state.lastEvents = [{"id": 1, "type": "battleStarted"}]
 	_broadcast()
 	var panel_id := panel.get_instance_id()
 	_check.call(panel.is_visible_in_tree() and not outcome.visible and panel.skip.visible, "battle owns overlay and skip")
-	_check.call(panel.side_b.health.text.contains("5 / 100"), "catalog fallback for legacy monster maximum")
+	_check.call(panel.side_b.health.text.contains("5 / 100"), "monster maximum from authoritative view")
 	_check.call(panel.hand.get_child_count() == 2, "intersect authority with visible hand, excluding elite-only scroll")
 	var blade: Button = panel.hand.get_child(0)
 	var med: Button = panel.hand.get_child(1)
@@ -116,19 +124,22 @@ func _test_hand() -> void:
 	panel.skip.pressed.emit()
 	battle.attacker = "a"
 	state.players.player1.equipment = [{"kind": "warcasterPauldron", "instanceId": "armor"}]
-	state.viewerPlayableScrollIds = {"beforeAttackRoll": []}
+	state.viewerPlayableScrollIds.beforeAttackRoll = []
 	_broadcast()
 	_check.call(panel.hand.get_child_count() == 0 and panel.confirm.text == "直接投骰", "blocked attack timing permits empty submission only")
-	state.viewerPlayableScrollIds = {}
 	_broadcast()
-	_check.call(panel.hand.get_child_count() == 0, "present contract with missing timing fails closed")
-	state.erase("viewerPlayableScrollIds")
+	_check.call(panel.hand.get_child_count() == 0, "empty authority list survives rebroadcast")
 	state.players.player1.equipment = []
+	battle.enemyAffix = "vigorous"
+	state.battleEnemy = {"name": "生命旺盛的诡异肉块", "maxHp": 107, "attack": 3, "defense": 4}
+	state.viewerPlayableScrollIds.beforeAttackRoll = ["blade", "med", "elite"]
 	_broadcast()
-	_check.call(panel.hand.get_child_count() == 3 and panel.hand.get_child(2).text.contains("【精英与首领限定】"), "legacy timing fallback reads localized keywords")
+	_check.call(panel.hand.get_child_count() == 3 and panel.hand.get_child(2).text.contains("【精英与首领限定】"), "authorized elite scroll shows localized keywords")
 
 	battle.kind = "pvp"
+	state.erase("battleEnemy")
 	battle.erase("enemyId")
+	battle.erase("enemyAffix")
 	battle.bPlayerId = "player2"
 	battle.choiceB = {"status": "pending"}
 	state.viewerPlayableScrollIds = {"beforeAttackRoll": ["med"], "beforeDefenseRoll": []}
@@ -153,6 +164,7 @@ func _test_visuals() -> void:
 	var battle := _battle()
 	battle.merge({"round": 2, "attacker": "b", "enemyAffix": "venomous", "nextPlayerAttackPenalty": 2, "enemyAttacksPerformed": 2}, true)
 	state.phase = {"kind": "battle", "battle": battle}
+	state.viewerPlayableScrollIds = {"beforeAttackRoll": ["blade", "med", "elite"], "beforeDefenseRoll": ["med", "shield"]}
 	state.battleEnemy = {"name": "淬毒的诡异肉块", "maxHp": 102, "attack": 3, "defense": 4}
 	state.lastEvents = [
 		{"id": 10, "type": "battleStarted"},
@@ -192,6 +204,7 @@ func _test_ending(equipment_first: bool) -> void:
 	var battle := _battle()
 	battle.enemyAffix = "vigorous"
 	state.phase = {"kind": "battle", "battle": battle}
+	state.viewerPlayableScrollIds = {"beforeAttackRoll": ["blade", "med", "elite"], "beforeDefenseRoll": ["med", "shield"]}
 	state.battleEnemy = {"name": "生命旺盛的诡异肉块", "maxHp": 107, "attack": 3, "defense": 4}
 	state.lastEvents = [{"id": 20, "type": "battleStarted"}]
 	_broadcast()
@@ -299,17 +312,20 @@ func _test_equipment_options() -> void:
 
 func _test_restart() -> void:
 	state.phase = {"kind": "battle", "battle": _battle()}
+	state.viewerPlayableScrollIds = {"beforeAttackRoll": ["blade", "med"], "beforeDefenseRoll": ["med", "shield"]}
 	state.battleEnemy = {"name": "旧敌人", "maxHp": 25}
 	state.lastEvents = [{"id": 99, "type": "narration", "text": "旧局旁白"}]
 	_broadcast()
 	_check.call(main.router.message.text == "旧局旁白", "old caption exists before restart")
 	state.phase = {"kind": "awaitingRoll"}
+	state.viewerPlayableScrollIds = {"map": []}
 	state.erase("battleEnemy")
 	state.lastEvents = [{"id": 1, "type": "turnStarted"}]
 	_broadcast()
 	_check.call(main.playback.is_playing() and main.router.message.text == state.message.text, "ID rollback clears stale caption before new presentation")
 	_check.call(main.playback.lingering_battle_enemy.is_empty() and not main.overlay_host.visible, "restart clears old combat presentation")
 	state.phase = {"kind": "battle", "battle": _battle()}
+	state.viewerPlayableScrollIds = {"beforeAttackRoll": ["blade", "med"], "beforeDefenseRoll": ["med", "shield"]}
 	state.battleEnemy = {"name": "重开后的敌人", "maxHp": 100}
 	_broadcast()
 	_check.call(not main.playback.lingering_battle_enemy.is_empty(), "next game has its own enemy")
@@ -319,7 +335,7 @@ func _test_restart() -> void:
 
 func _test_pointer_input() -> void:
 	state.phase = {"kind": "battle", "battle": _battle()}
-	state.viewerPlayableScrollIds = {"beforeAttackRoll": ["blade"]}
+	state.viewerPlayableScrollIds = {"beforeAttackRoll": ["blade"], "beforeDefenseRoll": ["med", "shield"]}
 	state.lastEvents = []
 	_broadcast()
 	await main.get_tree().process_frame
@@ -334,6 +350,7 @@ func _test_pointer_input() -> void:
 	_click(panel.confirm)
 	_check.call(actions == [{"type": "submitScrollChoice", "side": "a", "instanceIds": ["blade"]}], "pointer click submits through overlay")
 	state.phase = {"kind": "turnComplete"}
+	state.viewerPlayableScrollIds = {"map": ["med"]}
 	_broadcast()
 	await main.get_tree().process_frame
 	actions.clear()

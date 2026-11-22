@@ -138,7 +138,7 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback = null
 					labels.append(INTENTS[intent])
 			else:
 				guidance.text += " · 等待相遇双方决定"
-		"battle", "pveReward", "equipmentChoice":
+		"battle", "pveReward", "equipmentChoice", "pvpPenalty":
 			pass # The mounted modal owns these actions.
 		_:
 			guidance.text += " · 当前版本仅展示此阶段"

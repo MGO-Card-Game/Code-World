@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { pvpGoldTransferAmount } from "../../economy";
 import { createInitialGame, gameReducer } from "../../engine";
 import { canAct, isHiddenScroll, viewFor } from "../../multiplayer";
 import { pvpHpTransferAmount } from "../../selectors";
@@ -583,5 +584,45 @@ describe("按观看座位派生的战斗与可用卷轴视图", () => {
       expect(view.battleEnemy).toEqual(expected);
       expect(view.phase).toEqual(state.phase);
     }
+  });
+});
+
+describe("相遇战代价视图", () => {
+  const penalty = { winnerId: "player2", loserId: "player1", tileIndex: 1 } as const;
+
+  it("各座位收到与权威规则一致的代价数值", () => {
+    const state = createInitialGame(42, {}, ["player1", "player2", "player3"]);
+    state.phase = { kind: "pvpPenalty", penalty };
+    const winner = state.players[penalty.winnerId];
+    const loser = state.players[penalty.loserId];
+    winner.hp = winner.maxHp - 2;
+    loser.gold = 39;
+    for (const viewer of state.turnOrder) {
+      expect(viewFor(state, viewer).pvpPenaltyAmounts).toEqual({
+        gold: pvpGoldTransferAmount(loser),
+        hp: pvpHpTransferAmount(winner, loser),
+      });
+    }
+  });
+
+  it.each([
+    { winnerHp: 20, loserHp: 10, gold: 50, expected: { gold: 10, hp: 0 } },
+    { winnerHp: 10, loserHp: 1, gold: 50, expected: { gold: 10, hp: 0 } },
+    { winnerHp: 10, loserHp: 10, gold: 0, expected: { gold: 0, hp: 3 } },
+  ])("胜方 $winnerHp/20 血、败方 $loserHp 血和 $gold 金币", ({ winnerHp, loserHp, gold, expected }) => {
+    const state = createInitialGame(42);
+    state.phase = { kind: "pvpPenalty", penalty };
+    state.players.player2.maxHp = 20;
+    state.players.player2.hp = winnerHp;
+    state.players.player1.hp = loserHp;
+    state.players.player1.gold = gold;
+    expect(viewFor(state, "player1").pvpPenaltyAmounts).toEqual(expected);
+  });
+
+  it("非代价阶段和免除代价时省略字段", () => {
+    const state = createInitialGame(42);
+    expect(viewFor(state, "player1")).not.toHaveProperty("pvpPenaltyAmounts");
+    state.phase = { kind: "pvpPenalty", penalty: { ...penalty, waived: true } };
+    expect(viewFor(state, "player1")).not.toHaveProperty("pvpPenaltyAmounts");
   });
 });

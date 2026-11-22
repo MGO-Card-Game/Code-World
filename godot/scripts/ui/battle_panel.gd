@@ -125,6 +125,9 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback) -> vo
 
 	var pending := playback.queue.pending_events()
 	var current := playback.queue.current_event()
+	# In PvP the next player takes over only after the handover finishes.
+	if current.get("type") == "battleRoundAdvanced" and battle.kind == "pvp":
+		pending.push_front(current)
 	var timeline := Visual.battle_timeline(playback.queue.seen_events())
 	var attacker := Visual.visual_attacker(battle, pending)
 	var shown_round := Visual.visual_battle_round(battle, pending)
@@ -182,14 +185,10 @@ func _show_choice(state: Dictionary, battle: Dictionary, viewer: String, playing
 	prompt.visible = not _choosing_side.is_empty()
 	if mine:
 		var timing := "beforeAttackRoll" if _choosing_side == battle.attacker else "beforeDefenseRoll"
-		var allowed: Array = state.get("viewerPlayableScrollIds", {}).get(timing, [])
-		for scroll: Dictionary in state.players[viewer].get("scrolls", []):
-			if scroll.get("hidden", false) or not scroll.has("kind"):
-				continue
-			var info := Catalog.scroll_info(scroll.kind)
-			var playable: bool = scroll.instanceId in allowed if state.has("viewerPlayableScrollIds") else timing in info.get("timings", [])
-			if playable:
-				cards[scroll.instanceId] = info
+		var allowed: Array = state.viewerPlayableScrollIds[timing]
+		for scroll: Dictionary in state.players[viewer].scrolls:
+			if scroll.instanceId in allowed and not scroll.get("hidden", false):
+				cards[scroll.instanceId] = Catalog.scroll_info(scroll.kind)
 		prompt.text = "选择本轮卷轴，可多选。" if not cards.is_empty() else "本轮无可用卷轴"
 		var other := "choiceB" if _choosing_side == "a" else "choiceA"
 		if battle.get(other, {}).get("status", "pending") != "pending":

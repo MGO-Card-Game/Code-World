@@ -23,28 +23,40 @@ func _ready() -> void:
 
 
 func set_game_state(state: Dictionary, viewer: String, playback: Playback, router: Router) -> void:
-	var phase: Dictionary = state.get("phase", {})
-	var reward: bool = phase.get("kind") == "pveReward"
-	if not reward and phase.get("kind") != "equipmentChoice":
-		_set_phase_key([])
-		hide()
-		return
-	var decision: Dictionary = phase.notice if reward else phase.choice
-	var player: Dictionary = state.players.get(decision.playerId, {})
-	var player_name: String = player.get("name", "旅者")
-	var instance = decision.enemyName if reward else decision.offered.instanceId
-	_set_phase_key([phase.kind, state.get("turn"), decision.playerId, instance, viewer])
-	visible = playback.lingering_battle.is_empty() and router.presentation_ready(decision.get("revealAfterEventId"))
+	var kind: String = "" if state.is_empty() else state.phase.kind
+	var decision: Dictionary
+	var owner: String
+	var key := []
+	match kind:
+		"pvpPenalty":
+			decision = state.phase.penalty
+			owner = decision.loserId
+			if not decision.get("waived", false):
+				key = [kind, state.turn, decision.winnerId, owner, viewer]
+		"pveReward":
+			decision = state.phase.notice
+			owner = decision.playerId
+			key = [kind, state.turn, owner, decision.enemyName, viewer]
+		"equipmentChoice":
+			decision = state.phase.choice
+			owner = decision.playerId
+			key = [kind, state.turn, owner, decision.offered.instanceId, viewer]
+	_set_phase_key(key)
+	visible = not key.is_empty() and playback.lingering_battle.is_empty() and router.presentation_ready(decision.get("revealAfterEventId"))
 	if not visible:
 		return
-	var mine: bool = decision.playerId == viewer
+	var player: Dictionary = state.players[owner]
+	var mine := owner == viewer
 	options.visible = mine
 	waiting.visible = not mine
 	skip.visible = playback.is_playing()
-	if reward:
-		_show_reward(decision, player_name, mine)
-	else:
-		_show_equipment(decision, player, player_name, mine)
+	match kind:
+		"pvpPenalty":
+			_show_penalty(player, state.players[decision.winnerId].name, state.pvpPenaltyAmounts, mine)
+		"pveReward":
+			_show_reward(decision, player.name, mine)
+		"equipmentChoice":
+			_show_equipment(decision, player, player.name, mine)
 	for button: Button in _buttons.values():
 		button.disabled = playback.is_playing()
 
@@ -81,6 +93,36 @@ func _show_equipment(choice: Dictionary, player: Dictionary, player_name: String
 			_action_button(key, "替换%s" % owned.name, {"type": "chooseEquipment", "replaceInstanceId": item.instanceId})
 	keys.append("decline")
 	_action_button("decline", "放弃新装备", {"type": "chooseEquipment"})
+	_sync_option_order(keys)
+
+
+func _show_penalty(loser: Dictionary, winner_name: String, amounts: Dictionary, mine: bool) -> void:
+	kicker.text = "相遇战代价"
+	title.text = "%s选择交付" % loser.name
+	details.text = "胜者是%s。生命已经回溯，战斗中消耗的卷轴不会返还。" % winner_name
+	waiting.text = "等待%s选择代价……" % loser.name
+	if not mine:
+		return
+	var keys := []
+	if amounts.gold > 0:
+		keys.append("gold")
+		_action_button("gold", "支付 20%% 金币 · %d 金币" % amounts.gold, {"type": "choosePvpPenalty", "choice": "gold"})
+	for item: Dictionary in loser.scrolls:
+		if not item.get("hidden", false):
+			keys.append(item.instanceId)
+			_action_button(item.instanceId, "交出卷轴 · %s" % Catalog.scroll_name(item.kind),
+				{"type": "choosePvpPenalty", "choice": "resource", "resourceType": "scroll", "instanceId": item.instanceId})
+	for item: Dictionary in loser.equipment:
+		keys.append(item.instanceId)
+		_action_button(item.instanceId, "交出装备 · %s" % Catalog.equipment_info(item.kind).name,
+			{"type": "choosePvpPenalty", "choice": "resource", "resourceType": "equipment", "instanceId": item.instanceId})
+	if amounts.hp > 0:
+		keys.append("hp")
+		_action_button("hp", "转移生命 · %d 点生命" % amounts.hp, {"type": "choosePvpPenalty", "choice": "hp"})
+	_sync_option_order(keys)
+
+
+func _sync_option_order(keys: Array) -> void:
 	for key: String in _buttons.keys():
 		if key not in keys:
 			_remove_button(key)

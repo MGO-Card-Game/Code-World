@@ -945,9 +945,15 @@ export interface BattleEnemyView {
   defense: number;
 }
 
+export interface PvpPenaltyAmountsView {
+  gold: number;
+  hp: number;
+}
+
 /** 发给某一名玩家的状态视图 */
 export type GameStateView = Omit<GameState, "players"> & {
   players: Record<string, PlayerView>;
   viewerPlayableScrollIds?: ViewerPlayableScrollIds;
   battleEnemy?: BattleEnemyView;
+  pvpPenaltyAmounts?: PvpPenaltyAmountsView;
 };

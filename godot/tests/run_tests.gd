@@ -7,23 +7,13 @@ const Roster = preload("res://scripts/ui/roster_panel.gd")
 const Router = preload("res://scripts/ui/phase_overlay_router.gd")
 const AnimTests = preload("res://tests/test_anim_playback.gd")
 const BattleTests = preload("res://tests/test_battle_pve.gd")
+const PvpTests = preload("res://tests/test_battle_pvp.gd")
+const EngineErrors = preload("res://tests/engine_errors.gd")
 
 var _checks := 0
 var _failures := 0
 var _actions: Array[Dictionary] = []
 var _errors := EngineErrors.new()
-
-
-# A GDScript runtime error can return from one test while the SceneTree keeps
-# running. Include those errors in the exit code as well as explicit checks.
-class EngineErrors extends Logger:
-	var count := 0
-
-	func _log_error(_function: String, _file: String, _line: int, _code: String,
-			_rationale: String, _editor_notify: bool, error_type: int,
-			_script_backtraces: Array[ScriptBacktrace]) -> void:
-		if error_type != Logger.ERROR_TYPE_WARNING:
-			count += 1
 
 
 func _initialize() -> void:
@@ -48,6 +38,7 @@ func _run() -> void:
 		_test_scene(main)
 		anim.test_scene(main, _game_state())
 		await BattleTests.new(_check, main, _game_state()).run()
+		PvpTests.new(_check, main, _game_state()).run()
 		main.queue_free()
 	await process_frame
 	await process_frame
@@ -55,7 +46,7 @@ func _run() -> void:
 	var orphans := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
 	_check(orphans == 0, "absolute orphan node count after cleanup")
 	OS.remove_logger(_errors)
-	print("Godot M2b: %d checks, %d failed, %d runtime errors during tests, %d orphan nodes" % [_checks, _failures, _errors.count, orphans])
+	print("Godot M2c: %d checks, %d failed, %d runtime errors during tests, %d orphan nodes" % [_checks, _failures, _errors.count, orphans])
 	quit(0 if _failures == 0 and _errors.count == 0 else 1)
 
 
@@ -102,20 +93,31 @@ func _test_config() -> void:
 
 
 func _game_state() -> Dictionary:
+	var progress := {}
+	for region: String in ["foothill", "mountainside", "summit"]:
+		progress[region] = {"laps": 0, "eliteVictories": 0, "bossKeyPurchased": false,
+			"openedTreasureTileIds": [], "bossDefeated": false}
+	var hero_progress := progress.duplicate(true)
+	hero_progress.foothill.laps = 1
 	return {
 		"players": {
 			"player1": {"id": "player1", "name": "青岚", "hp": 16, "maxHp": 18, "gold": 70, "baseAttack": 4, "baseDefense": 2,
-				"color": "#42cc88", "position": 0, "stageProgress": {"foothill": {"laps": 1}},
+				"color": "#42cc88", "position": 0, "stageProgress": hero_progress, "statPurchases": 0,
+				"equipment": [], "blessings": [],
 				"scrolls": [{"instanceId": "s-1", "kind": "plunder"}, {"instanceId": "s-2", "kind": "remoteDice"}]},
 			"player2": {"id": "player2", "name": "白石", "hp": 15, "maxHp": 18, "gold": 50, "baseAttack": 4, "baseDefense": 2,
-				"color": "#cca144", "position": 1, "scrolls": []},
+				"color": "#cca144", "position": 1, "stageProgress": progress, "statPurchases": 0,
+				"scrolls": [], "equipment": [], "blessings": []},
 		},
 		"activePlayerId": "player1", "turnOrder": ["player1", "player2"], "unavailablePlayerIds": [],
 		"turn": 3, "phase": {"kind": "awaitingRoll"}, "message": {"text": "准备登山"},
-		"map": {"columns": 12, "regions": [
-			{"id": "foothill", "name": "山脚", "startIndex": 0, "bossEnemyId": "banditChief",
-				"requirements": [{"type": "laps", "target": 2}]},
-			{"id": "mountainside", "name": "山腰", "startIndex": 32, "bossEnemyId": "frostFang", "requirements": []},
+		"startingPlayerId": "player1", "rngSeed": 42, "nextInstanceId": 6, "nextEventId": 1, "history": [],
+		"viewerPlayableScrollIds": {"map": ["s-1", "s-2"]}, "lastEvents": [],
+		"map": {"seed": 42, "columns": 12, "regions": [
+			{"id": "foothill", "name": "山脚", "startIndex": 0, "endIndex": 31, "entryIndex": 1, "gateIndex": 0,
+				"bossEnemyId": "banditChief", "requirements": [{"type": "laps", "target": 2, "label": "山脚环数"}]},
+			{"id": "mountainside", "name": "山腰", "startIndex": 32, "endIndex": 63, "entryIndex": 33, "gateIndex": 32,
+				"bossEnemyId": "frostFang", "requirements": []},
 		], "tiles": [
 			{"id": 0, "region": "foothill", "type": "gate", "label": "关门"},
 			{"id": 1, "region": "foothill", "type": "start", "label": "营地"},

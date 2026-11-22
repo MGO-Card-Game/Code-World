@@ -1,5 +1,6 @@
 import { SCROLLS } from "./content/scrolls";
-import { enemyStats, playableScrolls } from "./selectors";
+import { pvpGoldTransferAmount } from "./economy";
+import { enemyStats, playableScrolls, pvpHpTransferAmount } from "./selectors";
 import type {
   CombatSide,
   GameAction,
@@ -434,6 +435,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameStateView {
   const viewerPlayer = state.players[viewer];
   let viewerPlayableScrollIds: ViewerPlayableScrollIds | undefined;
   let battleEnemy: GameStateView["battleEnemy"];
+  let pvpPenaltyAmounts: GameStateView["pvpPenaltyAmounts"];
   if (phase.kind === "battle") {
     const battle = phase.battle;
     if (viewer === battle.aPlayerId || viewer === battle.bPlayerId) {
@@ -443,6 +445,13 @@ export function viewFor(state: GameState, viewer: PlayerId): GameStateView {
       };
     }
     if (battle.enemyId) battleEnemy = enemyStats(battle.enemyId, battle.enemyAffix);
+  } else if (phase.kind === "pvpPenalty" && !phase.penalty.waived) {
+    const { winnerId, loserId } = phase.penalty;
+    const loser = state.players[loserId];
+    pvpPenaltyAmounts = {
+      gold: pvpGoldTransferAmount(loser),
+      hp: pvpHpTransferAmount(state.players[winnerId], loser),
+    };
   } else if ((phase.kind === "awaitingRoll" || phase.kind === "turnComplete") && viewer === state.activePlayerId) {
     viewerPlayableScrollIds = { map: playableScrolls(viewerPlayer, "map").map((s) => s.instanceId) };
   }
@@ -452,6 +461,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameStateView {
     players,
     ...(viewerPlayableScrollIds && { viewerPlayableScrollIds }),
     ...(battleEnemy && { battleEnemy }),
+    ...(pvpPenaltyAmounts && { pvpPenaltyAmounts }),
     phase: redactPhase(state.phase, viewer),
     message: redactLogEntry(state.message, viewer),
     history: state.history.map((entry) => redactLogEntry(entry, viewer)),

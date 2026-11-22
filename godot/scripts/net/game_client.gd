@@ -18,7 +18,7 @@ var server_url: String = "ws://127.0.0.1:8787"
 var status: String = "idle"
 var room: Dictionary = {}
 
-var _identity_path := IDENTITY_PATH
+var identity_path: String
 var _socket: WebSocketPeer
 var _request_sequence := 0
 var _pending_message: Dictionary = {}
@@ -33,7 +33,8 @@ var _action_timeout_remaining := -1.0
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
-	_identity_path = resolve_identity_path(args, OS.get_environment("DICEBOUND_PROFILE"))
+	if identity_path.is_empty():
+		identity_path = resolve_identity_path(args, OS.get_environment("DICEBOUND_PROFILE"))
 	var default_url := str(ProjectSettings.get_setting("network/dicebound/server_url", server_url))
 	server_url = resolve_server_url(default_url, args, OS.get_environment("DICEBOUND_SERVER_URL"))
 	_player_name = load_player_name()
@@ -147,7 +148,7 @@ func disconnect_from_server() -> void:
 
 func load_player_name() -> String:
 	var config := ConfigFile.new()
-	if config.load(_identity_path) != OK:
+	if config.load(identity_path) != OK:
 		return ""
 	return str(config.get_value("identity", "player_name", ""))
 
@@ -272,23 +273,23 @@ func _normalized_name(value: String) -> String:
 
 func _save_identity(player_name: String) -> void:
 	var config := ConfigFile.new()
-	config.load(_identity_path)
+	config.load(identity_path)
 	config.set_value("identity", "player_name", player_name)
 	if str(config.get_value("identity", "player_token", "")).is_empty():
 		config.set_value("identity", "player_token", _generate_token())
-	config.save(_identity_path)
+	config.save(identity_path)
 
 
 func _load_or_create_token() -> String:
 	var config := ConfigFile.new()
-	config.load(_identity_path)
+	config.load(identity_path)
 	var token := str(config.get_value("identity", "player_token", ""))
 	if not token.is_empty():
 		return token
 	token = _generate_token()
 	config.set_value("identity", "player_token", token)
 	config.set_value("identity", "player_name", _player_name)
-	config.save(_identity_path)
+	config.save(identity_path)
 	return token
 
 

@@ -342,24 +342,24 @@ func _test_pointer_input() -> void:
 	await main.get_tree().process_frame
 	await main.get_tree().process_frame
 	var leave: Button = main.router.get_node("Margin/Content/ActionRow/Leave")
-	_click(leave)
+	click_button(leave)
 	_check.call(panel.is_visible_in_tree(), "backdrop intercepts clicks on underlying leave button")
 	var blade: Button = panel.hand.get_child(0)
-	_click(blade)
+	click_button(blade)
 	_check.call(blade.button_pressed and panel.confirm.text == "打出并确认 · 1", "pointer click selects the laid-out card")
 	actions.clear()
-	_click(panel.confirm)
+	click_button(panel.confirm)
 	_check.call(actions == [{"type": "submitScrollChoice", "side": "a", "instanceIds": ["blade"]}], "pointer click submits through overlay")
 	state.phase = {"kind": "turnComplete"}
 	state.viewerPlayableScrollIds = {"map": ["med"]}
 	_broadcast()
 	await main.get_tree().process_frame
 	actions.clear()
-	_click(main.router.primary_action)
+	click_button(main.router.primary_action)
 	_check.call(actions == [{"type": "endTurn"}], "dismissed overlay releases pointer input to dock")
 
 
-func _click(button: Button) -> void:
+static func click_button(button: Button) -> void:
 	var viewport := button.get_viewport()
 	var point := button.get_global_rect().get_center()
 	var hover := InputEventMouseMotion.new()

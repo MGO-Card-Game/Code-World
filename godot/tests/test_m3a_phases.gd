@@ -163,7 +163,7 @@ func _test_offer() -> void:
 	state.players[A].scrolls = hand
 	state.players[A].gold = 70
 	_broadcast(C)
-	check.call(_buttons(trade).is_empty() and not trade.gold.is_visible_in_tree() and trade.waiting.text == "等待交易双方提交报价……", "spectator has only the offer waiting notice")
+	check.call(_buttons(trade.body).is_empty() and not trade.gold.is_visible_in_tree() and trade.waiting.text == "等待交易双方提交报价……", "spectator has only the offer waiting notice")
 	var shown := _visible_text(main)
 	for secret: String in ["搜刮", "灵活行动", "护盾卷轴"]:
 		check.call(not shown.contains(secret), "spectator cannot see private card " + secret)
@@ -182,7 +182,7 @@ func _test_offer_retry() -> void:
 	_press(trade.primary, {"type": "submitTradeOffer", "side": "b", "gold": 12, "scrollInstanceIds": ["s-3"], "equipmentInstanceIds": ["e-3"]})
 	offer.offerB = {"status": "offered", "offer": OFFER_B}
 	_broadcast(B)
-	check.call(trade.waiting.is_visible_in_tree() and trade.waiting.text == "报价已提交，等待对方……" and _buttons(trade) == [trade.cancel], "submitted participant can still cancel")
+	check.call(trade.waiting.is_visible_in_tree() and trade.waiting.text == "报价已提交，等待对方……" and _buttons(trade.body) == [trade.cancel], "submitted participant can still cancel")
 	_press(trade.cancel, {"type": "cancelTrade", "side": "b"})
 	offer.offerB = {"status": "pending"}
 	offer.error = "装备槽位不兼容，请双方调整装备报价。"
@@ -227,18 +227,18 @@ func _test_confirmation() -> void:
 		var shown := _visible_text(trade)
 		check.call(shown.contains("青岚交出\n金币 · 9\n卷轴 · 搜刮\n装备 · 铁剑\n青岚：待确认"), "public offer A visible to " + viewer)
 		check.call(shown.contains("白石交出\n金币 · 12\n卷轴 · 护盾卷轴\n装备 · 寒铁长枪\n白石：待确认"), "public offer B visible to " + viewer)
-	check.call(_buttons(trade).is_empty() and trade.waiting.text == "等待尚未确认的一方……", "confirmation spectator waits")
+	check.call(_buttons(trade.body).is_empty() and trade.waiting.text == "等待尚未确认的一方……", "confirmation spectator waits")
 	_broadcast(B)
 	_press(trade.primary, {"type": "confirmTrade", "side": "b", "accept": true})
 	_broadcast(A)
-	var buttons := _buttons(trade)
+	var buttons := _buttons(trade.body)
 	confirmation.confirmationB = "accepted"
 	_broadcast(A)
-	check.call(_buttons(trade) == buttons and buttons.size() == 2 and trade.summary.text.contains("白石：已确认"), "peer confirmation updates status in place")
+	check.call(_buttons(trade.body) == buttons and buttons.size() == 2 and trade.summary.text.contains("白石：已确认"), "peer confirmation updates status in place")
 	_press(trade.primary, {"type": "confirmTrade", "side": "a", "accept": true})
 	_press(trade.cancel, {"type": "confirmTrade", "side": "a", "accept": false})
 	_broadcast(B)
-	check.call(_buttons(trade).is_empty() and trade.waiting.is_visible_in_tree() and trade.waiting.text == "等待尚未确认的一方……", "accepted participant waits")
+	check.call(_buttons(trade.body).is_empty() and trade.waiting.is_visible_in_tree() and trade.waiting.text == "等待尚未确认的一方……", "accepted participant waits")
 	confirmation.offerA.gold = 0
 	_broadcast(C)
 	check.call(not trade.summary.text.contains("金币 · 0") and trade.summary.text.contains("金币 · 12"), "zero gold omitted per offer")
@@ -254,16 +254,16 @@ func _test_discard() -> void:
 	check.call(not outcome.visible and not main.overlay_host.visible, "discard hidden during playback")
 	_step()
 	check.call(outcome.is_visible_in_tree() and outcome.kicker.text == "缴械" and outcome.title.text == "青岚选择要弃掉的卷轴", "discard revealed at playback end")
-	var cards := _buttons(outcome)
+	var cards := _buttons(outcome.body)
 	check.call(cards.size() == 2 and cards[0].text.contains("搜刮") and cards[1].text.contains("本次攻击 +3") and not _visible_text(outcome).contains("灵活行动"), "discard shows only candidate cards with descriptions")
 	_broadcast(A)
-	check.call(_buttons(outcome) == cards, "discard buttons survive identical roomState")
+	check.call(_buttons(outcome.body) == cards, "discard buttons survive identical roomState")
 	_press(cards[0], {"type": "chooseScrollDiscard", "instanceId": "s-1"})
 	_press(cards[1], {"type": "chooseScrollDiscard", "instanceId": "s-4"})
 	for viewer: String in [B, C]:
 		_broadcast(viewer)
 		var shown := _visible_text(main)
-		check.call(_buttons(outcome).is_empty() and outcome.waiting.text == "等待青岚选择弃牌……", "discard waits for target on " + viewer)
+		check.call(_buttons(outcome.body).is_empty() and outcome.waiting.text == "等待青岚选择弃牌……", "discard waits for target on " + viewer)
 		check.call(not shown.contains("力量卷轴") and not shown.contains("搜刮"), "target's card names stay private on " + viewer)
 
 
@@ -272,7 +272,7 @@ func _test_growth() -> void:
 	state.phase = {"kind": "statGrowthChoice", "choice": {"playerId": A, "stageId": "mountainside"}}
 	_narration()
 	_broadcast(B)
-	check.call(outcome.is_visible_in_tree() and _buttons(outcome).is_empty() and outcome.waiting.text == "等待青岚分配成长……", "non-owner waits throughout growth narration")
+	check.call(outcome.is_visible_in_tree() and _buttons(outcome.body).is_empty() and outcome.waiting.text == "等待青岚分配成长……", "non-owner waits throughout growth narration")
 	_broadcast(A)
 	var buttons := outcome.options.get_children()
 	check.call(outcome.is_visible_in_tree() and outcome.kicker.text == "山腰·登顶之证" and outcome.title.text == "青岚的永久成长", "growth uses region name while narration plays")
@@ -291,7 +291,7 @@ func _test_growth() -> void:
 		check.call(buttons[i].text.begins_with(labels[i]) and buttons[i].text.ends_with(values[i]), "growth shows base value for " + options[i])
 		_press(buttons[i], {"type": "chooseStatGrowth", "option": options[i]})
 	_broadcast(B)
-	check.call(_buttons(outcome).is_empty() and outcome.waiting.text == "等待青岚分配成长……", "host cannot allocate another player's growth")
+	check.call(_buttons(outcome.body).is_empty() and outcome.waiting.text == "等待青岚分配成长……", "host cannot allocate another player's growth")
 
 
 func _test_game_over() -> void:
@@ -323,7 +323,7 @@ func _test_game_over() -> void:
 	_press(restart, {"type": "restart"})
 	for viewer: String in [A, C]:
 		_broadcast(viewer)
-		check.call(_buttons(outcome).is_empty() and outcome.waiting.is_visible_in_tree() and outcome.waiting.text == "等待房主重新开局……", "non-host waits even when winner")
+		check.call(_buttons(outcome.body).is_empty() and outcome.waiting.is_visible_in_tree() and outcome.waiting.text == "等待房主重新开局……", "non-host waits even when winner")
 	room.hostSeat = C
 	_broadcast(C)
 	_press(outcome.options.get_child(0), {"type": "restart"})

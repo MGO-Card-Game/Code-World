@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/ui/mountain_board.gd" id="2_board"]
@@ -8,6 +8,9 @@
 [ext_resource type="Script" path="res://scripts/ui/outcome_overlay.gd" id="6_outcome"]
 [ext_resource type="Script" path="res://scripts/ui/trade_overlay.gd" id="7_trade"]
 [ext_resource type="Script" path="res://scripts/ui/shop_casino_overlay.gd" id="8_shop"]
+
+[ext_resource type="Script" path="res://scripts/ui/map_event_overlay.gd" id="9_event"]
+[ext_resource type="Script" path="res://scripts/ui/inspect_overlay.gd" id="10_inspect"]
 
 [sub_resource type="Gradient" id="Gradient_background"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -468,6 +471,10 @@ visible = false
 layout_mode = 2
 text = "旅商补给"
 
+[node name="Restore" type="Button" parent="Margin/Root/Screens/Game/ActionDock/Margin/Content/ActionRow"]
+visible = false
+layout_mode = 2
+
 [node name="SkipPlayback" type="Button" parent="Margin/Root/Screens/Game/ActionDock/Margin/Content/ActionRow"]
 visible = false
 layout_mode = 2
@@ -526,3 +533,21 @@ anchor_top = 0.14
 anchor_right = 0.77
 anchor_bottom = 0.86
 script = ExtResource("8_shop")
+
+[node name="MapEventOverlay" type="PanelContainer" parent="OverlayHost"]
+visible = false
+layout_mode = 1
+anchor_left = 0.23
+anchor_top = 0.14
+anchor_right = 0.77
+anchor_bottom = 0.86
+script = ExtResource("9_event")
+
+[node name="InspectOverlay" type="PanelContainer" parent="OverlayHost"]
+visible = false
+layout_mode = 1
+anchor_left = 0.18
+anchor_top = 0.08
+anchor_right = 0.82
+anchor_bottom = 0.92
+script = ExtResource("10_inspect")

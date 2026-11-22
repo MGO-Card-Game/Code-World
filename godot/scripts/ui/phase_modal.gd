@@ -2,6 +2,7 @@ extends PanelContainer
 
 signal action_requested(action: Dictionary)
 signal skip_requested
+signal minimize_requested
 
 const Palette = preload("res://scripts/ui/ui_theme.gd")
 const Catalog = preload("res://scripts/data/content_catalog.gd")
@@ -9,6 +10,8 @@ const Catalog = preload("res://scripts/data/content_catalog.gd")
 var kicker := Label.new()
 var title := Label.new()
 var skip := Button.new()
+var minimize := Button.new()
+var phase_key: Array = []
 var body_scroll := ScrollContainer.new()
 var body := VBoxContainer.new()
 
@@ -59,6 +62,10 @@ func _init() -> void:
 	kicker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	kicker.add_theme_color_override("font_color", Palette.GOLD)
 	header.add_child(kicker)
+	minimize.text = "暂时隐藏"
+	minimize.hide()
+	minimize.pressed.connect(minimize_requested.emit)
+	header.add_child(minimize)
 	skip.text = "跳过演出"
 	skip.pressed.connect(skip_requested.emit)
 	header.add_child(skip)

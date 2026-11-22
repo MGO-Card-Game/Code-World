@@ -62,7 +62,6 @@ var scrolls := ResourceChoices.new("卷轴")
 var equipment := ResourceChoices.new("装备")
 var primary := Button.new()
 var cancel := Button.new()
-var _phase_key: Array = []
 var _side := ""
 var _own_status := ""
 
@@ -112,9 +111,9 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback) -> vo
 
 
 func _set_phase_key(key: Array) -> void:
-	if key == _phase_key:
+	if key == phase_key:
 		return
-	_phase_key = key
+	phase_key = key
 	_side = ""
 	_own_status = ""
 	_reset_draft()
@@ -203,7 +202,7 @@ static func _offer_summary(player_name: String, offer: Dictionary, confirmation:
 func _on_primary() -> void:
 	if not primary.is_visible_in_tree() or primary.disabled:
 		return
-	if _phase_key[0] == "tradeOffer":
+	if phase_key[0] == "tradeOffer":
 		action_requested.emit({"type": "submitTradeOffer", "side": _side, "gold": int(gold.value),
 			"scrollInstanceIds": scrolls.selected_ids.duplicate(), "equipmentInstanceIds": equipment.selected_ids.duplicate()})
 	else:
@@ -213,7 +212,7 @@ func _on_primary() -> void:
 func _on_cancel() -> void:
 	if not cancel.is_visible_in_tree():
 		return
-	if _phase_key[0] == "tradeOffer":
+	if phase_key[0] == "tradeOffer":
 		action_requested.emit({"type": "cancelTrade", "side": _side})
 	else:
 		action_requested.emit({"type": "confirmTrade", "side": _side, "accept": false})

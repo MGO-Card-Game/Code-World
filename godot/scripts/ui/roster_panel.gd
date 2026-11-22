@@ -1,6 +1,10 @@
 class_name RosterPanel
 extends PanelContainer
 
+signal player_inspected(player_id: String)
+signal scroll_configure_requested(instance_id: String)
+
+const MapUse = preload("res://scripts/ui/map_scroll_use.gd")
 const Catalog = preload("res://scripts/data/content_catalog.gd")
 const Playback = preload("res://scripts/anim/playback_controller.gd")
 const Visual = preload("res://scripts/anim/visual_state.gd")
@@ -11,10 +15,11 @@ const Visual = preload("res://scripts/anim/visual_state.gd")
 var dispatch_callable: Callable
 var _cards: Dictionary[String, PlayerCard] = {}
 var _buttons: Dictionary[String, Button] = {}
+var _direct_play: Dictionary[String, bool] = {}
 var _empty_hand: Label
 
 
-class PlayerCard extends PanelContainer:
+class PlayerCard extends Button:
 	var avatar := Label.new()
 	var name_label := Label.new()
 	var status_label := Label.new()
@@ -31,10 +36,18 @@ class PlayerCard extends PanelContainer:
 		panel_style.content_margin_right = 10
 		panel_style.content_margin_top = 7
 		panel_style.content_margin_bottom = 7
-		add_theme_stylebox_override("panel", panel_style)
+		for style in ["normal", "hover", "pressed", "disabled"]:
+			add_theme_stylebox_override(style, panel_style)
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		var content := VBoxContainer.new()
 		content.add_theme_constant_override("separation", 3)
 		add_child(content)
+		content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		content.offset_left = 10
+		content.offset_right = -10
+		content.offset_top = 7
+		content.offset_bottom = -7
+		content.mouse_behavior_recursive = Control.MOUSE_BEHAVIOR_DISABLED
 		var header := HBoxContainer.new()
 		header.add_theme_constant_override("separation", 7)
 		content.add_child(header)
@@ -64,6 +77,7 @@ class PlayerCard extends PanelContainer:
 		panel_style.border_color = color
 		avatar.text = player_name.left(1)
 		avatar.add_theme_color_override("font_color", color)
+		tooltip_text = "查看%s的资源" % player_name
 		name_label.text = player_name + (" · 你" if id == viewer else "")
 		name_label.add_theme_color_override("font_color", Color("f5f0e7") if active else Color("c9d1dc"))
 		status_label.text = "掉线" if offline else ("行动中" if active else "待机")
@@ -99,17 +113,19 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback = null
 		if not _cards.has(id):
 			_cards[id] = PlayerCard.new()
 			players_list.add_child(_cards[id])
+			_cards[id].pressed.connect(player_inspected.emit.bind(id))
 		var card := _cards[id]
 		card.update_player(players.get(id, {}), id, viewer, id == active, id in unavailable, pending)
+		card.disabled = state.phase.kind == "scrollTargetChoice"
 		if card.get_index() != index:
 			players_list.move_child(card, index)
 
-	var phase: Dictionary = state.get("phase", {})
-	var can_play: bool = viewer == active and phase.get("kind") in ["awaitingRoll", "turnComplete"]
-	_update_hand(players.get(viewer, {}).get("scrolls", []), can_play and (playback == null or not playback.is_playing()), pending)
+	_update_hand(state, viewer, playback != null and playback.is_playing(), pending)
 
 
-func _update_hand(scrolls: Array, can_play: bool, pending: Array) -> void:
+func _update_hand(state: Dictionary, viewer: String, playing: bool, pending: Array) -> void:
+	var scrolls: Array = state.players[viewer].scrolls
+	_direct_play.clear()
 	var present := {}
 	var visible_count := 0
 	for scroll: Dictionary in scrolls:
@@ -130,7 +146,14 @@ func _update_hand(scrolls: Array, can_play: bool, pending: Array) -> void:
 		var kind: String = scroll.get("kind", "")
 		var hidden: bool = scroll.get("hidden", false)
 		button.text = "未知卷轴" if hidden else Catalog.scroll_name(kind)
-		button.disabled = hidden or not can_play or not Catalog.is_interference_scroll(kind)
+		button.disabled = hidden or state.phase.kind == "scrollTargetChoice"
+		if not hidden:
+			var info := Catalog.scroll_info(kind)
+			var reason := MapUse.disabled_reason(state, viewer, id, info, playing)
+			_direct_play[id] = reason.is_empty() and info.mapConfig == "none"
+			button.tooltip_text = reason if not reason.is_empty() else ("立即使用" if _direct_play[id] else "选择使用参数")
+		else:
+			button.tooltip_text = ""
 		if button.get_index() != visible_count:
 			hand_list.move_child(button, visible_count)
 		visible_count += 1
@@ -150,8 +173,12 @@ func _update_hand(scrolls: Array, can_play: bool, pending: Array) -> void:
 
 
 func _play_scroll(id: String) -> void:
-	if _buttons.has(id) and not _buttons[id].disabled:
+	if not _direct_play.has(id) or _buttons[id].disabled or not _buttons[id].is_visible_in_tree():
+		return
+	if _direct_play[id]:
 		dispatch_callable.call({"type": "useMapScroll", "instanceId": id})
+	else:
+		scroll_configure_requested.emit(id)
 
 
 func _retire(node: Control) -> void:

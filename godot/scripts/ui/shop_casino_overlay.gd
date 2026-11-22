@@ -49,6 +49,11 @@ func close_camp_shop() -> void:
 
 func set_game_state(state: Dictionary, viewer: String, playback: Playback) -> void:
 	var kind: String = "" if state.is_empty() else state.phase.kind
+	phase_key = []
+	if kind == "shop":
+		phase_key = [kind, state.turn, state.phase.shop.playerId, state.phase.shop.tileIndex, viewer]
+	elif kind == "casino":
+		phase_key = [kind, state.turn, state.phase.casino.playerId, state.phase.casino.tileIndex, state.phase.casino.spins, state.phase.casino.has("result"), viewer]
 	var playing := playback.is_playing()
 	var battle_clear := playback.lingering_battle.is_empty()
 	if _camp_turn >= 0:

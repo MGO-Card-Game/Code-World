@@ -19,6 +19,9 @@ const Playback = preload("res://scripts/anim/playback_controller.gd")
 const Battle = preload("res://scripts/ui/battle_panel.gd")
 const Outcome = preload("res://scripts/ui/outcome_overlay.gd")
 const Trade = preload("res://scripts/ui/trade_overlay.gd")
+const Modal = preload("res://scripts/ui/phase_modal.gd")
+const MapEvent = preload("res://scripts/ui/map_event_overlay.gd")
+const Inspect = preload("res://scripts/ui/inspect_overlay.gd")
 const ShopCasino = preload("res://scripts/ui/shop_casino_overlay.gd")
 
 @onready var connection_status: Label = $Margin/Root/Topbar/ConnectionStatus
@@ -47,7 +50,11 @@ const ShopCasino = preload("res://scripts/ui/shop_casino_overlay.gd")
 @onready var outcome_overlay: Outcome = $OverlayHost/OutcomeOverlay
 @onready var trade_overlay: Trade = $OverlayHost/TradeOverlay
 @onready var shop_casino_overlay: ShopCasino = $OverlayHost/ShopCasinoOverlay
+@onready var map_event_overlay: MapEvent = $OverlayHost/MapEventOverlay
+@onready var inspect_overlay: Inspect = $OverlayHost/InspectOverlay
+@onready var decision_modals: Array[Modal] = [outcome_overlay, trade_overlay, shop_casino_overlay, map_event_overlay]
 
+var _minimized_decision_key := ""
 var _current_room: Dictionary = {}
 var playback := Playback.new()
 
@@ -75,6 +82,17 @@ func _ready() -> void:
 	outcome_overlay.action_requested.connect(router.dispatch_action)
 	trade_overlay.action_requested.connect(router.dispatch_action)
 	shop_casino_overlay.action_requested.connect(router.dispatch_action)
+	map_event_overlay.action_requested.connect(router.dispatch_action)
+	map_event_overlay.skip_requested.connect(_skip_playback)
+	inspect_overlay.action_requested.connect(router.dispatch_action)
+	inspect_overlay.close_requested.connect(_close_inspect)
+	inspect_overlay.restore_requested.connect(_restore_decision)
+	router.restore_requested.connect(_restore_decision)
+	for modal: Modal in decision_modals:
+		modal.minimize_requested.connect(_minimize_decision.bind(modal))
+	roster.player_inspected.connect(_open_resources)
+	roster.scroll_configure_requested.connect(func(id: String) -> void: _open_resources(_current_room.seat, id))
+	board.boss_inspected.connect(_open_boss)
 	router.camp_shop_requested.connect(_set_camp_shop_open.bind(true))
 	shop_casino_overlay.camp_exit_requested.connect(_set_camp_shop_open.bind(false))
 
@@ -138,6 +156,9 @@ func _on_status_changed(next_status: String) -> void:
 
 func _on_room_changed(next_room: Dictionary) -> void:
 	_clear_notice()
+	if next_room.get("seat") != _current_room.get("seat"):
+		inspect_overlay.dismiss()
+		_minimized_decision_key = ""
 	if next_room.get("code") != _current_room.get("code"):
 		_reset_presentation()
 		board.reset_selection()
@@ -226,7 +247,67 @@ func _show_game(state: Dictionary) -> void:
 	outcome_overlay.set_game_state(state, viewer, playback, router, viewer == _current_room.get("hostSeat", ""))
 	trade_overlay.set_game_state(state, viewer, playback)
 	shop_casino_overlay.set_game_state(state, viewer, playback)
-	_set_overlay_visible(battle_panel.visible or outcome_overlay.visible or trade_overlay.visible or shop_casino_overlay.visible)
+	map_event_overlay.set_game_state(state, viewer, playback, router)
+	_sync_overlay_visibility(state, viewer)
+
+
+func _sync_overlay_visibility(state: Dictionary, viewer: String) -> void:
+	var pending_key := ""
+	var restore_label := ""
+	var decision_open := battle_panel.visible
+	for modal: Modal in decision_modals:
+		var label: String = "" if modal.phase_key.is_empty() else Router.RESTORE_LABELS.get(modal.phase_key[0], "")
+		modal.minimize.visible = not label.is_empty()
+		if not label.is_empty():
+			pending_key = JSON.stringify(modal.phase_key)
+			if pending_key == _minimized_decision_key:
+				if modal.visible:
+					restore_label = label
+				modal.hide()
+		decision_open = decision_open or modal.visible
+	if pending_key != _minimized_decision_key:
+		_minimized_decision_key = ""
+	router.restore.text = restore_label
+	router.restore.visible = not restore_label.is_empty()
+	if inspect_overlay.visible and (decision_open or state.phase.kind == "scrollTargetChoice"):
+		inspect_overlay.dismiss()
+	inspect_overlay.sync(state, viewer, playback, router.restore.visible)
+	_set_overlay_visible(decision_open or inspect_overlay.visible)
+
+
+func _minimize_decision(modal: Modal) -> void:
+	if modal.minimize.is_visible_in_tree():
+		_minimized_decision_key = JSON.stringify(modal.phase_key)
+		_show_game(_current_room.state)
+
+
+func _restore_decision() -> void:
+	if _minimized_decision_key.is_empty():
+		return
+	_minimized_decision_key = ""
+	inspect_overlay.dismiss()
+	_show_game(_current_room.state)
+
+
+func _can_inspect() -> bool:
+	return game_panel.visible and not overlay_host.visible and _current_room.state.phase.kind != "scrollTargetChoice"
+
+
+func _open_resources(player_id: String, selected_id := "") -> void:
+	if _can_inspect():
+		inspect_overlay.open_resources(player_id, selected_id)
+		_set_overlay_visible(true)
+
+
+func _open_boss(region_id: String) -> void:
+	if _can_inspect():
+		inspect_overlay.open_boss(region_id)
+		_set_overlay_visible(true)
+
+
+func _close_inspect() -> void:
+	inspect_overlay.dismiss()
+	_show_game(_current_room.state)
 
 
 func _set_camp_shop_open(open: bool) -> void:
@@ -243,7 +324,11 @@ func _set_overlay_visible(is_open: bool) -> void:
 
 
 func _reset_presentation() -> void:
+	_minimized_decision_key = ""
+	inspect_overlay.dismiss()
+	router.restore.hide()
 	playback.reset()
+	map_event_overlay.set_game_state({}, "", playback, router)
 	battle_panel.set_game_state({}, "", playback)
 	outcome_overlay.set_game_state({}, "", playback, router)
 	trade_overlay.set_game_state({}, "", playback)

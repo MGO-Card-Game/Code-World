@@ -10,6 +10,7 @@ const BattleTests = preload("res://tests/test_battle_pve.gd")
 const PvpTests = preload("res://tests/test_battle_pvp.gd")
 const M3aTests = preload("res://tests/test_m3a_phases.gd")
 const M3bTests = preload("res://tests/test_m3b_phases.gd")
+const M3cTests = preload("res://tests/test_m3c_phases.gd")
 const EngineErrors = preload("res://tests/engine_errors.gd")
 
 var _checks := 0
@@ -43,6 +44,7 @@ func _run() -> void:
 		PvpTests.new(_check, main, _game_state()).run()
 		M3aTests.new(_check, main, _game_state()).run()
 		M3bTests.new(_check, main, _game_state()).run()
+		await M3cTests.new(_check, main, _game_state()).run()
 		main.queue_free()
 	await process_frame
 	await process_frame
@@ -50,7 +52,7 @@ func _run() -> void:
 	var orphans := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
 	_check(orphans == 0, "absolute orphan node count after cleanup")
 	OS.remove_logger(_errors)
-	print("Godot M3b: %d checks, %d failed, %d runtime errors during tests, %d orphan nodes" % [_checks, _failures, _errors.count, orphans])
+	print("Godot M3c: %d checks, %d failed, %d runtime errors during tests, %d orphan nodes" % [_checks, _failures, _errors.count, orphans])
 	quit(0 if _failures == 0 and _errors.count == 0 else 1)
 
 
@@ -216,7 +218,7 @@ func _test_roster(roster: Roster, state: Dictionary) -> void:
 	var movement: Button = roster.hand_list.get_child(1)
 	_check(card.hp_bar.value == 16 and card.stats.text.contains("金币 70"), "initial HP and gold")
 	_check(playable.text == Catalog.scroll_name("plunder") and movement.text == Catalog.scroll_name("remoteDice"), "catalog hand labels")
-	_check(movement.disabled, "parameterized movement scroll stays disabled")
+	_check(not movement.disabled and movement.tooltip_text == "选择使用参数", "movement card opens configuration")
 	state.players.player1.hp = 7
 	state.players.player1.gold = 31
 	state.unavailablePlayerIds = ["player2"]
@@ -228,14 +230,15 @@ func _test_roster(roster: Roster, state: Dictionary) -> void:
 	state.phase = {"kind": "turnComplete"}
 	roster.set_game_state(state, "player1")
 	_press(playable, {"type": "useMapScroll", "instanceId": "s-1"})
-	_check(movement.disabled, "movement blocked at turnComplete")
+	_check(not movement.disabled and movement.tooltip_text.contains("已经移动"), "spent movement card remains readable")
 	state.activePlayerId = "player2"
+	state.erase("viewerPlayableScrollIds")
 	roster.set_game_state(state, "player1")
-	_check(playable.disabled and card.status_label.text == "待机", "inactive viewer cannot play")
+	_check(not playable.disabled and playable.tooltip_text == "现在不是你的地图阶段" and card.status_label.text == "待机", "inactive viewer may inspect")
 	state.activePlayerId = "player1"
 	state.phase = {"kind": "encounterChoice"}
 	roster.set_game_state(state, "player1")
-	_check(playable.disabled, "interference blocked outside map phases")
+	_check(not playable.disabled and playable.tooltip_text == "现在不是你的地图阶段", "out-of-phase interference card is inspectable")
 	state.players.player1.scrolls = [{"instanceId": "s-2", "hidden": true}, {"instanceId": "s-3", "kind": "plunder"}]
 	state.turnOrder.reverse()
 	roster.set_game_state(state, "player1")

@@ -10,7 +10,6 @@ const TREASURE_SOURCES := {"treasure": "宝箱收获", "blessing": "宝物猎人
 var details := Label.new()
 var waiting := Label.new()
 var options := ActionList.new()
-var _phase_key: Array = []
 
 
 func _ready() -> void:
@@ -39,7 +38,7 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback, route
 		"pveReward":
 			decision = state.phase.notice
 			owner = decision.playerId
-			key = [kind, state.turn, owner, decision.enemyName, viewer]
+			key = [kind, state.turn, owner, decision.enemyName, decision.get("revealAfterEventId"), viewer]
 			ready_to_show = router.presentation_ready(decision.get("revealAfterEventId"))
 		"equipmentChoice":
 			decision = state.phase.choice
@@ -58,7 +57,7 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback, route
 		"blessingReward", "treasureReward":
 			decision = state.phase.notice
 			owner = decision.playerId
-			key = [kind, state.turn, owner, viewer]
+			key = [kind, state.turn, owner, viewer, decision.blessing.instanceId if kind == "blessingReward" else decision.tileLabel, decision.get("revealAfterEventId")]
 			ready_to_show = router.presentation_ready(decision.get("revealAfterEventId"))
 		"scrollDiscardChoice":
 			decision = state.phase.choice
@@ -277,7 +276,7 @@ func _show_penalty(loser: Dictionary, winner_name: String, amounts: Dictionary, 
 
 
 func _set_phase_key(key: Array) -> void:
-	if _phase_key != key:
+	if phase_key != key:
 		options.keep_order([])
-		_phase_key = key
+		phase_key = key
 		body_scroll.scroll_vertical = 0

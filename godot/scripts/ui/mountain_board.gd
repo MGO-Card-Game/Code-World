@@ -1,6 +1,8 @@
 class_name MountainBoard
 extends Control
 
+signal boss_inspected(region_id: String)
+
 const TILE_SYMBOLS := {
 	"start": "营",
 	"battle": "战",
@@ -95,6 +97,7 @@ func _show_region(region_id: String) -> void:
 	var region := _selected_region()
 	for index in tiles.size():
 		_update_tile(_tile_buttons[index], tiles[index], region)
+	_boss_button.disabled = _state.phase.kind == "scrollTargetChoice"
 	_boss_button.visible = not region.is_empty()
 	if _boss_button.visible:
 		_boss_button.text = "♛  %s\n%s" % [Catalog.enemy_name(region.get("bossEnemyId", "")), _boss_status(region)]
@@ -201,9 +204,9 @@ func _make_boss_button() -> Button:
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(220, 108)
 	button.size = Vector2(220, 108)
-	button.focus_mode = Control.FOCUS_NONE
-	button.mouse_default_cursor_shape = Control.CURSOR_HELP
-	button.tooltip_text = "从守关门进入首领挑战"
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.tooltip_text = "查看首领情报"
+	button.pressed.connect(func() -> void: boss_inspected.emit(_region_id))
 	button.add_theme_font_size_override("font_size", 15)
 	button.add_theme_color_override("font_color", Color("ffe1a0"))
 	button.add_theme_color_override("font_hover_color", Color("fff2cf"))

@@ -230,6 +230,7 @@ func test_scene(main: Node, state: Dictionary) -> void:
 	hero.hp = 9
 	hero.gold = 110
 	hero.scrolls.append({"kind": "plunder", "instanceId": "reward"})
+	state.viewerPlayableScrollIds.map.append("reward")
 	state.phase = {"kind": "turnComplete"}
 	state.message.text = "行动完成"
 	var events := [
@@ -244,7 +245,7 @@ func test_scene(main: Node, state: Dictionary) -> void:
 	_broadcast(client, room)
 	_check.call(gate.has_node("player1") and gate.tooltip_text.contains("青岚") and not camp.has_node("player1"), "broadcast holds badge and tooltip before first frame")
 	_check.call(card.hp_bar.value == 16 and card.stats.text.contains("金币 70"), "broadcast holds both stats before first frame")
-	_check.call(main.roster.hand_list.get_child_count() == 2 and playable.disabled, "granted card absent and old hand locked")
+	_check.call(main.roster.hand_list.get_child_count() == 2 and not playable.disabled and playable.tooltip_text == "等待演出结束", "granted card absent and old hand inspectable during playback")
 	_check.call(primary.disabled and skip.is_visible_in_tree() and skip.text == "跳过演出", "skip available while primary locked")
 	_check.call(main.router.message.text == "旅者出发" and not main.router.presentation_ready(2), "first narration and phase gate sync immediately")
 	main._process(0.100)
@@ -277,6 +278,7 @@ func test_scene(main: Node, state: Dictionary) -> void:
 	state.playerDerived.player1.merge({"attack": 7, "defense": 6}, true)
 	hero.position = 0
 	hero.scrolls = [{"kind": "plunder", "instanceId": "transferred"}]
+	state.viewerPlayableScrollIds.map = ["transferred"]
 	state.lastEvents = [
 		{"id": 7, "type": "movementRolled"}, {"id": 8, "type": "playerRetreated", "playerId": "player1", "from": 1},
 		{"id": 9, "type": "maxHpChanged", "playerId": "player1", "from": 18},
@@ -288,7 +290,7 @@ func test_scene(main: Node, state: Dictionary) -> void:
 	_check.call(primary.disabled and camp.has_node("player1") and card.hp_bar.max_value == 18 and card.stats.text.contains("攻 4 · 防 2"), "roll action, retreat and permanent stats hold")
 	_check.call(main.roster.hand_list.get_child(0) is Label, "only unrevealed transfer displays empty hand")
 	main._process(2.460)
-	_check.call(main.playback.queue.current_event().type == "scrollTransferred" and main.roster.hand_list.get_child(0) is Button and main.roster.hand_list.get_child(0).disabled, "card appears at transfer start but stays locked")
+	_check.call(main.playback.queue.current_event().type == "scrollTransferred" and main.roster.hand_list.get_child(0) is Button and main.roster.hand_list.get_child(0).tooltip_text == "等待演出结束", "card appears at transfer start for inspection only")
 	main._process(0.620)
 	_check.call(not skip.visible and not primary.disabled and not main.roster.hand_list.get_child(0).disabled, "natural completion enables map actions")
 	_check.call(gate.has_node("player1") and card.hp_bar.max_value == 24 and card.stats.text.contains("攻 7 · 防 6"), "retreat and permanent stats reach final values")

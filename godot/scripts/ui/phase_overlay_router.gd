@@ -1,6 +1,7 @@
 class_name PhaseOverlayRouter
 extends PanelContainer
 
+signal restore_requested
 signal skip_requested
 signal camp_shop_requested
 
@@ -36,6 +37,18 @@ const PHASE_GUIDANCE := {
 	"gameOver": "登峰决胜",
 }
 
+const RESTORE_LABELS := {
+	"equipmentChoice": "继续装备取舍", "blessingChoice": "继续赐福抉择", "pveReward": "查看战斗奖励",
+	"treasureReward": "查看宝箱收获", "blessingReward": "查看新赐福", "mapEventNotice": "查看事件结果",
+	"mapEventScrollChoice": "继续选择卷轴", "mapEventEquipmentChoice": "继续收藏家交易",
+	"mapEventTravelChoice": "继续商会驿站行程", "mapEventHarmonyChoice": "继续调和攻防",
+	"statGrowthChoice": "继续永久成长", "bossGateChoice": "继续首领入口", "pvpPenalty": "继续交付代价",
+	"scrollDiscardChoice": "继续选择弃牌", "tradeConfirmation": "继续核对交易",
+	"shop": "回到商栈", "casino": "回到赌场",
+}
+
+@onready var restore: Button = $Margin/Content/ActionRow/Restore
+
 const INTENTS := {"trade": "提出交易", "greet": "友好招呼", "battle": "发起战斗"}
 
 @onready var message: Label = $Margin/Content/Message
@@ -67,6 +80,7 @@ func _ready() -> void:
 		if camp_shop.is_visible_in_tree():
 			camp_shop_requested.emit())
 	skip_playback.pressed.connect(skip_requested.emit)
+	restore.pressed.connect(restore_requested.emit)
 	var primary_normal: StyleBoxFlat = THEME_FACTORY.primary_button_style()
 	var primary_hover: StyleBoxFlat = primary_normal.duplicate()
 	primary_hover.bg_color = Color("a97a38")
@@ -155,7 +169,8 @@ func set_game_state(state: Dictionary, viewer: String, playback: Playback = null
 			else:
 				guidance.text += " · 等待相遇双方决定"
 		"battle", "pveReward", "equipmentChoice", "pvpPenalty", "tradeOffer", "tradeConfirmation", "scrollDiscardChoice", "statGrowthChoice", "gameOver", \
-		"bossGateChoice", "blessingChoice", "blessingReward", "treasureReward", "shop", "casino":
+		"bossGateChoice", "blessingChoice", "blessingReward", "treasureReward", "shop", "casino", \
+		"mapEventNotice", "mapEventScrollChoice", "mapEventEquipmentChoice", "mapEventTravelChoice", "mapEventHarmonyChoice":
 			pass # The mounted modal owns these actions.
 		_:
 			guidance.text += " · 当前版本仅展示此阶段"
